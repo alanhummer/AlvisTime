@@ -1,0 +1,366 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Jira Log Time</title>
+		<script src="jira-api.js"></script>
+		<script src="popup.js"></script>
+		<style type="text/css">
+
+				/*For Opacity of images, make the hover over effect seem nice*/
+				img {
+				opacity: 0.5;
+				}
+
+				img:hover {
+				opacity: 1.0;
+				}
+				
+				*:focus {
+    			outline: none;		
+				}
+
+				body {
+					margin: 0;
+					width: 770px;
+					height: 570px; /*Max window wize for exension is 800X600.  But scrollbars add 30px each way - not need horizontally.*/
+				}
+
+				a {
+					color: #6495ED;
+					text-decoration: none;
+					margin: 0 8px;
+				}
+
+				a:hover, a:active, a:focus {
+					text-decoration: underline;
+				}
+
+				#date-range {
+					text-align: center;
+					vertical-align: middle;
+					width: 770px;
+					display: inline-block;
+				}
+
+				.positioning-table {
+					border:0px;
+					text-align: center;
+					vertical-align: middle;
+					width: 770px;
+				}
+
+				.positioning-cell {
+					border:0px;
+					text-align: center;
+					vertical-align: middle;
+				}
+
+				.positioning-row {
+					border:0px;
+					text-align: center;
+					vertical-align: middle;
+				}
+				
+				#notice {
+					height: 20px;	
+					padding: 10px;
+					color: red;
+					font-weight: bold;
+				}
+
+				#loader-container {
+					display: none;
+				}
+
+				.week-description {
+					font-size: 22px;
+					color: #666666;
+					font-weight: bold;
+					margin: 3px;
+					display: inline-block;
+  					text-align: center;
+  					vertical-align: middle;
+				}
+
+				.week-images {
+					border:0; 
+					text-decoration: none;
+					vertical-align: middle;
+				}
+
+				#jira-log-time-table {
+					width: 770px;
+				}
+
+				table {
+					width: 100%;
+					table-layout: fixed;
+					margin: 0 10px;
+				}
+
+				table, th, td {
+					border-collapse: collapse;
+				}
+
+				th {
+					font-size: 11px;
+					font-weight: bold;
+					color: #999999;
+					text-transform: uppercase;
+					border-bottom: 2px solid #dddddd;
+				}
+
+				th, td {
+					padding: 6px;
+					text-align: left;
+				}
+
+				td {
+					font-size: 12px;
+					color: #333333;
+					border-bottom: 1px solid #dddddd;
+				}
+
+				.truncate {
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+
+				input {
+					width: 95%;
+					padding: 4px;
+					font-size: 12px;
+					border-radius: 2px;
+					border: 1px solid #cccccc;
+				}
+
+				.issue-log-date-input {
+					padding: 2px;
+				}
+
+				.issue-log-time-btn {
+					width: 100%;
+					background: #6F7280;
+					color: #fff;
+					border-radius: 2px;
+					border-color: transparent;
+					padding: 5px;
+					font-size: 11px;
+					text-transform: uppercase;
+					font-weight: bold;
+				}
+
+				.issue-time-input{
+					font-size: 22px;
+					font-weight: bold;
+					color: black;
+				}
+
+				.issue-time-total{
+					font-size: 22px;
+					font-weight: bold;
+					color: green;
+					text-align: right;
+					vertical-align: top;
+					padding: 16px 0 16px 10px;
+					width: 50%;
+					display: inline-block;
+				}
+
+				.day-time-total{
+					font-size: 22px;
+					font-weight: bold;
+					color: green;
+					text-align: left;
+					vertical-align: top;
+					padding: 16px 0 16px 10px;
+					width: 100%;
+					display: inline-block;
+				}
+
+
+				#brand {
+					height: 75px;
+					width: 100%;
+					background: #f3f3f3;
+					margin: 0;
+					border-top: 1px solid #e5e5e5;
+					display: inline-block;
+				}
+
+				#logo {
+					padding: 16px 0 0 10px;
+					width: 50%;
+					display: inline-block;
+					vertical-align: middle;
+					text-align: left;
+				}
+
+
+				#submit-button {
+					padding: 16px 0 0 10px;
+					width: 50%;
+					display: inline-block;
+					vertical-align: middle;
+					text-align: right;
+				}
+
+				#nav {
+					font-size: 16px;
+					color: #cccccc;
+					display: inline-block;
+					text-align: right;
+					vertical-align: top;
+					font-weight: bold;
+				}
+
+
+				/* SPINNER */
+				.loader {
+				  margin: 30px auto 10px auto;
+				  font-size: 5px;
+				  position: relative;
+				  text-indent: -9999em;
+				  border-top: 2px solid rgba(255, 255, 255, 0.2);
+				  border-right: 2px solid rgba(255, 255, 255, 0.2);
+				  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+				  border-left: 2px solid #6F7280;
+				  -webkit-transform: translateZ(0);
+				  -ms-transform: translateZ(0);
+				  transform: translateZ(0);
+				  -webkit-animation: load8 1.1s infinite linear;
+				  animation: load8 1.1s infinite linear;
+				}
+				.loader,
+				.loader:after {
+				  border-radius: 50%;
+				  width: 30px;
+				  height: 30px;
+				}
+				@-webkit-keyframes load8 {
+				  0% {
+				    -webkit-transform: rotate(0deg);
+				    transform: rotate(0deg);
+				  }
+				  100% {
+				    -webkit-transform: rotate(360deg);
+				    transform: rotate(360deg);
+				  }
+				}
+				@keyframes load8 {
+				  0% {
+				    -webkit-transform: rotate(0deg);
+				    transform: rotate(0deg);
+				  }
+				  100% {
+				    -webkit-transform: rotate(360deg);
+				    transform: rotate(360deg);
+				  }
+				}
+
+
+				.loader-mini:before,
+				.loader-mini:after,
+				.loader-mini {
+				  border-radius: 50%;
+				  width: 5px;
+				  height: 5px;
+				  -webkit-animation-fill-mode: both;
+				  animation-fill-mode: both;
+				  -webkit-animation: load7 1.8s infinite ease-in-out;
+				  animation: load7 1.8s infinite ease-in-out;
+				}
+				.loader-mini {
+				  font-size: 3px;
+				  margin: 0 auto;
+				  position: relative;
+				  text-indent: -9999px;
+				  -webkit-transform: translateZ(0);
+				  -ms-transform: translateZ(0);
+				  transform: translateZ(0);
+				  -webkit-animation-delay: -0.16s;
+				  animation-delay: -0.16s;
+				}
+				.loader-mini:before {
+				  left: -10px;
+				  -webkit-animation-delay: -0.32s;
+				  animation-delay: -0.32s;
+				}
+				.loader-mini:after {
+				  left: 10px;
+				}
+				.loader-mini:before,
+				.loader-mini:after {
+				  content: '';
+				  position: absolute;
+				  top: 0;
+				}
+				@-webkit-keyframes load7 {
+				  0%,
+				  80%,
+				  100% {
+				    box-shadow: 0 5px 0 -1.3em #6F7280;
+				  }
+				  40% {
+				    box-shadow: 0 5px 0 0 #6F7280;
+				  }
+				}
+				@keyframes load7 {
+				  0%,
+				  80%,
+				  100% {
+				    box-shadow: 0 5px 0 -1.3em #6F7280;
+				  }
+				  40% {
+				    box-shadow: 0 5px 0 0 #6F7280;
+				  }
+				}
+
+		</style>
+	</head>
+	<body>
+		<div id="date-range">
+			<table class="positioning-table">
+				<tr class="positioning-row">
+					<td width="42" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="42" height="42" class="week-images"></a></td>
+					<td width="300" class="positioning-cell"><div id="week-dates-description" class="week-description"></div></td>
+					<td width="42" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="42" height="42" class="week-images"></a></td>
+					<td width="150" class="positioning-cell" style="text-align: center; vertical-align: middle"><div id="total-breakdown"></div></td>	
+					<td width="50" class="positioning-cell" style="text-align: right; vertical-align: top"><div id="nav"><a target="_blank" id="closeLink">(close)</a></div></td>	
+				</tr>
+			</table> 
+		</div>
+		<div id="notice"></div>			
+		<div id="table-container">
+			<table id="jira-log-time-table">
+				<thead>
+					<tr>
+						<th width="30%"></th>
+						<th width="10%"></th>
+						<th width="7%">Sat</th>
+						<th width="7%">Sun</th>
+						<th width="7%">Mon</th>
+						<th width="7%">Tues</th>
+						<th width="7%">Wed</th>						
+						<th width="7%">Thur</th>
+						<th width="7%">Fri</th>						
+						<th width="7%">Total</th>	
+						<th width="4%"></th>
+					</tr>          
+				</thead>
+			</table>
+			<div id="loader-container">
+				<div class="loader" id="loader"></div>
+			</div>
+		</div>
+		<div id="brand">
+			<table class="positioning-table">
+				<tr class="positioning-row">
+					<td width="300" class="positioning-cell" style="text-align: left;"><div id="logo"><img src="images/logo.png" width="140" height="25" /></div></td>
+					<td width="470" class="positioning-cell"><div id="submit-button"><img src="images/approved.png" height="33" /></div></td>
+				</tr>
+			</table> 
+		</div>
+	</body>
+</html>

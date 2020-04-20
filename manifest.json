@@ -1,0 +1,26 @@
+{
+  //This tells what the extension is going to do, describes it to the browser, sets it all up
+  "manifest_version": 2,  //manifest version is the version currenctly supported by Google.  It has to be 2
+  "name": "Lands' End Jira Time Log",
+  "short_name": "LE Time Log",
+  "description": "Log your weekly time in seconds! Never use Service Now time reporting again!",
+  "version": "1.0",
+
+  //Wires up the icon to the popup page
+  "browser_action": {
+   "default_icon": "images/icon.png",
+   "default_popup": "popup.html"
+  },
+
+  //What the extension has access to - could be all URL's, but if you want to limit it, done here
+  "permissions": [
+     "https://letime.atlassian.net/"
+  ],
+
+  //Icon set for various display sizes
+  "icons": { 
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}
