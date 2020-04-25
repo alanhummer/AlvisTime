@@ -35,7 +35,7 @@ var blnClickIsWiredUp = false;
 var blnTimeCardStatusInitialized = false;
 var notice = "";
 var jiraLink = "https://letime.atlassian.net/secure/RapidBoard.jspa";
-var startMessage = 'Enter time in 1/4 hour increments. Do not see an issue you need? <a class="jira-issue-link" href="' + jiraLink + '" target="_blank">Find it and view it</a>and it will show up.';
+var startMessage = 'Enter time in 1/4 hour increments. Do not see an issue you neeDDDd? <a class="jira-issue-link" href="' + jiraLink + '" target="_blank">Find it and view it</a>and it will show up.';
 
 /* For refereence, worklog array will have these properties  {
     "worklogIssueId": 
