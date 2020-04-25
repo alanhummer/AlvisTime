@@ -2,19 +2,35 @@
 <html>
 	<head>
 		<title>Jira Log Time</title>
+
+		<!-- For callapse control --> 
+		<link rel="stylesheet" href="collapsible.css" />
+		<script src="jquery.js"></script>
+		<script type="text/javascript" src="collapsible.js"></script>
+		
+		<!-- For the Jira app --> 
 		<script src="jira-api.js"></script>
 		<script src="popup.js"></script>
 		<style type="text/css">
 
 				/*For Opacity of images, make the hover over effect seem nice*/
-				img {
+				.enabled-image {
 				opacity: 0.5;
 				}
 
-				img:hover {
+				.enabled-image:hover {
 				opacity: 1.0;
+				cursor: pointer;
 				}
-				
+
+				.disabled-image {
+				opacity: 0.5;
+				}
+
+				.disabled-image:hover {
+				opacity: 0.5;
+				}
+
 				*:focus {
     			outline: none;		
 				}
@@ -26,13 +42,16 @@
 				}
 
 				a {
-					color: #6495ED;
-					text-decoration: none;
+					/*color: #6495ED;*/
+					color: red;
+					text-decoration: underline;
+					font-weight: bold;
 					margin: 0 8px;
 				}
 
 				a:hover, a:active, a:focus {
 					text-decoration: underline;
+					color: green;
 				}
 
 				#date-range {
@@ -86,6 +105,11 @@
 					border:0; 
 					text-decoration: none;
 					vertical-align: middle;
+					opacity: 0.5;
+				}
+
+				.week-images:hover {
+					opacity: 1.0;					
 				}
 
 				#jira-log-time-table {
@@ -107,18 +131,18 @@
 					font-weight: bold;
 					color: #999999;
 					text-transform: uppercase;
-					border-bottom: 2px solid #dddddd;
+					/* border-bottom: 2px solid #dddddd; */
 				}
 
 				th, td {
-					padding: 6px;
+					/* padding: 6px; */
 					text-align: left;
 				}
 
 				td {
 					font-size: 12px;
 					color: #333333;
-					border-bottom: 1px solid #dddddd;
+					/* border-bottom: 1px solid #dddddd; */
 				}
 
 				.truncate {
@@ -135,20 +159,17 @@
 					border: 1px solid #cccccc;
 				}
 
-				.issue-log-date-input {
-					padding: 2px;
+				.user-name-display {
+					font-size: 16px;
+					color: #777777;
+					display: inline-block;
+					text-align: center;
+					vertical-align: top;
+					font-weight: bold;					
 				}
 
-				.issue-log-time-btn {
-					width: 100%;
-					background: #6F7280;
-					color: #fff;
-					border-radius: 2px;
-					border-color: transparent;
-					padding: 5px;
-					font-size: 11px;
-					text-transform: uppercase;
-					font-weight: bold;
+				.issue-log-date-input {
+					padding: 2px;
 				}
 
 				.issue-time-input{
@@ -215,6 +236,31 @@
 					font-weight: bold;
 				}
 
+				.reporting-group {
+					color: green;
+				}
+
+				.reporting-groups {
+					font-size: 16px;
+					color: #cccccc;
+					text-align: right;
+					vertical-align: top;
+					font-weight: bold;
+					border:0px;
+				}
+
+				.reporting-groups-cell {
+					text-align: right;
+					vertical-align: top;
+					font-weight: bold;
+					border:0px;
+					border-bottom: 0px;
+					padding: 0px;
+				}
+
+				.jira-issue-link:hover {
+					cursor: pointer;
+				}
 
 				/* SPINNER */
 				.loader {
@@ -318,22 +364,58 @@
 				}
 
 		</style>
+		<style>
+			.collapsible-header,
+			.collapsible-content {
+				border: 1px solid #ccc;
+				padding: .7em 35px;
+				font-size: 1em;
+				margin-top: 0;
+				background-color: #fff;
+			}
+			.collapsible-content {
+				margin-top: 0;
+				border-top-width: 0;
+				padding-top: 1.5em;
+				padding-bottom: 1.5em;
+			}
+			.collapsible-header {
+				margin-bottom: 0;
+				cursor: pointer;
+				background: url(images/tri-down.png) 10px 50% no-repeat;
+			}
+			.collapsible-header:focus {
+				background-color: #eee;
+			}
+			.collapsible-collapsed .collapsible-header {
+				background-image: url(images/tri-right.png);
+			}
+			</style>
 	</head>
 	<body>
+		<div style="text-align:left;float:left;" id="user-select"></div>
+		<div style="text-align:right;float:right;" id="nav"><a target="_blank" id="closeLink">(close)</a></div>
 		<div id="date-range">
 			<table class="positioning-table">
 				<tr class="positioning-row">
 					<td width="42" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="42" height="42" class="week-images"></a></td>
 					<td width="300" class="positioning-cell"><div id="week-dates-description" class="week-description"></div></td>
 					<td width="42" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="42" height="42" class="week-images"></a></td>
-					<td width="150" class="positioning-cell" style="text-align: center; vertical-align: middle"><div id="total-breakdown"></div></td>	
-					<td width="50" class="positioning-cell" style="text-align: right; vertical-align: top"><div id="nav"><a target="_blank" id="closeLink">(close)</a></div></td>	
+					<td width="175" class="reporting-groups" style="text-align: right; vertical-align: middle;">
+						<table rules="none" style="border: 0px;text-align: right;padding: 0px;border-spacing: 0px;width: 100px">
+							<tr><td class="reporting-groups-cell" width="75px">Capital:</td><td class="reporting-groups-cell" width="25px"><div id="total-project"></div></td><td class="reporting-groups-cell" width="40px"><div id="total-project-percent"></div></td></tr>
+							<tr><td class="reporting-groups-cell" width="75px">Support:</td><td class="reporting-groups-cell" width="25px"><div id="total-support"></div></td><td class="reporting-groups-cell" width="40px"><div id="total-support-percent"></div></td></tr>
+							<tr><td class="reporting-groups-cell" width="75px">Run the Biz:</td><td class="reporting-groups-cell" width="25px"><div id="total-run-the-business"></div></td><td class="reporting-groups-cell" width="40px"><div id="total-run-the-business-percent"></div></td></tr>
+							<tr><td class="reporting-groups-cell" width="75px">Admin:</td><td class="reporting-groups-cell" width="25px"><div id="total-admin"></div></td><td class="reporting-groups-cell" width="40px"><div id="total-admin-percent"></div></td></tr>
+							</tr>
+						</table>
+					</td>	
 				</tr>
 			</table> 
 		</div>
 		<div id="notice"></div>			
 		<div id="table-container">
-			<table id="jira-log-time-table">
+			<table>
 				<thead>
 					<tr>
 						<th width="30%"></th>
@@ -350,6 +432,105 @@
 					</tr>          
 				</thead>
 			</table>
+			<div  class="collapsible">
+				<h1>Jira Issues</h1>
+				<table id="jira-log-time-table">
+					<thead>
+						<tr>
+							<th width="30%"></th>
+							<th width="10%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>	
+							<th width="4%"></th>
+						</tr>          
+					</thead>
+				</table>
+			</div>
+			<div  class="collapsible">
+				<h1>Support</h1>
+				<table id="support-log-time-table">
+					<thead>
+						<tr>
+							<th width="30%"></th>
+							<th width="10%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>	
+							<th width="4%"></th>
+						</tr>          
+					</thead>
+				</table>
+			</div>
+			<div  class="collapsible">
+				<h1>Run The Business</h1>
+				<table id="rtb-log-time-table">
+					<thead>
+						<tr>
+							<th width="30%"></th>
+							<th width="10%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>	
+							<th width="4%"></th>
+						</tr>          
+					</thead>
+				</table>
+			</div>
+			<div  class="collapsible">
+				<h1>Administration</h1>
+				<table id="admin-log-time-table">
+					<thead>
+						<tr>
+							<th width="30%"></th>
+							<th width="10%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>	
+							<th width="4%"></th>
+						</tr>          
+					</thead>
+				</table>
+			</div>
+			<div>
+				<table id="total-log-time-table">
+					<thead>
+						<tr>
+							<th width="30%"></th>
+							<th width="10%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>
+							<th width="7%"></th>						
+							<th width="7%"></th>	
+							<th width="4%"></th>
+						</tr>          
+					</thead>
+				</table>
+			</div>
 			<div id="loader-container">
 				<div class="loader" id="loader"></div>
 			</div>
@@ -358,7 +539,7 @@
 			<table class="positioning-table">
 				<tr class="positioning-row">
 					<td width="300" class="positioning-cell" style="text-align: left;"><div id="logo"><img src="images/logo.png" width="140" height="25" /></div></td>
-					<td width="470" class="positioning-cell"><div id="submit-button"><img src="images/approved.png" height="33" /></div></td>
+					<td width="470" class="positioning-cell"><a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" /></a></td>
 				</tr>
 			</table> 
 		</div>

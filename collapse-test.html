@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" href="collapsible.css" />
+	<script src="jquery.js"></script>
+	<script type="text/javascript" src="collapsible.js"></script>
+
+</head>
+<body>
+	<div class="collapsible">
+		<h4>Show/Hide Content</h4>
+		<div>This is the collapsible content. Currently, it's a <code>p</code> element, but it could be anything really, like a <code>div</code> containing other <code>p</code>'s for example.</div>
+	</div>
+	<style>
+	/* some simple demo styles for all collapsibles on this page */
+	.collapsible-header,
+	.collapsible-content {
+		border: 1px solid #ccc;
+		padding: .7em 35px;
+		font-size: 1em;
+		margin-top: 0;
+		background-color: #fff;
+	}
+	.collapsible-content {
+		margin-top: 0;
+		border-top-width: 0;
+		padding-top: 1.5em;
+		padding-bottom: 1.5em;
+	}
+	.collapsible-header {
+		margin-bottom: 0;
+		cursor: pointer;
+		background: url(images/tri-down.png) 10px 50% no-repeat;
+	}
+	.collapsible-header:focus {
+		background-color: #eee;
+	}
+	.collapsible-collapsed .collapsible-header {
+		background-image: url(images/tri-right.png);
+	}
+	</style>
+	<script>
+	$( function(){
+		// initialize collapsibles:
+		$( document ).trigger( "enhance" );
+	});
+	</script>
+
+
+<table>
+	<thead>
+	<tr>
+		<td>
+			This is a test
+		</td>
+	</tr>
+	</thead>
+	<div class="collapsible">
+		<font color="blue">Show/Hide Content</font>
+
+		<tbody>
+			<div>			
+			<tr>
+				<td>
+					Body test
+				</td>
+			</tr>
+			</div>
+		</tbody>
+	</div>
+</table>
+
+
+</body>
+</html>

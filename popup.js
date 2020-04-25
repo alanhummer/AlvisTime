@@ -4,7 +4,8 @@ This JS is the main processing set - when DOM loaded, code is fired to get, disp
 const weekDescription = "";
 const baseUrl = "https://letime.atlassian.net";
 const apiExtension = "/rest/api/2";
-const jql = "assignee=currentUser()";
+const minHoursForSubmit = 40;
+var jql = "assignee=currentUser()";
 
 //Setup for the date selection
 var range;
@@ -23,9 +24,18 @@ var issuesArrayIndex = -1;
 //User account stuff
 var userId;
 var userEmail;
+var userName = "";
+var blnAdmin = false;
+var userArray = []; //will hold objects as {name, userid, role, email}
 
 //Is the screen interactive, used for toggle
 var blnInteractive = true;
+var timecardStatus = "entry"; //Keep track of status of the current time card
+var blnClickIsWiredUp = false;
+var blnTimeCardStatusInitialized = false;
+var notice = "";
+var jiraLink = "https://letime.atlassian.net/secure/RapidBoard.jspa";
+var startMessage = 'Enter time in 1/4 hour increments. Do not see an issue you need? <a class="jira-issue-link" href="' + jiraLink + '" target="_blank">Find it and view it</a>and it will show up.';
 
 /* For refereence, worklog array will have these properties  {
     "worklogIssueId": 
@@ -43,6 +53,12 @@ var blnInteractive = true;
 }
 */
 
+//See if we have a notifiation to show
+notice = getUrlParameter("notice");
+if (notice.length > 0) {   
+    alert("Got this: " + notice); 
+    window.close();
+}
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
 
@@ -50,9 +66,9 @@ document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
 Main control thread - When document loaded, do this routine
 ****************/
 function onDOMContentLoaded() {
-
+    
     //Setup message
-    notificationMessage("Enter time in 1/4 hour increments", "notification");
+    notificationMessage(startMessage, "notification");
 
     // show main loading spinner
     toggleVisibility('div[id=loader-container]');    
@@ -65,11 +81,21 @@ function onDOMContentLoaded() {
     document.getElementById('closeLink').href = "nowhere";
     document.getElementById('closeLink').onclick = closeit;
 
+    //Admin toggle for testing
+    //document.getElementById('admin').href = "nowhere";
+    //document.getElementById('admin').onclick = toggleAdmin;
+    
     //Previous and next buttons
     document.getElementById('previousWeek').href = "nowhere";
     document.getElementById('previousWeek').onclick = previousWeek;
     document.getElementById('nextWeek').href = "nowhere";
     document.getElementById('nextWeek').onclick = nextWeek;  
+
+    //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/evenlistener
+    document.getElementById("submit-button").addEventListener ("click", function(){ updateWorklogStatuses()}); 
+
+    //For the collapsbile overlays
+	$( document ).trigger( "enhance" );
 
     // Set week date range header in html
     range = document.getElementById('week-dates-description');
@@ -85,7 +111,57 @@ function onDOMContentLoaded() {
     function onUserSuccess(response) {
         userId = response.accountId;
         userEmail = response.emailAddress;
-        console.log("LE-TIME User:" + userId + " - " + userEmail);
+        console.log("LE-TIME User:" + userName + " - " + userId + " - " + userEmail);
+
+        //Here is where we want to figure out if they are group admin role - if so, blnAdmin set and drop down to post time for someone else
+        JIRA.loadJSON("users.json", function(response) { 
+            var usersJSON = JSON.parse(response); 
+            var userOptions;
+
+            //console.log("OK - we loaded it.  Size is: " + usersJSON.workgroup.users.length);
+            //console.dir(usersJSON);    
+            
+            for(var i=0;i<usersJSON.workgroup.users.length;i++){
+                userArray.push(usersJSON.workgroup.users[i]);
+                //console.log("DID ONE (" + i + ")");
+                //console.dir(userArray[i]);
+                //console.log("FIELDS ARE USERID:" + userArray[i].userid + " ROLE:" + userArray[i].role + " NAME:" + userArray[i].name);
+
+                if (userArray[i].userid == userId) {
+                    userOptions = userOptions + "<option selected>" + userArray[i].name + "</option>";
+                    userName = userArray[i].name;
+                    if (userArray[i].role == "admin") {
+                        blnAdmin = true;
+                        console.log("You are admin");
+                    }
+                    //We have a match, lets build our JQL
+                    buildJQL(userName);
+                }
+                else {
+                    userOptions = userOptions + "<option>" + userArray[i].name + "</option>";
+                }
+            }
+
+            //If user does not have access, let them off EZ
+            if (userName.length <= 0) {
+                //sorry charlie
+                alert("Sorry, you aren't set up for this app");
+                closeit();
+            }
+
+            //If admin, allow to change user
+            if (blnAdmin) {
+                document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+                document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
+            }
+            else
+                document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+
+            //Now get the issues
+            buildJQL(userName);
+            getTheIssues();
+
+        });
     }
 
     /****************
@@ -96,7 +172,25 @@ function onDOMContentLoaded() {
         genericResponseError(error);
     }
 
-    getTheIssues();
+    //Change which user we are
+    function changeuser(inputUsername) {
+        
+        for (var i=0;i<userArray.length;i++) {
+            if (userArray[i].name == inputUsername) {
+                userId = userArray[i].userid;
+                userEmail = userArray[i].email;
+                userName = userArray[i].name;
+            }
+        }
+        console.log("I AM NOW: " + userName + " + " + userId + " + " + userEmail);
+
+        //Change the query to be the new user
+        buildJQL(userName);
+        getTheIssues();
+
+        //We should rebuild the issues list, and JQL should be new users query
+
+    }
 
     /****************
     This does all the calling - restarts everything up
@@ -108,12 +202,35 @@ function onDOMContentLoaded() {
         workLogArrayIndex = -1;
         issuesArray = [];
         issuesArrayIndex = -1;
+        blnTimeCardStatusInitialized = false;
 
-        //Clear the issue table out - on date forward/backward have to start over
-        var issuesTableBody = document.getElementById("issues-table-body");
+        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
+        timecardStatus = "entry";
+
+        //Clear the 4 tables with issue types - on date forward/backward have to start over
+        var issuesTableBody = document.getElementById("jira-issues-table-body");
         if (issuesTableBody)
             issuesTableBody.parentNode.removeChild(issuesTableBody);
         
+        var issuesTableBody = document.getElementById("support-issues-table-body");
+        if (issuesTableBody)
+            issuesTableBody.parentNode.removeChild(issuesTableBody);
+
+        var issuesTableBody = document.getElementById("rtb-issues-table-body");
+        if (issuesTableBody)
+            issuesTableBody.parentNode.removeChild(issuesTableBody);
+
+        var issuesTableBody = document.getElementById("admin-issues-table-body");
+        if (issuesTableBody)
+            issuesTableBody.parentNode.removeChild(issuesTableBody);
+
+        var issuesTableBody = document.getElementById("total-issues-table-body");
+        if (issuesTableBody)
+            issuesTableBody.parentNode.removeChild(issuesTableBody);
+
+        //Clear out the reporing group buckets
+        initializeReportingGroups();
+
         // fetch issues
         JIRA.getIssues()
             .then(onFetchSuccess, onFetchError);
@@ -141,11 +258,14 @@ function onDOMContentLoaded() {
             //And the issue Array
             var issueObject = {
                 "issueId": issue.key,
-                "issueTotalTime": 0
+                "issueTotalTime": 0,
+                "issueSummary" : issue.fields.summary  //We have to store info on the issue so we can determine how to sum it up (project/sub-project)
             }
 
             issuesArrayIndex++;
             issuesArray[issuesArrayIndex] = issueObject;            
+
+
 
             // duplicate call initiatlizeWorklogArray(issue.key, issuesArrayIndex);
 
@@ -197,7 +317,7 @@ function onDOMContentLoaded() {
                 "worklogComment": userId + "|" + userEmail + "|entry",  //We are using comment to hold person's users ID + email address who logged for + entry/submitted/approved status - new entries are "entry' status
                 "worklogDayOfWeek": ""
             }
-
+ 
             if (typeof workLogArray[issueIndex] === 'undefined') {
                 //does not exist - maybe if pre/next buttons clicked an asynch of thread overlay each other
                 return;  
@@ -211,6 +331,15 @@ function onDOMContentLoaded() {
                 var totTotal = document.getElementById("total+total");
                 if (totTotal)
                     totTotal.innerText = Number(totTotal.innerText) - workLogArray[issueIndex][j].worklogTimeSpent;
+
+                //Lets decrement our key counters too
+                if (typeof workLogArray[issueIndex][j] === 'undefined') {
+                    //console.log("AJH UNDEFINED ENTRY: " + issueIndex);
+                }
+                else {
+                    incrementReportingGroups(issuesArray[issueIndex].issueSummary, -1 * workLogArray[issueIndex][j].worklogTimeSpent);
+                    //console.log("AJH WE DREMENTED ONE");
+                }
 
                 //Now reset the entry
                 workLogArray[issueIndex][j] = worklogObect;       
@@ -336,19 +465,74 @@ function onDOMContentLoaded() {
                             //Now add up the issue row
                             issuesArray[inputIssueIndex].issueTotalTime = issuesArray[inputIssueIndex].issueTotalTime + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent;
 
-                            //Add to the day totals also - AJH THIS NEVER REINITIALIZEDS, SO WAY OFF WHEN ADDING UP DAY TOTALS
+                            //Add to the day totals also 
                             document.getElementById("total+" + dayIndex).innerText = Number(document.getElementById("total+" + dayIndex).innerText) + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent
 
                             //And we have totals to add up also
                             document.getElementById("total+total").innerText = Number(document.getElementById("total+total").innerText) + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent     
                             
-                            if (document.getElementById("total+total").innerText >= 40) {
+                            if (document.getElementById("total+total").innerText >= minHoursForSubmit) {
                                 document.getElementById("total+total").style.backgroundColor = "green";
                             }
+                            else {
+                                document.getElementById("total+total").style.backgroundColor = "red";
+                            }
 
+                            //Here let's increment our main reporting groups
+                            incrementReportingGroups(issuesArray[inputIssueIndex].issueSummary, workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent);
+
+                            //each worklog should have the same worklog status (part of the comment) - lets make sure and set our timecardStatus 
+                            
+                            var worklogParts = workLogArray[inputIssueIndex][dayIndex].worklogComment.split("|");
+                            var worklogUserID = worklogParts[0];
+                            var worklogEmail = worklogParts[1];
+                            var worklogStatus = worklogParts[2];                           
+
+                            //console.log("PARTS ARE: " + worklogUserID + ", " + worklogEmail + ", " + worklogStatus);
+                            //Make sure its valid
+                            if (worklogStatus == "entry" || worklogStatus == "submit-for-approval" || worklogStatus == "submitted" || worklogStatus == "approved") {
+                                //We are good
+                                if (!blnTimeCardStatusInitialized) {
+                                    timecardStatus = worklogStatus;
+                                    blnTimeCardStatusInitialized = true;
+                                }
+                                else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
+                                    //We have worklogs with mixed statuses..mmmm
+                                    notificationMessage("This time card has mixed statuses - " +  workLogArray[inputIssueIndex][dayIndex].worklogId + " = " + worklogStatus, "error");
+                                }
+                            }
+                            
+                            //Here is the button toggle - log hoursy, submit, submitted, approved. Need 1) Total hours 2) Status of all issues
+                            switch (timecardStatus) {
+                                case "approved":
+                                    document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/approved.png" height="33" />';
+                                    setWorklogEnabled(false);
+                                    break;
+                               case "submitted":
+                                    if (blnAdmin) {
+                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="enabled-image" src="images/click-to-approve.png" height="33" />';
+                                        setWorklogEnabled(true);
+                                    }
+                                    else {
+                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/submitted-for-approval.png" height="33" />';
+                                        setWorklogEnabled(false);
+                                    }
+                                    break;
+                                default: //same as "entry" and "submit-for-approval"
+                                    if (document.getElementById("total+total").innerText >= minHoursForSubmit) {
+                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="enabled-image" src="images/submit-for-approval.png" height="33" />';
+                                        timecardStatus = "submit-for-approval";
+                                        setWorklogEnabled(true);
+                                    }
+                                    else {
+                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
+                                        timecardStatus = "entry";
+                                        setWorklogEnabled(true);
+                                    }
+                                    break;
+                            }
 
                             //showWorkLogObject("SHOWING: (" + inputIssueIndex + ", " + dayIndex + ") = ", workLogArray[inputIssueIndex][dayIndex]);                                 
-
                         }
                     
                     }
@@ -358,11 +542,8 @@ function onDOMContentLoaded() {
                 
                 //Now update the HTML for the total
                 //console.log("Setting total time to:" + issuesArray[inputIssueIndex].issueTotalTime);
-                document.getElementById(inputIssueIndex + "+total").innerText = issuesArray[inputIssueIndex].issueTotalTime;
-
-                //Increment our total breakdown
-                document.getElementById("total-breakdown").innerText = Number(document.getElementById("total-breakdown").innerText) + issuesArray[inputIssueIndex].issueTotalTime;
-      
+     //           document.getElementById(inputIssueIndex + "+total").innerText = issuesArray[inputIssueIndex].issueTotalTime;
+  
             });          
 
         }
@@ -468,6 +649,75 @@ function onDOMContentLoaded() {
         }
     }    
 
+    //Pushing time card thru the process by updating all of the status on the worlogs
+    function updateWorklogStatuses() {
+
+        //If status is entry, get outta dodge
+        switch (timecardStatus) {
+            case "approved":
+                break;
+            case "submitted":
+                if (blnAdmin) {
+                    //Here is where we updates status to approved
+                    updateTimecardStatus("submitted", "approved");
+                    //Changed status, so reset everything
+                    getTheIssues();
+                }
+                break;
+            case "submit-for-approval":
+                //Here is where we updates status to submitted - for every worklog object, update status   
+                updateTimecardStatus("entry", "submitted");
+
+                //Changed status, so reset everything
+                getTheIssues();
+
+            default: //includes "entry"
+                break;
+        }
+
+        return false;
+    }
+
+    //Update the status of all of the worklogs for this time card
+    function updateTimecardStatus(fromStatus, toStatus) {
+
+        var workLogObject;
+        for (var i = 0; i <= issuesArrayIndex; i++) {
+            for (var j = 0; j < 7; j++) {
+                workLogObject = workLogArray[i][j];
+                if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
+                    workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
+                    //console.log("STATUS UPDATE - DOING ONE (" + i + " , " + j + ") = " + workLogObject.worklogId + " is " + workLogObject.worklogComment);
+                    
+                    JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
+                    .then(function(data) {
+                        //Success
+                        notificationMessage("Success - status changed from " + fromStatus + " to " + toStatus, "notification");
+                    }, function(error) {
+                        //Failure
+                        genericResponseError(error);
+                    });
+                    
+                }
+            }                    
+        }
+    }
+
+    //Set all of the worklog entry fields enabled/disabled based on status
+    function setWorklogEnabled(inputEnabled) {
+ 
+        var workLogEntry;
+        for (var i = 0; i <= issuesArrayIndex; i++) {
+            for (var j = 0; j < 7; j++) {
+                workLogEntry = document.getElementById(i + "+" + j);
+                if (workLogEntry.disabled != !inputEnabled) {
+                    workLogEntry.disabled = !inputEnabled;
+                }
+            }                    
+        }
+    }
+    
+
     /***************
     HTML interaction
     ****************/
@@ -478,7 +728,7 @@ function onDOMContentLoaded() {
             document.getElementById('previousWeek').onclick = doNothing;
             document.getElementById('nextWeek').onclick = doNothing;
             document.getElementById('closeLink').doNothing;
-            notificationMessage("Enter time in 1/4 hour increments", "notification");
+            notificationMessage(startMessage, "notification");
             blnInteractive = false;
         }
         else {
@@ -502,46 +752,122 @@ function onDOMContentLoaded() {
 
         //console.log("POP UP: Inside Drawing table");
 
-        var logTable = document.getElementById('jira-log-time-table');
+        //Differnt tables for the different groups
+        var jiraLogTable = document.getElementById('jira-log-time-table');
+        var supportLogTable = document.getElementById('support-log-time-table');
+        var rtbLogTable = document.getElementById('rtb-log-time-table');
+        var adminLogTable = document.getElementById('admin-log-time-table');              
+        var totalLogTable = document.getElementById('total-log-time-table');    
+
         //var tbody = buildHTML('tbody');
-        var tbody = buildHTML('tbody', null, {
-            'id': 'issues-table-body'
+        var jiratbody = buildHTML('tbody', null, {
+            'id': 'jira-issues-table-body'
         });        
+        var supporttbody = buildHTML('tbody', null, {
+            'id': 'support-issues-table-body'
+        });    
+        var rtbtbody = buildHTML('tbody', null, {
+            'id': 'rtb-issues-table-body'
+        });            
+        var admintbody = buildHTML('tbody', null, {
+            'id': 'admin-issues-table-body'
+        });    
+        var totaltbody = buildHTML('tbody', null, {
+            'id': 'total-issues-table-body'
+        });    
 
         issues.forEach(function(issue) {
-            var row = generateLogTableRow(issue.key, issue.fields.summary, issueIndex);
+            var reportingGroup;
+            if (issue.fields.summary.includes("SUPPORT:")) {
+                reportingGroup = "Support: Problems/incidents";
+            }
+            else if (issue.fields.summary.includes("ADMIN:")) {
+                reportingGroup = "Admin: Vacation";
+           }
+            else if (issue.fields.summary.includes("RTB:")) {
+                reportingGroup = "RTB: Non-Project Meetings";
+            }
+            else {
+                reportingGroup = "11434 Mobile Redesing - Development";
+            }
+            var row = generateLogTableRow(issue.key, issue.fields.summary, reportingGroup, issueIndex);
             issueIndex++;
-            tbody.appendChild(row)
+
+            if (issue.fields.summary.includes("SUPPORT:")) {
+                supporttbody.appendChild(row);
+            }
+            else if (issue.fields.summary.includes("ADMIN:")) {
+                admintbody.appendChild(row);
+           }
+            else if (issue.fields.summary.includes("RTB:")) {
+                rtbtbody.appendChild(row);
+            }
+            else {
+                jiratbody.appendChild(row);
+            }
+      
         });
 
-        //Let's do a totals row
-        var totalrow = generateLogTableRow("TOTAL", "", "total");
-        tbody.appendChild(totalrow)    
+        //Append to the tables
+        jiraLogTable.appendChild(jiratbody);
+        supportLogTable.appendChild(supporttbody);
+        adminLogTable.appendChild(admintbody);
+        rtbLogTable.appendChild(rtbtbody);
 
-        logTable.appendChild(tbody);
+        //Let's do a totals row
+        var totalrow = generateLogTableRow("TOTAL", "", "", "total");
+        totaltbody.appendChild(totalrow)    
+        totalLogTable.appendChild(totaltbody);
+
     }
 
     //Close the window when "Close Window" clicked
     function closeit(){
+
         window.close();
         return false; //This causes the href to not get invoked
     }
 
+    //Toggle the admin, for testing
+    function toggleAdmin() {
+        if (blnAdmin)
+            blnAdmin = false;
+        else    
+            blnAdmin = true;
+        alert("Admin is: " + blnAdmin);
+        return false;
+
+    }
+
+    //Open Jira ticket in a new window
+    function jiraIssuelink(inputURI) {
+
+        chrome.windows.create ({
+            url: inputURI,
+            type: "popup"
+        });
+        //window.open(inputURI);
+        return false;
+    }
+
     //For the issues list table, generate each html element here
-    function generateLogTableRow(id, summary, issueIndex) {
+    function generateLogTableRow(id, summary, timeReportingGroup, issueIndex) {
 
         /********
-        Issue row - ddefine here and add stuff to it
+        Issue row - define here and add stuff to it
         ********/
         var row = buildHTML('tr', null, {
-            'data-issue-id': id
+            'data-issue-id': id,
+            class: 'collapsible'
         });
 
         /************
         Issue summary
         ************/
-        var summaryCell = buildHTML('td', summary, {
-            class: 'issue-summary truncate'
+        var issueDescription = "<table><tr><td>" + summary + "</td></tr><tr><td class='reporting-group'>" + timeReportingGroup + "</td></tr></table>"
+        //var summaryCell = buildHTML('td', summary, {
+        var summaryCell = buildHTML('td', issueDescription, {  
+            class: 'truncate'
         });
 
          //Write the Summary cell
@@ -563,9 +889,16 @@ function onDOMContentLoaded() {
         if (id != "TOTAL") {
 
             var jiraLink = buildHTML('a', null, {
-                href: baseUrl + "/browse/" + id,
-                target: "_blank"
-            });
+                //href: baseUrl + "/browse/" + id,
+                //id: "link-" + id
+                //target: "_blank"
+                class: "jira-issue-link"
+             });
+
+            jiraLink.addEventListener ("click", function(){ jiraIssuelink(baseUrl + "/browse/" + id) }); 
+
+            //document.getElementById('nextWeek').href = "nowhere";
+            //document.getElementById('nextWeek').onclick = nextWeek;  
 
             jiraLink.appendChild(idText);
             idCell.appendChild(jiraLink);
@@ -628,6 +961,7 @@ function onDOMContentLoaded() {
             row.appendChild(timeInputDayCell);
         }
 
+
         /*********
         Time input TOTAL
         *********/
@@ -680,6 +1014,64 @@ function onDOMContentLoaded() {
 
         return row;
 
+    }
+
+    /********************
+    buildJQL - for a given user, the long query to grab all the right issues
+    ********************/
+    function buildJQL(inputName) {
+
+        jql = "assignee='" + inputName + "' or "
+        jql = jql + "issueKey in IssueHistory() or "
+        jql = jql + "issueKey in updatedBy('" + inputName + "', '-3w', '1d') or "
+        jql = jql + "watcher = '" + inputName + "' or "
+        jql = jql + "type = internal " 
+        jql = jql + "order by updated"
+      
+        console.log("LE-TIME JQL: " + jql);
+        JIRA.setJQL(jql);
+    }
+
+    /********************
+    Inncrement the reporting group counters
+    ********************/
+    function incrementReportingGroups(inputSummary, inputTime) {                            
+            
+        if (inputSummary.includes("SUPPORT:")) {
+            document.getElementById("total-support").innerText = Number(document.getElementById("total-support").innerText) + inputTime;
+        }
+        else if (inputSummary.includes("ADMIN:")) {
+            document.getElementById("total-admin").innerText = Number(document.getElementById("total-admin").innerText) + inputTime;
+        }
+        else if (inputSummary.includes("RTB:")) {
+            document.getElementById("total-run-the-business").innerText = Number(document.getElementById("total-run-the-business").innerText) + inputTime;
+        }
+        else {
+            document.getElementById("total-project").innerText = Number(document.getElementById("total-project").innerText) + inputTime;
+        }
+
+        //Now let's recaculate the percentages
+        var totalTime = Number(document.getElementById("total-support").innerText) + Number(document.getElementById("total-admin").innerText) + Number(document.getElementById("total-run-the-business").innerText) + Number(document.getElementById("total-project").innerText);
+        document.getElementById("total-support-percent").innerText = round(parseFloat(document.getElementById("total-support").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
+        document.getElementById("total-admin-percent").innerText = round(parseFloat(document.getElementById("total-admin").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
+        document.getElementById("total-run-the-business-percent").innerText = round(parseFloat(document.getElementById("total-run-the-business").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
+        document.getElementById("total-project-percent").innerText = round(parseFloat(document.getElementById("total-project").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
+ 
+        //console.log("AJH DID CALC OF " + document.getElementById("total-project").innerText + " % " + totalTime + " = " + (document.getElementById("total-project").innerText / totalTime));
+    }
+
+
+    //Initialize the reporting group buckets
+    function initializeReportingGroups() {
+        document.getElementById("total-support").innerText = "";
+        document.getElementById("total-admin").innerText = "";
+        document.getElementById("total-run-the-business").innerText = "";
+        document.getElementById("total-project").innerText = "";       
+
+        document.getElementById("total-support-percent").innerText = "1";
+        document.getElementById("total-admin-percent").innerText = "2";
+        document.getElementById("total-run-the-business-percent").innerText = "3";
+        document.getElementById("total-project-percent").innerText = "4";    
     }
 
     /********************
@@ -906,7 +1298,7 @@ function onDOMContentLoaded() {
     // UI error message
     function notificationMessage(message, messageType) {
         var notification = document.getElementById('notice')
-        notification.innerText = message;
+        notification.innerHTML = message;
         notification.style.display = 'block';
         if (messageType == "error") {
             notification.style.color = "red";    
@@ -961,6 +1353,11 @@ function onDOMContentLoaded() {
         } 
     }
 
+    //Why do you have to have your own rounding function? Very lame
+    function round(value, decimals) {
+        return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
+    }
+
     // Listen to global events and show/hide main loading spiner
     // ** NOT USED AT THE MOMENT **
     function initLoader() {
@@ -978,3 +1375,12 @@ function onDOMContentLoaded() {
     }
 
 }
+
+// Get Query String parameter
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    var results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+};
+

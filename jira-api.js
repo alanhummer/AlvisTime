@@ -1,6 +1,7 @@
-function JiraAPI (baseUrl, apiExtension, jql) {
+function JiraAPI (baseUrl, apiExtension, inputJQL) {
 
 //AJH DIFF AUTH    function JiraAPI (baseUrl, apiExtension, username, password, jql) {
+    var jql = inputJQL;
 
     var ACTIVE_REQUESTS = 0;
 
@@ -16,12 +17,13 @@ function JiraAPI (baseUrl, apiExtension, jql) {
     };
 
     return {
- //AJH DIFF AUTH       login : login,
+        setJQL: setJQL,
         getUser: getUser,
         getIssue : getIssue,
         getIssues: getIssues,
         getIssueWorklogs : getIssueWorklogs,
-        updateWorklog : updateWorklog
+        updateWorklog : updateWorklog,
+        loadJSON : loadJSON
     };
 
 //AJH DIFF AUTH '   function login() {
@@ -33,6 +35,11 @@ function JiraAPI (baseUrl, apiExtension, jql) {
 //AJH DIFF AUTH '        }
 //AJH DIFF AUTH '        return ajaxWrapper(url, options);
 //AJH DIFF AUTH '    };
+
+    function setJQL (inputJQL) {
+        jql = inputJQL;
+        return true;
+    }
 
     function getUser (id) {
         return ajaxWrapper('/myself');
@@ -94,8 +101,6 @@ function JiraAPI (baseUrl, apiExtension, jql) {
             }
         }
 
-        console.log ("POP UP SYNC POSTING UPDATE:" + url);
-        console.dir(options);
         return ajaxWrapper(url, options);
     }
 
@@ -123,7 +128,7 @@ function JiraAPI (baseUrl, apiExtension, jql) {
 
                 // consider all statuses between 200 and 400 successful
                 if (req.status >= 200 && req.status < 400) {
-                    resolve(req.response);
+                    resolve(req.response); //I think i'd like to pass back a uniqu token here, some handle on the original send
                 }
                 // all other ones are considered to be errors
                 else {
@@ -211,5 +216,21 @@ function JiraAPI (baseUrl, apiExtension, jql) {
         return extended;
 
     };
+
+    //For loading JSON file locally - simulate REST API till we get one
+    function loadJSON(inputFileName, callback) {   
+
+        var xobj = new XMLHttpRequest();
+  
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', inputFileName, true); 
+        xobj.onreadystatechange = function () {
+              if (xobj.readyState == 4 && xobj.status == "200") {
+                // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                callback(xobj.responseText);
+              }
+        };
+        xobj.send(null);  
+     }    
 
 }
