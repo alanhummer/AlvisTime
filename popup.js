@@ -2,10 +2,11 @@
 This JS is the main processing set - when DOM loaded, code is fired to get, display, process JIRA time entries
 ****************/
 const weekDescription = "";
-const baseUrl = "https://letime.atlassian.net";
-const apiExtension = "/rest/api/2";
-const minHoursForSubmit = 40;
+const baseUrl = "https://letime.atlassian.net";  //S/B at org level - if not set, need to have it set or prompt to create org
+const apiExtension = "/rest/api/2";  //S/B at org level
+const minHoursForSubmit = 40; //S/B at work group level
 var jql = "assignee=currentUser()";
+var config;  //object that will hold all configuration options
 
 //Setup for the date selection
 var range;
@@ -53,20 +54,35 @@ var startMessage = 'Enter time in 1/4 hour increments. Do not see an issue you n
 }
 */
 
-//See if we have a notifiation to show
-notice = getUrlParameter("notice");
-if (notice.length > 0) {   
-    alert("Got this: " + notice); 
-    window.close();
-}
-
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
+
+/****************
+Setup and configuration
+****************/
+function onDOMContentLoaded() {
+    
+    //See if we have a notifiation to show
+    notice = getUrlParameter("notice");
+    if (notice.length > 0) {   
+        alert("Got this: " + notice); 
+        window.close();
+    }
+
+    //Get our configuration and all of the config parameters
+    loadJSON("config.json", function(response) { 
+        //Get all of our config parameters
+        config = JSON.parse(response); 
+;
+        //Get it, so put listner on DOM loaded event
+        mainControlThread();
+    });
+}
 
 /****************
 Main control thread - When document loaded, do this routine
 ****************/
-function onDOMContentLoaded() {
-    
+function mainControlThread() {
+
     //Setup message
     notificationMessage(startMessage, "notification");
 
@@ -75,7 +91,7 @@ function onDOMContentLoaded() {
 
     var JIRA = JiraAPI(baseUrl, apiExtension, jql);
 
-    console.log("LE-TIME API Endpoint: " + baseUrl + apiExtension);
+    console.log("Alvis Time: API Endpoint: " + baseUrl + apiExtension);
 
     //Close Button
     document.getElementById('closeLink').href = "nowhere";
@@ -95,7 +111,7 @@ function onDOMContentLoaded() {
     document.getElementById("submit-button").addEventListener ("click", function(){ updateWorklogStatuses()}); 
 
     //For the collapsbile overlays
-	$( document ).trigger( "enhance" );
+    $( document ).trigger( "enhance" );
 
     // Set week date range header in html
     range = document.getElementById('week-dates-description');
@@ -104,28 +120,30 @@ function onDOMContentLoaded() {
     //Get User info
     JIRA.getUser()
         .then(onUserSuccess, onUserError);
-    
+
+
     /****************
     Fetch for user was Successful -
     ****************/
     function onUserSuccess(response) {
         userId = response.accountId;
         userEmail = response.emailAddress;
-        console.log("LE-TIME User:" + userName + " - " + userId + " - " + userEmail);
+        console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
 
         //Here is where we want to figure out if they are group admin role - if so, blnAdmin set and drop down to post time for someone else
-        JIRA.loadJSON("users.json", function(response) { 
-            var usersJSON = JSON.parse(response); 
-            var userOptions;
+  
+        //A users should be in ONLY ONE work group
+        //Should all of the setting be at a work group level or an org level?  Workgroup level I think
+        var userOptions;
 
-            //console.log("OK - we loaded it.  Size is: " + usersJSON.workgroup.users.length);
-            //console.dir(usersJSON);    
-            
-            for(var i=0;i<usersJSON.workgroup.users.length;i++){
-                userArray.push(usersJSON.workgroup.users[i]);
-                //console.log("DID ONE (" + i + ")");
-                //console.dir(userArray[i]);
-                //console.log("FIELDS ARE USERID:" + userArray[i].userid + " ROLE:" + userArray[i].role + " NAME:" + userArray[i].name);
+        //This now contains multipe workgroups, figure out which one the user is in
+
+        for (var w=0;w<config.workgroups.length;w++) {
+
+            console.log("WE HAVE A WORKGROUP: " + config.workgroups[w].name);
+          
+            for(var i=0;i<config.workgroups[w].users.length;i++) {
+                userArray.push(config.workgroups[w].users[i]);
 
                 if (userArray[i].userid == userId) {
                     userOptions = userOptions + "<option selected>" + userArray[i].name + "</option>";
@@ -142,33 +160,36 @@ function onDOMContentLoaded() {
                 }
             }
 
-            //If user does not have access, let them off EZ
-            if (userName.length <= 0) {
-                //sorry charlie
-                alert("Sorry, you aren't set up for this app");
-                closeit();
-            }
 
-            //If admin, allow to change user
-            if (blnAdmin) {
-                document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
-                document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
-            }
-            else
-                document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
 
-            //Now get the issues
-            buildJQL(userName);
-            getTheIssues();
+        }
 
-        });
+        //If user does not have access, let them off EZ
+        if (userName.length <= 0) {
+            //sorry charlie
+            alert("Sorry, you aren't set up for this app");
+            closeit();
+        }
+
+        //If admin, allow to change user
+        if (blnAdmin) {
+            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+            document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
+        }
+        else
+            document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+
+        //Now get the issues
+        buildJQL(userName);
+        getTheIssues();
+
     }
 
     /****************
     Fetch for user failed -
     ****************/    
     function onUserError(error) {
-        console.log("LE-TIME Failed to get user:" + error);
+        console.log("Alvis Time: Failed to get user:" + error);
         genericResponseError(error);
     }
 
@@ -1028,7 +1049,7 @@ function onDOMContentLoaded() {
         jql = jql + "type = internal " 
         jql = jql + "order by updated"
       
-        console.log("LE-TIME JQL: " + jql);
+        console.log("Alvis Time: JQL: " + jql);
         JIRA.setJQL(jql);
     }
 
@@ -1384,3 +1405,19 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 };
 
+
+//For loading JSON file locally - simulate REST API till we get one
+function loadJSON(inputFileName, callback) {   
+
+    var xobj = new XMLHttpRequest();
+
+    xobj.overrideMimeType("application/json");
+    xobj.open('GET', inputFileName, true); 
+    xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+            callback(xobj.responseText);
+            }
+    };
+    xobj.send(null);  
+}    

@@ -22,8 +22,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         getIssue : getIssue,
         getIssues: getIssues,
         getIssueWorklogs : getIssueWorklogs,
-        updateWorklog : updateWorklog,
-        loadJSON : loadJSON
+        updateWorklog : updateWorklog
     };
 
 //AJH DIFF AUTH '   function login() {
@@ -216,21 +215,5 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         return extended;
 
     };
-
-    //For loading JSON file locally - simulate REST API till we get one
-    function loadJSON(inputFileName, callback) {   
-
-        var xobj = new XMLHttpRequest();
-  
-        xobj.overrideMimeType("application/json");
-        xobj.open('GET', inputFileName, true); 
-        xobj.onreadystatechange = function () {
-              if (xobj.readyState == 4 && xobj.status == "200") {
-                // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-                callback(xobj.responseText);
-              }
-        };
-        xobj.send(null);  
-     }    
 
 }
