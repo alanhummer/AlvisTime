@@ -40,20 +40,21 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         return true;
     }
 
-    function getUser (id) {
-        return ajaxWrapper('/myself');
+    function getUser () {
+        return ajaxWrapper('/myself', {}, "getUser", {});
     }
 
     function getIssue (id) {
-        return ajaxWrapper('/issue/' + id);
+        return ajaxWrapper('/issue/' + id, {}, "getIssue", {});
     }
 
-    function getIssues () {
-        return ajaxWrapper('/search?jql=' + jql);
+    function getIssues (inputJQL, inputIssuesGroup) {
+        console.log("ISSUE GRUP IS: " + inputIssuesGroup.name);
+        return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", inputIssuesGroup);
     }    
 
-    function getIssueWorklogs (id, startDateInUNIXTimeFormat) {
-        return ajaxWrapper('/issue/' + id + '/worklog?startedAfter=' + startDateInUNIXTimeFormat);
+    function getIssueWorklogs (id, startDateInUNIXTimeFormat, inputIssue, inputIssueGroup) {
+        return ajaxWrapper('/issue/' + id + '/worklog?startedAfter=' + startDateInUNIXTimeFormat, {}, "getIssueWorklogs", inputIssue, inputIssueGroup);
     }
 
     function updateWorklog (id, worklogId, worklogComment, timeSpent, started) {
@@ -100,10 +101,10 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
             }
         }
 
-        return ajaxWrapper(url, options);
+        return ajaxWrapper(url, options, "updateWorklog", {});
     }
 
-    function ajaxWrapper (urlExtension, optionsOverrides) {
+    function ajaxWrapper (urlExtension, optionsOverrides, reqType, objStowaway, objStowaway2) {
 
         // merge default and override options
         var options = extend(apiDefaults, optionsOverrides || {});
@@ -127,7 +128,27 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
 
                 // consider all statuses between 200 and 400 successful
                 if (req.status >= 200 && req.status < 400) {
-                    resolve(req.response); //I think i'd like to pass back a uniqu token here, some handle on the original send
+                    console.log("Alvis Time: API call successfull for " + reqType + " " + req.responseURL);
+                    //Based on the request, send back a stowaway object
+                    switch (reqType) {
+                        case "getIssues":
+                            //We have issuesGroup this query ran for, need to pass it back to the orginator
+                            //var responseObject = {response: req.response, issuesGroup: objStowaway};
+                            responseObject = req.response;
+                            responseObject.issueGroup = objStowaway;
+                            resolve(responseObject); //Object has query object included now, for use in callback    
+                            break;
+                        case "getIssueWorklogs":
+                            //var responseObject = {response: req.response, issue: objStowaway};
+                            responseObject = req.response;
+                            responseObject.issue = objStowaway;
+                            responseObject.issueGroup = objStowaway2;
+                            resolve(responseObject); //Object has query object included now, for use in callback
+                            break;
+                        default:
+                            resolve(req.response);
+                            break;
+                    }
                 }
                 // all other ones are considered to be errors
                 else {

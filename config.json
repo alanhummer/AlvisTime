@@ -1,22 +1,14 @@
 {
-    "org-name": "Lands' End",
-    "org-logo": "logo.png",
-    "org-jira-base-uri": "https://letime.atlassian.net",
-    "org-jira-api-extension": "/rest/api/2",
+    "orgName": "Lands' End",
+    "orgLogo": "logo.png",
+    "orgJiraBaseURI": "https://letime.atlassian.net",
+    "orgJiraAPIExtension": "/rest/api/2",
     "workgroups": [
         {
             "name": "LE.com",
             "settings": {
-                "hours-to-submit": 40
+                "hoursToSubmit": 40
             },
-            "users":  [
-                {"name": "Al Hummer", "userid": "5af215ef1864357363fa7765", "role": "admin", "email": "humdinger1969@gmail.com"},
-                {"name": "John Betz", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "developer", "email": "hummer@mailbag.com"},
-                {"name": "Taylor Christy", "userid": "1", "role": "developer", "email": "tayolor@alhummer.com"},
-                {"name": "Santanu Mojumder", "userid": "2", "role": "developer", "email": "santanu@alhummer.com"},
-                {"name": "Jordan Ward", "userid": "3", "role": "developer", "email": "jordan@alhummer.com"},
-                {"name": "Russell Steen", "userid": "4", "role": "developer", "email": "russell@alhummer.com"}
-            ],
             "titles": {
                 "welcome": "Grettings",
                 "week": "Week Of",
@@ -24,17 +16,25 @@
             },
             "messages": { 
                 "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='' target='_blank'>Find it and view it</a> and it will show up."
-            }
+            },
+            "issueGroups": [
+               {"name": "Support", "key": "sup", "query": "(assignee='user.name' or issueKey in IssueHistory() or issueKey in updatedBy('user.name', '-3w', '1d') or watcher = 'user.name') and summary ~ 'SUPPORT:'"},
+               {"name": "Projects", "key": "proj", "query": "(assignee='user.name' or issueKey in IssueHistory() or issueKey in updatedBy('user.name', '-3w', '1d') or watcher = 'user.name') and summary ~ 'PROJECT: yo'"}
+            ],
+             "users":  [
+                {"name": "Al Hummer", "userid": "5af215ef1864357363fa7765", "role": "admin", "email": "humdinger1969@gmail.com"},
+                {"name": "John Betz", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "developer", "email": "hummer@mailbag.com"},
+                {"name": "Taylor Christy", "userid": "(taylors id)", "role": "developer", "email": "tayolor@alhummer.com"},
+                {"name": "Santanu Mojumder", "userid": "(santanus id)", "role": "developer", "email": "santanu@alhummer.com"},
+                {"name": "Jordan Ward", "userid": "(jordans id)", "role": "developer", "email": "jordan@alhummer.com"},
+                {"name": "Russell Steen", "userid": "(russels id)", "role": "developer", "email": "russell@alhummer.com"}
+            ]
         },
         {
             "name": "LE.com QA",
             "settings": {
-                "hours-to-submit": 40
+                "hoursToSubmit": 40
             },
-            "users":  [
-                {"name": "Dawn Judd", "userid": "Q1", "role": "admin", "email": "dawn@alhummer.com"},
-                {"name": "Roni Beifer", "userid": "Q2", "role": "quality-analyst", "email": "roni@alhummer.com"}
-            ],
             "titles": {
                 "welcome": "Grettings",
                 "week": "Week Of",
@@ -42,7 +42,17 @@
             },
             "messages": { 
                 "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='' target='_blank'>Find it and view it</a> and it will show up."
-            }
-        }
+            },
+            "issueGroups": [
+                {"name": "Projects", "query": "dude"},
+                {"name": "Support", "query": "dude"},
+                {"name": "Run The Business", "query": "dude"},
+                {"name": "Admin", "query": "dude"}
+            ],
+            "users":  [
+                {"name": "Dawn Judd", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "admin", "email": "dawn@alhummer.com"},
+                {"name": "Roni Beifer", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "quality-analyst", "email": "roni@alhummer.com"}
+            ]
+       }
     ]
 }

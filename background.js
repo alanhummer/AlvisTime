@@ -7,10 +7,11 @@ const minHoursForSubmit = 40;
 var userId;
 var blnPollJira = false;
 var blnAdmin = false;
-var userArray = []; //will hold objects as {name, userid, role, email}
 var blnHaveTimecard = false;
 var blnTestOverride = false;
 var config;
+var workgroup;
+var user;
 var JIRA;
 
 console.log("Alvis Time: Is started and running");
@@ -36,32 +37,50 @@ function onUserSuccess(response) {
 
     var userOptions;
     
+    //Find the workgroup and user from config options
     for (var w=0;w<config.workgroups.length;w++) {
-
-        console.log("WE HAVE A WORKGROUP: " + config.workgroups[w].name);
-      
         for(var i=0;i<config.workgroups[w].users.length;i++) {
-            //console.log("Alvis Time: Loading a user");
-            userArray.push(config.workgroups[w].users[i]);
-            if (userArray[i].userid == userId) {
-                if (userArray[i].role == "admin") {
-                    blnAdmin = true;
-                    console.log("Alvis Time: You are admin");
+            if (config.workgroups[w].users[i].userid == userId) {
+                if (typeof workgroup === 'undefined') {
+                    workgroup = config.workgroups[w];
+                    if (typeof user === 'undefined') {
+                        user = workgroup.users[i];
+                    }
+                    else {
+                        //Poblem - user is duplicated in config
+                        console.log("Alvis Time: What to do? You are defined twice: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + ":" + config.workgroups[w].users[i].name + " Keeping: " + workgroup.name + ":" + user.name);
+                    }
+                }
+                else {
+                    //Poblem - user in more than 1 workgroup
+                    console.log("Alvis Time: What to do? You are defined twice: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + "." + config.workgroups[w].users[i].name + " Keeping: " + workgroup.name + ":" + user.name);
                 }
             }
         }
-
-        //If admin, start a loop
-        //console.log("IS ADMIN CHECK: " + blnAdmin);
-        if (blnAdmin) {
-            checkForApproval();
-            var approvalPoll = setInterval(checkForApproval, 600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
-        }
     }
 
-    //Hourly pull, test if Friday and if in time window 9-6 - an initial check then every hour
-    checkForTimecards();
-    var timecardPoll = setInterval(checkForTimecards, 300 * 1000); //3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+    if (user.role == "admin")
+        blnAdmin = true;
+    else
+        blnAdmin = false;
+
+    if (typeof workgroup === 'undefined' || typeof user == 'undefined') {
+        console.log("Alvis Time: User not defined in any workgroup. Nothing to do here.");
+    }
+    else {
+        console.log("Alvis Time: You are in workgroup: " + workgroup.name + " and you are " + user.name + " who is admin:" + blnAdmin);
+        //Hourly pull, test if Friday and if in time window 9-6 - an initial check then every hour
+        checkForTimecards();
+        var timecardPoll = setInterval(checkForTimecards, 3600 * 1000); //3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+
+        //If admin, start a loop
+        if (blnAdmin) {
+            checkForApproval();
+            var approvalPoll = setInterval(checkForApproval, 3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+        }
+
+    }
+    
 }
 
 /****************
@@ -84,8 +103,8 @@ function checkForApproval() {
     if (today.getDay() > 0 && today.getDay() <= 5 ) { //Monday - Friday
         if (today.getHours() >= 9 && today.getHours() <= 18 || blnTestOverride) {    //If we are 9-6
             //for each users, see if they have a card to approve
-            for(var i=0;i<userArray.length;i++) {
-                jiraTimeCardApprovalCheck(userArray[i]);
+            for(var i=0;i<workgroup.users.length;i++) {
+                jiraTimeCardApprovalCheck(workgroup.users[i]);
             }
         }
     }
@@ -104,7 +123,7 @@ function jiraTimeCardApprovalCheck(inputUser) {
         JIRA.setJQL(jql);
 
         // fetch issues
-        JIRA.getIssues()
+        JIRA.getIssues(jql, {name: "background"})
         .then(function(response) {
 
             //If I let these site and queue up, do i hav eto click thru for each? Looks like mayb 2
@@ -189,7 +208,7 @@ function jiraTimeCardSubmittedCheck() {
     JIRA.setJQL(jql);
 
     // fetch issues
-    JIRA.getIssues()
+    JIRA.getIssues(jql, {name: "background"})
     .then(onFetchSuccess, onFetchError);
       
 }
@@ -211,7 +230,7 @@ function onFetchSuccess(response) {
             return;
 
         //Now get the worklogs and fill in the objects
-        JIRA.getIssueWorklogs(issue.key, getStartDay().getTime() / 1000)
+        JIRA.getIssueWorklogs(issue.key, getStartDay().getTime() / 1000, {})
             .then(onWorklogFetchSuccess, onWorklogFetchError);
 
         //Got worklog successful

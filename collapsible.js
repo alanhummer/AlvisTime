@@ -145,6 +145,8 @@
 		_bindEvents: function(){
 			var self = this;
 
+			console.log("COLLAPSE BINDING", JSON.parse(JSON.stringify(this)));
+
 			this.header
 				.bind( ( "click" ), function( e ){
 					self.toggle( e.target );
@@ -153,6 +155,7 @@
 					}
 				})
 				.bind( "keydown." + pluginName, function( e ){
+					console.log("COLLAPSE KEYDOWN", JSON.parse(JSON.stringify(e)));
 					if( ( e.which === 13 || e.which === 32 ) ){
 						self.toggle( e.target );
 						if( !self._isNonInteractive() ){
