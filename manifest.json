@@ -15,10 +15,10 @@
    "default_popup": "popup.html"
   },
 
-  //What the extension has access to - could be all URL's, but if you want to limit it, done here
+  //What the extension has access to - could be all URL's, but if you want to limit it, done here -      "tabs",
   "permissions": [
      "https://letime.atlassian.net/",
-     "tabs"
+     "storage"
   ],
   
   //Icon set for various display sizes

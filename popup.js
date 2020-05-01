@@ -1,11 +1,6 @@
 /****************
 This JS is the main processing set - when DOM loaded, code is fired to get, display, process JIRA time entries
 ****************/
-const weekDescription = "";
-const baseUrl = "https://letime.atlassian.net";  //S/B at org level - if not set, need to have it set or prompt to create org
-const apiExtension = "/rest/api/2";  //S/B at org level
-const minHoursForSubmit = 40; //S/B at work group level
-var jql = "assignee=currentUser()";
 var config;  //object that will hold all configuration options
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
@@ -18,13 +13,8 @@ var offset = 0;
 var today = new Date();
 var dayOfWeekOffset = today.getDay() + 1;
 
-//Array of issues X worklog entries to fill in the tiemsheet grid - an array of arrays, and then object is stored with all info we need
-//var workLogArray = [];
-//var workLogArrayIndex = -1;
-//var issuesArray = [];
-//var issuesArrayIndex = -1;
-
 //User account stuff from self lookup
+var orgKey = "";
 var userId;
 var userEmail;
 var userName = "";
@@ -33,12 +23,9 @@ var blnAdmin = false; //Easy access to admin boolean
 //Is the screen interactive, used for toggle
 var blnInteractive = true;
 var timecardStatus = "entry"; //Keep track of status of the current time card
-var blnClickIsWiredUp = false;
 var blnTimeCardStatusInitialized = false;
 var blnPageLoaded = false;
 var notice = "";
-var jiraLink = "https://letime.atlassian.net/secure/RapidBoard.jspa?rapidView=1&projectKey=ALVISTIME";
-var startMessage = 'Enter time in 1/4 hour increments. Do not see an issue you neeDDDd? <a class="jira-issue-link" href="' + jiraLink + '" target="_blank">Find it and view it</a>and it will show up.';
 
 //Some HTML snippets to use
 var issueGroupHTML;
@@ -61,32 +48,121 @@ function onDOMContentLoaded() {
         window.close();
     }
 
-    //Get our configuration and all of the config parameters
-    loadJSON("config.json", function(response) { 
-        //Get all of our config parameters
-        config = JSON.parse(response); 
-
-        //Get it, so put listner on DOM loaded event
-        mainControlThread();
-    });
+    //Loop until it is valid and we did one
+    document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
+    document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
+    loadKeyAndOrg();
 }
+
+function loadKeyAndOrg() {
+    chrome.storage.local.get("orgKeya", function(data) {
+        if (data.orgKeya.length > 0) {
+            if (data == null || typeof data === 'undefined' || data.length <= 0) {
+                //Bogus
+                getNewOrgKey("");
+            }
+            else {
+                //We have an org key, get our configuration and all of the config parameters - data.orgKeya
+                //Get the JSON file and make sure it exists - need to figure out how to laod/host this
+                switch(data.orgKeya) {
+                    case "le-alvis-time":
+                        configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
+                        break;
+                    default:
+                        configURL = "";
+                        break;
+                }
+
+                getConfig(configURL,  function(err, response) {
+        
+                    if (err != null) {
+                        console.log("JSONTEST ERR:");
+                        console.dir(err);
+                        //Bogus
+                        //We do not have an org key, get one
+                        getNewOrgKey(data.orgKeya);
+                    } 
+                    else {
+                        console.log("JSONTEST DATA:");
+                        console.dir(response);
+
+                        //Get all of our config parameters
+                        //config = JSON.parse(response); 
+                        orgKey = data.orgKeya;
+                        config = response;
+
+                        //Get it, so put listner on DOM loaded event
+                        document.getElementById('everything').style.display =  'block';
+                        document.getElementById('orgkeyrequest').style.display =  'none';
+                        mainControlThread();
+                    }
+                });
+
+                /*
+                loadConfig(data.orgKeya + ".json", function(response) { 
+                    //See if it was bogus
+                    if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                        //Bogus
+                        //We do not have an org key, get one
+                        getOrgKey(data.orgKeya);
+                    }
+                    else {
+                        //Get all of our config parameters
+                        config = JSON.parse(response); 
+                        
+                        //Get it, so put listner on DOM loaded event
+                        document.getElementById('everything').style.display =  'block';
+                        document.getElementById('orgkeyrequest').style.display =  'none';
+                        mainControlThread();
+                    }
+                });
+                */
+            }
+        }
+        else {
+            //We do not have an org key, get one
+            getNewOrgKey("");
+        }
+    });
+
+    return true;
+
+}
+
+function getNewOrgKey(inputValue) {
+    document.getElementById('orgkey').value = inputValue;
+    document.getElementById('everything').style.display =  'none';
+    document.getElementById('orgkeyrequest').style.display =  'block';
+    if (inputValue.length > 0) {
+        orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
+    }
+}
+
+function updateOrgKey() {
+    chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
+    loadKeyAndOrg();
+}
+
+function setupNewOrg() {
+    alert("TO DO: Create interface to setup a new org");
+    closeit();
+}
+
+
 
 /****************
 Main control thread - When document loaded, do this routine
 ****************/
-function mainControlThread() {
-
-    //Setup message
-    notificationMessage(startMessage, "notification");
+function mainControlThread() { //If > 1 time thru (change dorgs) then these initializations cant happen again
 
     //And make the page inactive
     togglePageBusy(true);
 
     //initialize our Jira API object
-    var JIRA = JiraAPI(baseUrl, apiExtension, "");
+    var JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
 
     //Log where we are at
-    console.log("Alvis Time: API Endpoint: " + baseUrl + apiExtension);
+    console.log("Alvis Time: API Endpoint: " + config.orgJiraBaseURI + config.orgJiraAPIExtension);
 
     //Set up UI Element for Close Button
     document.getElementById('closeLink').href = "nowhere";
@@ -101,13 +177,12 @@ function mainControlThread() {
     //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/evenlistener
     document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses()}); 
 
+    //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/evenlistener
+    document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey)}); 
+
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
     document.getElementById('all-issue-groups-container').innerHTML = "";
-
-    // Set week date range header in html
-    range = document.getElementById('week-dates-description');
-    getWeek();
 
     //Get User info
     JIRA.getUser()
@@ -171,14 +246,27 @@ function mainControlThread() {
             }
         }
 
+        // Set week date range header in html
+        range = document.getElementById('week-dates-description');
+        getWeek();
+
+        //Setup intro message
+        notificationMessage(workgroup.messages.intro, "notification");
+
+        //And logo
+        document.getElementById('logoimage').src = config.orgLogo;        
+
         //If admin, allow to change user
         if (blnAdmin) {
-            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + userName + " - " + workgroup.name + "</div>";
             document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
         }
         else
-            document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;Greetings " + userName + "</div>";
+            document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;" + workgroup.titles.welcome + " " + userName + "</div>";
 
+        //Close link
+        document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
+        
         //Get the issues and show them off
         getTheIssues();
 
@@ -193,10 +281,6 @@ function mainControlThread() {
         //Enable the page
         togglePageBusy(false);
         
-        //Sorry charlie - alert and close?
-        //alert("Error:" + error.message);
-        //closeit();
-
         //Put it to you window instead
         genericResponseError(error);
     }
@@ -225,13 +309,6 @@ function mainControlThread() {
     ****************/       
     function getTheIssues() {
 
-        //Initialize
-        var myJQL = "";
-        //workLogArray = [];
-        //workLogArrayIndex = -1;
-        //issuesArray = [];
-        //issuesArrayIndex = -1;
-
         //Disable the page
         togglePageBusy(true);
 
@@ -239,6 +316,7 @@ function mainControlThread() {
         blnTimeCardStatusInitialized = false;
         blnPageLoaded = false;
         totalTotal = 0;
+        var myJQL = "";
 
         //Disable the submit button as starting point
         //document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
@@ -395,8 +473,6 @@ function mainControlThread() {
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment = worklog.comment;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogDayOfWeek = dayIndex;
 
-                        //AJH TOTAL - xissueGroup.timeTotal, xissueTotal, xissueGroup.dayTotals[dayIndex], xtotalTotal
-
                         //Add to our issue, issue group, day and total totals
                         responseObject.issue.issueTotalTime = responseObject.issue.issueTotalTime + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
                         responseObject.issueGroup.dayTotals[dayIndex] = responseObject.issueGroup.dayTotals[dayIndex] +  responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
@@ -413,9 +489,10 @@ function mainControlThread() {
 
         })
 
+        //Keep track that we loaded em
         responseObject.issue.worklogsLoaded = true;
 
-        //Now lets see if we are done - go thru all issues groups and issues
+        //Now lets see if we are done - go thru all issues groups and issues, issues processed = total for the issue group and worklogs processeed = total for each issue
         workgroup.issueGroups.forEach(function(issueGroup) {
             //For each work group, did we process the issues?
             if (issueGroup.issuesLoaded) {
@@ -481,6 +558,9 @@ function mainControlThread() {
     ****************/    
     function timecardPageLoad() {
 
+        //Just in case we haven't done this yet
+        togglePageBusy(true);
+
         //For each issue group, for each issue, for each work log
         workgroup.issueGroups.forEach(function(issueGroup, issueGroupIndex) {
 
@@ -528,7 +608,7 @@ function mainControlThread() {
                 }
                 break;
             default: //same as "entry" and "submit-for-approval"
-                if (totalTotal >= minHoursForSubmit) {
+                if (totalTotal >= workgroup.settings.hoursToSubmit) {
                     document.getElementById("submit-image").src = "images/submit-for-approval.png";
                     document.getElementById("submit-image").className = "enabled-image";
                     timecardStatus = "submit-for-approval";
@@ -542,8 +622,6 @@ function mainControlThread() {
                 }
                 break;
         }
-
-
     }
 
 
@@ -583,208 +661,6 @@ function mainControlThread() {
 
 
     /****************
-    Worklog functions
-    ****************/
-
-    // AJH NOT USED?  Fetch and refresh worklog row - this is called on initiali laod and when a worklog has been update to refresh that row
-    function getWorklogs(issueId, inputIssueIndex) {
-
-        var loader = document.getElementById('loader');
-
-        // show loading
-        loader.style.display = 'block';
-
-        //Should maybe re-intailize work log array
-        initiatizeWorklogArray(issueId, inputIssueIndex); //We are rebuilding the row in the array, but what is the issue index?
- 
-        //And also the input value elements
-        for (i=0; i<7; i++) {
-            var timeInput = document.getElementById(inputIssueIndex + "+" + i);
-            if (timeInput) {
-                timeInput.value = 0;
-            }
-        }
-
-        console.log("AJH ISSUEID, IDX: " + issueId + ", " + inputIssueIndex);
- 
-        // Fetch worklogs for this issue
-        // Have to use this API for gettign dated worklogs: api/3/issue/LET-3/worklog?startedAfter=1585338196000
-        // Where the startedAfter is date in UNIX timestamp.  ex: "1585872000000".  Can do this with getTime() / 1000
-        // This fires off asynchronous call...so the success/error functions dont get called right away
-        JIRA.getIssueWorklogs(issueId, firstDay.getTime() / 1000)
-            .then(onWorklogFetchSuccess, onWorklogFetchError);
-
-        //Got worklog successful
-        function onWorklogFetchSuccessOLD(response) {
-            // hide loading
-            loader.style.display = 'none';
-
-            //Async with buttons may make this not exist
-            if (typeof issuesArray[inputIssueIndex] === 'undefined') {
-                //does not exist
-                return;
-            }
-
-            console.log("AJH GOT SOME WORKLOGS: " + response.worklogs.length);
-
-            issuesArray[inputIssueIndex].issueTotalTime = 0;
-
-            //For each worklog, see if it is before our end date, and if so, add it to our inventory
-            response.worklogs.forEach(function(worklog) {
-                
-                var dayIndex;
-                var myTimeLogDateStarted = new Date(worklog.started);
-                console.log("AJH TEST : " + inputIssueIndex + " STARTED: " + myTimeLogDateStarted);
-                //Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
-                if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
-
-                    //We only want the worklogs with a comment wnd it is tagged for this user
-                    if (typeof worklog.comment != "undefined") {
-                           
-                        if (worklog.comment.includes(userId)) {
-                             
-                            //It is in our range, so do something with it
-                            //Determined what bucket it goes in SAT-FRI
-                            //Translate the day of the week starting Monday vs Saturday
-                            switch(myTimeLogDateStarted.getDay()) {
-                                case 6: //Saturday
-                                    dayIndex = 0
-                                    break;
-                                case 0: //Sunday
-                                    dayIndex = 1;
-                                    break;
-                                case 1: //Monday
-                                    dayIndex = 2;
-                                    break;
-                                case 2: //Tuesday
-                                    dayIndex = 3;
-                                    break;
-                                case 3: //Wednesday
-                                    dayIndex = 4;
-                                    break;
-                                case 4: //Thursday
-                                    dayIndex = 5;
-                                    break;
-                                case 5: //Friday
-                                    dayIndex = 6;
-                                    break;
-                                default:
-                            }
-
-                            //We have a date match, so we will update the worklogobject for this issue on this date
-                            console.log("AJH TRYING : " + inputIssueIndex + " DAY: " + dayIndex);
-                            console.dir(worklog);
-                            workLogArray[inputIssueIndex][dayIndex].worklogId = worklog.id;
-                            workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600; //We want time in hours
-                            workLogArray[inputIssueIndex][dayIndex].worklogComment = worklog.comment;
-                            workLogArray[inputIssueIndex][dayIndex].worklogDayOfWeek = dayIndex;     
-
-                            //Now is time to update the loaded HTML, if it is there anway.  Asynchronous call has come back and returned here, table s/b already loaded
-                            var timeInput = document.getElementById(inputIssueIndex + "+" + dayIndex);
-                            if (timeInput) {
-                                if (timeInput.value > 0) {
-                                    notificationMessage("This is amiss.  2 worklog entires for same person+day. " + myTimeLogDateStarted + " = " + timeInput.value, "error");
-                                }
-                                timeInput.value = parseInt(timeInput.value) + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent;
-                            }
-
-                            //And position the cursor to the start sinc we rebuild the value and it slid out
-                            setCaretPosition(0);
-
-                            //Now add up the issue row
-                            issuesArray[inputIssueIndex].issueTotalTime = issuesArray[inputIssueIndex].issueTotalTime + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent;
-
-                            //Add to the day totals also 
-                            document.getElementById("total+" + dayIndex).innerText = Number(document.getElementById("total+" + dayIndex).innerText) + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent
-
-                            //And we have totals to add up also
-                            document.getElementById("total+total").innerText = Number(document.getElementById("total+total").innerText) + workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent     
-                            
-                            if (document.getElementById("total+total").innerText >= minHoursForSubmit) {
-                                document.getElementById("total+total").style.backgroundColor = "green";
-                            }
-                            else {
-                                document.getElementById("total+total").style.backgroundColor = "red";
-                            }
-
-                            //Here let's increment our main reporting groups
-                            incrementReportingGroups(issuesArray[inputIssueIndex].issueSummary, workLogArray[inputIssueIndex][dayIndex].worklogTimeSpent);
-
-                            //each worklog should have the same worklog status (part of the comment) - lets make sure and set our timecardStatus 
-                            
-                            var worklogParts = workLogArray[inputIssueIndex][dayIndex].worklogComment.split("|");
-                            var worklogUserID = worklogParts[0];
-                            var worklogEmail = worklogParts[1];
-                            var worklogStatus = worklogParts[2];                           
-
-                            //console.log("PARTS ARE: " + worklogUserID + ", " + worklogEmail + ", " + worklogStatus);
-                            //Make sure its valid
-                            if (worklogStatus == "entry" || worklogStatus == "submit-for-approval" || worklogStatus == "submitted" || worklogStatus == "approved") {
-                                //We are good
-                                if (!blnTimeCardStatusInitialized) {
-                                    timecardStatus = worklogStatus;
-                                    blnTimeCardStatusInitialized = true;
-                                }
-                                else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
-                                    //We have worklogs with mixed statuses..mmmm
-                                    notificationMessage("This time card has mixed statuses - " +  workLogArray[inputIssueIndex][dayIndex].worklogId + " = " + worklogStatus, "error");
-                                }
-                            }
-                            
-                            //Here is the button toggle - log hoursy, submit, submitted, approved. Need 1) Total hours 2) Status of all issues
-                            switch (timecardStatus) {
-                                case "approved":
-                                    document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/approved.png" height="33" />';
-                                    setWorklogEnabled(false);
-                                    break;
-                               case "submitted":
-                                    if (blnAdmin) {
-                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="enabled-image" src="images/click-to-approve.png" height="33" />';
-                                        setWorklogEnabled(true);
-                                    }
-                                    else {
-                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/submitted-for-approval.png" height="33" />';
-                                        setWorklogEnabled(false);
-                                    }
-                                    break;
-                                default: //same as "entry" and "submit-for-approval"
-                                    if (document.getElementById("total+total").innerText >= minHoursForSubmit) {
-                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="enabled-image" src="images/submit-for-approval.png" height="33" />';
-                                        timecardStatus = "submit-for-approval";
-                                        setWorklogEnabled(true);
-                                    }
-                                    else {
-                                        document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
-                                        timecardStatus = "entry";
-                                        setWorklogEnabled(true);
-                                    }
-                                    break;
-                            }
-
-                            showWorkLogObject("SHOWING: (" + inputIssueIndex + ", " + dayIndex + ") = ", workLogArray[inputIssueIndex][dayIndex]);                                 
-                        }
-                    
-                    }
-                }
-                else {
-                    console.log("AJH SKIPPED A WORKLOG");
-                    console.dir(worklog);
-                }
-            });          
-        }
-
-        //Got worklog failed
-        function onWorklogFetchErrorOLD(error) {
-            // hide loading inspite the error
-            loader.style.display = 'none';
-            genericResponseError(error);
-
-        }
-        //console.log("PUP UP: Done getting worklogs");
-      
-    }
-
-    /****************
     Value change handler - when update happens, post it back to Jira
     ****************/   
     function postWorklogTimeChange(worklogChangeItem) {
@@ -792,14 +668,12 @@ function mainControlThread() {
         var blnValid = true;  //Boolean to hold validity flag for the entry
   
         //Reset if any error message was set
-        notificationMessage("", "notification");
+        notificationMessage(workgroup.messages.waiting, "notification");
 
         //Lets disable the page
         togglePageBusy(true);
 
-        //console.log("POP UP SYNC: UPDATING THIS ISSUE/DAY INDEX:" + worklogChangeItem.id);
-        //console.dir(worklogChangeItem);
-
+        //Info stored in the id for group, issue, etc.
         var idParts = worklogChangeItem.id.split("+");
         var issueGroupKey = idParts[0];
         var issueGroupIndex = idParts[1];
@@ -820,7 +694,6 @@ function mainControlThread() {
             "worklogDayOfWeek": workLogIndex
         }       
 
-
         console.log("UPD ISSUE ID: "+ workLogObject.worklogIssueId + " WORKLOG ID: " + workLogObject.worklogId + " TIME STARTED: " + workLogObject.worklogTimeStarted + " TIME SPENT: " + workLogObject.worklogTimeSpent + " COMMENT: " + workLogObject.worklogComment + " DAY OF WEEK: " + workLogObject.worklogDayOfWeek);
       
         //Validate it first
@@ -830,19 +703,19 @@ function mainControlThread() {
         
         if (isNaN(worklogChangeItem.value)) {
             blnValid = false; //Not a number
-            notificationMessage("Must be NUMERIC for # hours", "error");
+            notificationMessage(workgroup.messages.hoursNumeric, "error");
         }
         else if (!Number.isInteger(worklogChangeItem.value * 4)) {
             blnValid = false; //Not a 15 minute increment .25,.5.75
-            notificationMessage("Must be a in quarter hour increments (.25, .5, .75)", "error");
+            notificationMessage(workgroup.messages.hoursIncrements, "error");
         }
         else if (worklogChangeItem.value > 16) {
             blnValid = false; //Really? 16 hours a day should be enough
-            notificationMessage("You work too much!  Keep it under 16!", "error");
+            notificationMessage(workgroup.messages.hoursTooMany, "error");
         }
         else if (worklogChangeItem.value < 0) {
             blnValid = false; //Sorry Charlie - no negatives
-            notificationMessage("Must be positive number", "error");
+            notificationMessage(workgroup.messages.hoursPositive, "error");
         }
        else if (workLogObject.worklogTimeSpent == worklogChangeItem.value) {
             blnValid = false; //No change so skip it
@@ -856,16 +729,10 @@ function mainControlThread() {
             worklogChangeItem.style.color = "#0000ff";
 
             //Here we post the update
-            //FYI - Call for updating worklog is: PUT /rest/api/2/issue/{issueIdOrKey}/worklog/{id}
-      
-            //Call to Jir to update thee worklog - actaully always will add an new work log with delta of time incremented
-            //This may not work if you go down in hours for adjustment.  May want to change this to an actual update, unless is a new time slot not filled
             JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, worklogChangeItem.value, getStartedTime(workLogObject.worklogTimeStarted))
                 .then(function(responseWorklogObject) {
                 //Success
-                notificationMessage("Success - " + workLogObject.worklogTimeStarted + " for " + worklogChangeItem.value, "notification");
-
-                console.log("RESPONSE WL: ", JSON.parse(JSON.stringify(responseWorklogObject)));
+                notificationMessage(workgroup.messages.hoursChangeSuccess.replace(/_TIMEBEGIN_/gi, workLogObject.worklogTimeStarted).replace(/_TIMEENTRY_/gi, worklogChangeItem.value), "notification");
 
                 //If we have 0 hours, this worklog was deleted
                 if (worklogChangeItem.value == 0) {
@@ -926,7 +793,7 @@ function mainControlThread() {
 
                  //Total-Total - Turn green/red if nwe changed over/under 40
                 document.getElementById("total+total+total").innerText = totalTotal;
-                if (totalTotal >= minHoursForSubmit)
+                if (totalTotal >= workgroup.settings.hoursToSubmit)
                     document.getElementById("total+total+total").style.backgroundColor = "green";
                 else
                     document.getElementById("total+total+total").style.backgroundColor = "red"; 
@@ -968,6 +835,12 @@ function mainControlThread() {
     ****************/   
     function updateWorklogStatuses() {
 
+        //If we are already busy, get out to avoid multiple clicks
+        if (!blnInteractive)
+            return;
+
+        togglePageBusy(true);
+        
         //If status is entry, get outta dodge
         switch (timecardStatus) {
             case "approved":
@@ -990,6 +863,8 @@ function mainControlThread() {
             default: //includes "entry"
                 break;
         }
+        
+        togglePageBusy(false);
 
         return false;
     }
@@ -1011,7 +886,8 @@ function mainControlThread() {
                         JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
                         .then(function(data) {
                             //Success
-                            notificationMessage("Success - status changed from " + fromStatus + " to " + toStatus, "notification");
+                            notificationMessage(workgroup.messages.statusChangeSuccess.replace(/_FROM_/gi, fromStatus).replace(/_TO_/gi, toStatus), "notification");
+
                         }, function(error) {
                             //Failure
                             genericResponseError(error);
@@ -1061,15 +937,14 @@ function mainControlThread() {
             document.getElementById('loader-container').style.display = 'block';
             document.getElementById('previousWeek').onclick = doNothing;
             document.getElementById('nextWeek').onclick = doNothing;
-            document.getElementById('closeLink').doNothing;
-            notificationMessage(startMessage, "notification");
+            document.getElementById('closeLink').onclick = doNothing;
             blnInteractive = false;
         }
         else {
             document.getElementById('loader-container').style.display = 'none';
             document.getElementById('previousWeek').onclick = previousWeek;
             document.getElementById('nextWeek').onclick = nextWeek;
-            document.getElementById('closeLink').doNothing;
+            document.getElementById('closeLink').onclick = closeit;
             blnInteractive = true;
         }
 
@@ -1148,7 +1023,7 @@ function mainControlThread() {
             class: "jira-issue-link"
         });
 
-        jiraLink.addEventListener ("click", function(){ jiraIssuelink(baseUrl + "/browse/" + issue.key) }); 
+        jiraLink.addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
         jiraLink.appendChild(idText);
         idCell.appendChild(jiraLink);
         row.appendChild(idCell);
@@ -1310,7 +1185,7 @@ function mainControlThread() {
 
         //Set the total element to red/green if > 40 yet.
         timeInputTotal.style.color = "white";
-        if (rowTotalTotal >= minHoursForSubmit)
+        if (rowTotalTotal >= workgroup.settings.hoursToSubmit)
             timeInputTotal.style.backgroundColor = "green";
         else
             timeInputTotal.style.backgroundColor = "red";        
@@ -1382,102 +1257,14 @@ function mainControlThread() {
                     }
                     else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
                         //We have worklogs with mixed statuses..mmmm
-                        notificationMessage("This time card has mixed statuses - " +  inputWorklogObject.worklogId + " = " + worklogStatus, "error");
+                        notificationMessage(workgroup.messages.mixedStatuses.replace(/_WORKLOG_/gi, inputWorklogObject.worklogId).replace(/_STATUS_/gi, worklogStatus), "error");
                     }
-
                 }
             }
         }
 
         return timeInputDay;
 
-    }
-
-
-
-
-    //AJH NOT USED? Build and show the Issues list table
-    function drawIssuesTable(issues) {
-
-        var issueIndex = -1;
-
-        //console.log("POP UP: Inside Drawing table");
-
-        //Differnt tables for the different groups
-        var jiraLogTable = document.getElementById('jira-log-time-table');
-        var supportLogTable = document.getElementById('support-log-time-table');
-        var rtbLogTable = document.getElementById('rtb-log-time-table');
-        var adminLogTable = document.getElementById('admin-log-time-table');              
-        var totalLogTable = document.getElementById('total-log-time-table');    
-
-        //var tbody = buildHTML('tbody');
-        var jiratbody = buildHTML('tbody', null, {
-            'id': 'jira-issues-table-body'
-        });        
-        var supporttbody = buildHTML('tbody', null, {
-            'id': 'support-issues-table-body'
-        });    
-        var rtbtbody = buildHTML('tbody', null, {
-            'id': 'rtb-issues-table-body'
-        });            
-        var admintbody = buildHTML('tbody', null, {
-            'id': 'admin-issues-table-body'
-        });    
-        var totaltbody = buildHTML('tbody', null, {
-            'id': 'total-issues-table-body'
-        });    
-
-        issues.forEach(function(issue) {
-            issueIndex++;
-            var reportingGroup;
-            if (issue.fields.summary.includes("SUPPORT:")) {
-                reportingGroup = "Support: Problems/incidents";
-            }
-            else if (issue.fields.summary.includes("ADMIN:")) {
-                reportingGroup = "Admin: Vacation";
-           }
-            else if (issue.fields.summary.includes("RTB:")) {
-                reportingGroup = "RTB: Non-Project Meetings";
-            }
-            else {
-                reportingGroup = "11434 Mobile Redesing - Development";
-            }
-            console.log("DOING AN ISSUE:" + issueIndex + " " + issue.key);
-            var row = generateLogTableRow(issue.key, issue.fields.summary, reportingGroup, issueIndex);
-
-            if (issue.fields.summary.includes("SUPPORT:")) {
-                supporttbody.appendChild(row);
-            }
-            else if (issue.fields.summary.includes("ADMIN:")) {
-                admintbody.appendChild(row);
-           }
-            else if (issue.fields.summary.includes("RTB:")) {
-                rtbtbody.appendChild(row);
-            }
-            else {
-                jiratbody.appendChild(row);
-            }
-      
-        });
-
-        //Append to the tables
-        jiraLogTable.appendChild(jiratbody);
-        supportLogTable.appendChild(supporttbody);
-        adminLogTable.appendChild(admintbody);
-        rtbLogTable.appendChild(rtbtbody);
-
-        //Let's do a totals row
-        var totalrow = generateLogTableRow("TOTAL", "", "", "total");
-        totaltbody.appendChild(totalrow)    
-        totalLogTable.appendChild(totaltbody);
-
-    }
-
-    //Close the window when "Close Window" clicked
-    function closeit(){
-
-        window.close();
-        return false; //This causes the href to not get invoked
     }
 
     //Open Jira ticket in a new window
@@ -1491,209 +1278,6 @@ function mainControlThread() {
         //window.open(inputURI);
         return false;
     }
-
-    //AJH NOT USED? For the issues list table, generate each html element here
-    function OLDgenerateLogTableRow(id, summary, timeReportingGroup, issueIndex) {
-
-        console.log("*** DOING ROW: " + id + " SUMMARY: " + summary + " GROUP: " + timeReportingGroup + " IDX:" + issueIndex);
-        console.log("*** ISSUE ARRAY: " + issuesArray[issueIndex]);
-        console.log("*** ISSUE ARRAY INDEX LOC:" + issuesArrayIndex);
-
-        /********
-        Issue row - define here and add stuff to it
-        ********/
-        var row = buildHTML('tr', null, {
-            'data-issue-id': id
-        });
-
-        /************
-        Issue summary
-        ************/
-        var issueDescription = "<table><tr><td>" + summary + "</td></tr><tr><td class='reporting-group'>" + timeReportingGroup + "</td></tr></table>"
-        //var summaryCell = buildHTML('td', summary, {
-        var summaryCell = buildHTML('td', issueDescription, {  
-            class: 'truncate'
-        });
-
-         //Write the Summary cell
-         row.appendChild(summaryCell);       
-
-        /*************
-         Issue ID cell
-        *************/
-        var idCell = buildHTML('td', null, {
-            class: 'issue-id'
-        });
-
-        var idText = document.createTextNode(id);
-
-        /*********************
-        Link to the JIRA issue
-        *********************/
-
-        if (id != "TOTAL") {
-
-            var jiraLink = buildHTML('a', null, {
-                //href: baseUrl + "/browse/" + id,
-                //id: "link-" + id
-                //target: "_blank"
-                class: "jira-issue-link"
-             });
-
-            jiraLink.addEventListener ("click", function(){ jiraIssuelink(baseUrl + "/browse/" + id) }); 
-
-            //document.getElementById('nextWeek').href = "nowhere";
-            //document.getElementById('nextWeek').onclick = nextWeek;  
-
-            jiraLink.appendChild(idText);
-            idCell.appendChild(jiraLink);
-            row.appendChild(idCell);
-        }
-        else {
-            idCell.appendChild(idText);
-            row.appendChild(idCell);         
-        }
-
-         //Write the ID cell - which also links to the Jira work issue
-
-
-        /*********
-        Time input for the 7 Days of the Week
-        *********/
-
-        //We have the issue and array goes Saturdy --> Friday
-        for (var i = 0; i < 7; i++) {
-
-            //Rip thru each day of the week and grab the worklog object for each
-                              
-            //Show the worklog object, for debugging
-            //showWorkLogObject("LOADED (" + issueIndex + ", " + i + ")", workLogArray[issueIndex][i]);
-
-            //Create the html input field for this worklog
-            if (id != "TOTAL") {
-                var timeInputDay = buildHTML('input', null, {
-                    class: 'issue-time-input',
-                    'id': issueIndex + "+" + i
-                });                
-            }
-            else {
-                var timeInputDay = buildHTML('text', "0", {
-                    class: "day-time-total",
-                    'id': issueIndex + "+" + i
-                });                   
-            }
-
-            //Make Saturday and Sunday gray
-            if (i < 2) {
-                timeInputDay.style.backgroundColor = "#D3D3D3";
-            }
-
-            //Wire up the listener to handle posts when the data changes
-            timeInputDay.addEventListener ("change", function(){ postWorklogTimeChange(this)});  
-  
-            if (id != "TOTAL") {
-                if (typeof workLogArray[issueIndex][i] === 'undefined') {
-                    timeInputDay.value = 0;
-                }
-                else {
-                    timeInputDay.value = workLogArray[issueIndex][i].worklogTimeSpent;
-                }
-            }
-            else {
-                timeInputDay.innterText = "0";
-            }            
-
-            //Create table cell element for this worklog
-            var timeInputDayCell = buildHTML('td');
-            timeInputDayCell.appendChild(timeInputDay);
-
-            //Add to the row
-            row.appendChild(timeInputDayCell);
-        }
-
-
-        /*********
-        Time input TOTAL
-        *********/
-        if (id != "TOTAL") {
-            var timeInputTotal = buildHTML('text', issuesArray[issueIndex].issueTotalTime, {
-                class: 'issue-time-total',
-                id: issueIndex + "+total"
-             });
-
-            timeInputTotal.innerText = issuesArray[issueIndex].issueTotalTime;
-
-            // Total cell
-            var timeInputTotalCell = buildHTML('td');
-            timeInputTotalCell.appendChild(timeInputTotal);
-
-            //Add total tiem entry to the row
-            row.appendChild(timeInputTotalCell);
-
-        }
-        else {
-            //Empty cell since not totals here
-            var timeInputTotal = buildHTML('text', "0", {
-                class: 'day-time-total',
-                id: issueIndex + "+total"
-            });
-
-            //Set the total element to red/green if > 40 yet.
-            timeInputTotal.style.backgroundColor = "red";
-            timeInputTotal.style.color = "white";
-
-            // Total cell
-            var timeInputTotalCell = buildHTML('td');
-            timeInputTotalCell.appendChild(timeInputTotal);
-
-            //Add total tiem entry to the row
-            row.appendChild(timeInputTotalCell);
-
-        }
-        
-        //ANd our buffer
-        var varBuffer = buildHTML('text', "", {
-            innterText: ""
-        });
-        var bufferCell = buildHTML('td');
-        bufferCell.appendChild(varBuffer);
-        row.appendChild(bufferCell);
-
-        //All done building row - return it
-        //console.log("POP UP: Did an issue row for:" + idText + " AND TOTAL TIME IS:" + issuesArray[issueIndex].issueTotalTime);
-
-        return row;
-
-    }
-
-    /********************
-    AJH NOT USED? Inncrement the reporting group counters
-    ********************/
-    function incrementReportingGroups(inputSummary, inputTime) {                            
-            
-        if (inputSummary.includes("SUPPORT:")) {
-            document.getElementById("total-support").innerText = Number(document.getElementById("total-support").innerText) + inputTime;
-        }
-        else if (inputSummary.includes("ADMIN:")) {
-            document.getElementById("total-admin").innerText = Number(document.getElementById("total-admin").innerText) + inputTime;
-        }
-        else if (inputSummary.includes("RTB:")) {
-            document.getElementById("total-run-the-business").innerText = Number(document.getElementById("total-run-the-business").innerText) + inputTime;
-        }
-        else {
-            document.getElementById("total-project").innerText = Number(document.getElementById("total-project").innerText) + inputTime;
-        }
-
-        //Now let's recaculate the percentages
-        var totalTime = Number(document.getElementById("total-support").innerText) + Number(document.getElementById("total-admin").innerText) + Number(document.getElementById("total-run-the-business").innerText) + Number(document.getElementById("total-project").innerText);
-        document.getElementById("total-support-percent").innerText = round(parseFloat(document.getElementById("total-support").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
-        document.getElementById("total-admin-percent").innerText = round(parseFloat(document.getElementById("total-admin").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
-        document.getElementById("total-run-the-business-percent").innerText = round(parseFloat(document.getElementById("total-run-the-business").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
-        document.getElementById("total-project-percent").innerText = round(parseFloat(document.getElementById("total-project").innerText * 100 / totalTime).toFixed(0), 0) +"%"; 
- 
-        //console.log("AJH DID CALC OF " + document.getElementById("total-project").innerText + " % " + totalTime + " = " + (document.getElementById("total-project").innerText / totalTime));
-    }
-  
 
     /***************
     Week selection routines
@@ -1716,7 +1300,7 @@ function mainControlThread() {
         lastDay.setDate(lastDay.getDate() + 6);
         lastDay.setHours(23,59,59,59); //This gets it to just before midnight, night of the last day is the first day plus 6
 
-        range.innerHTML = 'WEEK OF  ' + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
+        range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
 
     }
         
@@ -1763,6 +1347,13 @@ function mainControlThread() {
 Helper functions 
 ***************/
 
+//Close the window when "Close Window" clicked
+function closeit(){
+
+    window.close();
+    return false; //This causes the href to not get invoked
+}
+
 //Do nthing....
 function doNothing() {
     return false;
@@ -1801,33 +1392,6 @@ function buildHTML(tag, html, attrs) {
     return element;
 }
 
-// Set the cursor position in a text area, useful after reposting and re-drawing the table
-function setCaretPosition() {
-    
-    var elem = document.activeElement;
-    var caretPos = 0;
-
-    if(elem != null) {
-        //This will do it if cursor in the field already
-        if(elem.createTextRange) {
-            var range = elem.createTextRange();
-            range.move('character', caretPos);
-            range.select();
-        }
-        //This will do it if cursor in another field
-        else {
-            //Skip moving fields I think
-            if(elem.selectionStart) {
-                elem.focus();
-                elem.setSelectionRange(caretPos, caretPos + 2);
-            }
-            else
-                elem.focus();
-            
-        }
-    }
-}
-
 // Simple Jira api error handling
 function genericResponseError(error) {
 
@@ -1850,6 +1414,22 @@ function genericResponseError(error) {
 // UI error message
 function notificationMessage(message, messageType) {
     var notification = document.getElementById('notice')
+    notification.innerHTML = message;
+    notification.style.display = 'block';
+    if (messageType == "error") {
+        notification.style.color = "red";    
+    }
+    else if (messageType == "notification") {
+        notification.style.color = "blue";   
+    }
+    else {
+        notification.style.color = "green";   
+    }
+}
+
+// Corp Key message
+function orgKeyMessage(message, messageType) {
+    var notification = document.getElementById('orgKeyMessage')
     notification.innerHTML = message;
     notification.style.display = 'block';
     if (messageType == "error") {
@@ -1920,7 +1500,7 @@ function getUrlParameter(name) {
 
 
 //For loading JSON file locally - simulate REST API till we get one
-function loadJSON(inputFileName, callback) {   
+function loadConfig(inputFileName, callback) {   
 
     var xobj = new XMLHttpRequest();
 
@@ -1932,5 +1512,35 @@ function loadJSON(inputFileName, callback) {
             callback(xobj.responseText);
             }
     };
+    
     xobj.send(null);  
 }    
+
+//For loading JSON file remotely - download a file
+function getConfig(url, callback) {
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    console.log("JSONTEST GETTING:" + url);
+    xhr.responseType = 'json';
+    
+    xhr.onload = function() {
+    
+        var status = xhr.status;
+        console.log("STATUS: " + status);
+        if (status == 200) {
+            callback(null, xhr.response);
+        } else {
+            callback(status);
+        }
+    };
+    
+    xhr.send();
+};
+
+
+
+
+
+
+
