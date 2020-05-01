@@ -19,6 +19,7 @@ var userId;
 var userEmail;
 var userName = "";
 var blnAdmin = false; //Easy access to admin boolean
+var blnRemoteConfig = false;
 
 //Is the screen interactive, used for toggle
 var blnInteractive = true;
@@ -64,59 +65,61 @@ function loadKeyAndOrg() {
             else {
                 //We have an org key, get our configuration and all of the config parameters - data.orgKeya
                 //Get the JSON file and make sure it exists - need to figure out how to laod/host this
-                switch(data.orgKeya) {
-                    case "le-alvis-time":
-                        configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
-                        break;
-                    default:
-                        configURL = "";
-                        break;
-                }
+                if (blnRemoteConfig) {
 
-                getConfig(configURL,  function(err, response) {
+                    switch(data.orgKeya) {
+                        case "le-alvis-time":
+                            configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
+                            break;
+                        default:
+                            configURL = "";
+                            break;
+                    }
+
+                    getConfig(configURL,  function(err, response) {
         
-                    if (err != null) {
-                        console.log("JSONTEST ERR:");
-                        console.dir(err);
-                        //Bogus
-                        //We do not have an org key, get one
-                        getNewOrgKey(data.orgKeya);
-                    } 
-                    else {
-                        console.log("JSONTEST DATA:");
-                        console.dir(response);
-
-                        //Get all of our config parameters
-                        //config = JSON.parse(response); 
-                        orgKey = data.orgKeya;
-                        config = response;
-
-                        //Get it, so put listner on DOM loaded event
-                        document.getElementById('everything').style.display =  'block';
-                        document.getElementById('orgkeyrequest').style.display =  'none';
-                        mainControlThread();
-                    }
-                });
-
-                /*
-                loadConfig(data.orgKeya + ".json", function(response) { 
-                    //See if it was bogus
-                    if (response == null || typeof response === 'undefined' || response.length <= 0) {
-                        //Bogus
-                        //We do not have an org key, get one
-                        getOrgKey(data.orgKeya);
-                    }
-                    else {
-                        //Get all of our config parameters
-                        config = JSON.parse(response); 
-                        
-                        //Get it, so put listner on DOM loaded event
-                        document.getElementById('everything').style.display =  'block';
-                        document.getElementById('orgkeyrequest').style.display =  'none';
-                        mainControlThread();
-                    }
-                });
-                */
+                        if (err != null) {
+                            console.log("JSONTEST ERR:");
+                            console.dir(err);
+                            //Bogus
+                            //We do not have an org key, get one
+                            getNewOrgKey(data.orgKeya);
+                        } 
+                        else {
+                            console.log("JSONTEST DATA:");
+                            console.dir(response);
+    
+                            //Get all of our config parameters
+                            //config = JSON.parse(response); 
+                            orgKey = data.orgKeya;
+                            config = response;
+    
+                            //Get it, so put listner on DOM loaded event
+                            document.getElementById('everything').style.display =  'block';
+                            document.getElementById('orgkeyrequest').style.display =  'none';
+                            mainControlThread();
+                        }
+                    });
+                }
+                else {
+                    loadConfig(data.orgKeya + ".json", function(response) { 
+                        //See if it was bogus
+                        if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                            //Bogus
+                            //We do not have an org key, get one
+                            getOrgKey(data.orgKeya);
+                        }
+                        else {
+                            //Get all of our config parameters
+                            config = JSON.parse(response); 
+                            
+                            //Get it, so put listner on DOM loaded event
+                            document.getElementById('everything').style.display =  'block';
+                            document.getElementById('orgkeyrequest').style.display =  'none';
+                            mainControlThread();
+                        }
+                    });
+                }
             }
         }
         else {
