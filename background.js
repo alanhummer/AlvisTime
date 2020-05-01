@@ -145,11 +145,11 @@ function onUserSuccess(response) {
             blnAdmin = false;
 
         console.log("Alvis Time: You are in workgroup: " + workgroup.name + " and you are " + user.name + " who is admin:" + blnAdmin);
-        //Hourly pull, test if Friday and if in time window 9-6 - an initial check then every hour
+        //Hourly pull, test if Friday and if in time window 1-6 an initial check then every 2 hours
         checkForTimecards();
-        var timecardPoll = setInterval(checkForTimecards, 3600 * 1000); //3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+        var timecardPoll = setInterval(checkForTimecards, 7200 * 1000); //3600 * 1000); //** RESET Poll every 2 hours checking for 1-6PM and then querying jira
 
-        //If admin, start a loop
+        //If admin, start a loop - Hourly pull, test if Friday and if in time window  an initial check then every hour
         if (blnAdmin) {
             checkForApproval();
             var approvalPoll = setInterval(checkForApproval, 3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
@@ -235,7 +235,7 @@ function checkForTimecards() {
 
     //if we are Friday
     if (today.getDay() == 5 || blnTestOverride) { //Friday
-        if (today.getHours() >= 9 && today.getHours() <= 18 || blnTestOverride) {    //If we are 9-6
+        if (today.getHours() >= 13 && today.getHours() <= 18 || blnTestOverride) {    //If we are 1-6
             if (blnPollJira && !blnHaveTimecard) { //Just do this the one time where they say OK - not to be too pesky
                 jiraTimeCardSubmittedCheck();
             }

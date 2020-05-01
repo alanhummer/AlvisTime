@@ -1,0 +1,71 @@
+{
+    "orgKey": "le-jira-time",
+    "orgName": "Lands' End",
+    "orgLogo": "images/logo.png",
+    "orgJiraBaseURI": "https://letime.atlassian.net",
+    "orgJiraAPIExtension": "/rest/api/2",
+    "workgroups": [
+        {
+            "name": "LE.com",
+            "settings": {
+                "hoursToSubmit": 40,
+                "jiralink": "https://letime.atlassian.net/secure/RapidBoard.jspa?rapidView=1&projectKey=ALVISTIME"
+            },
+            "titles": {
+                "welcome": "Greetings",
+                "week": "Week Of",
+                "close": "(close)"
+            },
+            "messages": { 
+                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='https://letime.atlassian.net/secure/RapidBoard.jspa?rapidView=1&projectKey=ALVISTIME' target='_blank'>Find it and view it</a> and it will show up.",
+                "waiting": "Posting....",
+                "hoursNumeric": "Sorry, must be numeric hours",
+                "hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
+                "hoursTooMany": "You work too much!  Keep it under 16!",
+                "hoursPositive": "Must be positive number",
+                "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
+                "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+                "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
+            },
+            "issueGroups": [
+               {"name": "Support", "key": "proj", "query": "(assignee='user.name' or issueKey in IssueHistory() or issueKey in updatedBy('user.name', '-3w', '1d') or watcher = 'user.name' or worklogDate > startOfYear() and worklogComment ~ 'user.email') and summary ~ 'SUPPORT:'"},
+               {"name": "Other", "key": "other", "query": "(assignee='user.name' or issueKey in IssueHistory() or issueKey in updatedBy('user.name', '-3w', '1d') or watcher = 'user.name' and worklogComment ~ 'user.email') and (summary !~ 'SUPPORT:' and summary !~ 'PROJECT:' and summary !~ 'RTB:' and summary !~ 'ADMIN:')"}
+            ],
+             "users":  [
+                {"name": "Al Hummer", "userid": "5af215ef1864357363fa7765", "role": "admin", "email": "humdinger1969@gmail.com"},
+                {"name": "Ginger Hummer", "userid": "5eac264b833be70b7ed4171a", "role": "developer", "email": "ghummer69@gmail.com"},
+                {"name": "Jacob Hummer", "userid": "5b09712ca527f65528d7cf0f", "role": "developer", "email": "hummerj@outlook.com"},
+                {"name": "Elliot Hummer", "userid": "5eac264cc112750bab605ba6", "role": "developer", "email": "hummere@mcfsd.org"},
+                {"name": "John Betz", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "developer", "email": "hummer@mailbag.com"},
+                {"name": "Taylor Christy", "userid": "(taylors id)", "role": "developer", "email": "tayolor@alhummer.com"},
+                {"name": "Santanu Mojumder", "userid": "(santanus id)", "role": "developer", "email": "santanu@alhummer.com"},
+                {"name": "Jordan Ward", "userid": "(jordans id)", "role": "developer", "email": "jordan@alhummer.com"},
+                {"name": "Russell Steen", "userid": "(russels id)", "role": "developer", "email": "russell@alhummer.com"}
+            ]
+        },
+        {
+            "name": "LE.com QA",
+            "settings": {
+                "hoursToSubmit": 40
+            },
+            "titles": {
+                "welcome": "Grettings",
+                "week": "Week Of",
+                "close": "(close)"
+            },
+            "messages": { 
+                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='' target='_blank'>Find it and view it</a> and it will show up."
+            },
+            "issueGroups": [
+                {"name": "Projects", "query": "dude"},
+                {"name": "Support", "query": "dude"},
+                {"name": "Run The Business", "query": "dude"},
+                {"name": "Admin", "query": "dude"}
+            ],
+            "users":  [
+                {"name": "Dawn Judd", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "admin", "email": "dawn@alhummer.com"},
+                {"name": "Roni Beifer", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "quality-analyst", "email": "roni@alhummer.com"}
+            ]
+       }
+    ]
+}
