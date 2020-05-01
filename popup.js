@@ -49,13 +49,24 @@ function onDOMContentLoaded() {
         window.close();
     }
 
+    //Initialize the view
+    document.getElementById('everything').style.display =  'none';
+    document.getElementById('orgkeyrequest').style.display =  'block';
+
     //Loop until it is valid and we did one
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
     loadKeyAndOrg();
 }
 
+/****************
+Load our configuration and kick of the main processing thread on success
+****************/
 function loadKeyAndOrg() {
+
+    //Initalize this
+    config = null;
+
     chrome.storage.local.get("orgKeya", function(data) {
         if (data.orgKeya.length > 0) {
             if (data == null || typeof data === 'undefined' || data.length <= 0) {
@@ -95,8 +106,6 @@ function loadKeyAndOrg() {
                             config = response;
     
                             //Get it, so put listner on DOM loaded event
-                            document.getElementById('everything').style.display =  'block';
-                            document.getElementById('orgkeyrequest').style.display =  'none';
                             mainControlThread();
                         }
                     });
@@ -114,8 +123,6 @@ function loadKeyAndOrg() {
                             config = JSON.parse(response); 
                             
                             //Get it, so put listner on DOM loaded event
-                            document.getElementById('everything').style.display =  'block';
-                            document.getElementById('orgkeyrequest').style.display =  'none';
                             mainControlThread();
                         }
                     });
@@ -132,6 +139,9 @@ function loadKeyAndOrg() {
 
 }
 
+/****************
+CRUD manaagement of the orgKey
+****************/
 function getNewOrgKey(inputValue) {
     document.getElementById('orgkey').value = inputValue;
     document.getElementById('everything').style.display =  'none';
@@ -156,7 +166,7 @@ function setupNewOrg() {
 /****************
 Main control thread - When document loaded, do this routine
 ****************/
-function mainControlThread() { //If > 1 time thru (change dorgs) then these initializations cant happen again
+function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then these initializations cant happen again
 
     //And make the page inactive
     togglePageBusy(true);
@@ -230,10 +240,12 @@ function mainControlThread() { //If > 1 time thru (change dorgs) then these init
         }
  
         //If user does not have access, let them off EZ
-        if (typeof user === 'undefined') {
+        if (typeof workgroup === 'undefined' || typeof user === 'undefined') {
             //sorry charlie
             alert("Sorry, you aren't set up for this app");
-            closeit();
+            getNewOrgKey("");
+            return;
+            //closeit();
         }        
 
         //See if we are admin 
@@ -249,12 +261,13 @@ function mainControlThread() { //If > 1 time thru (change dorgs) then these init
             }
         }
 
+        //Turn on our app
+        document.getElementById('everything').style.display =  'block';
+        document.getElementById('orgkeyrequest').style.display =  'none';
+
         // Set week date range header in html
         range = document.getElementById('week-dates-description');
         getWeek();
-
-        //Setup intro message
-        notificationMessage(workgroup.messages.intro, "notification");
 
         //And logo
         document.getElementById('logoimage').src = config.orgLogo;        
@@ -314,6 +327,9 @@ function mainControlThread() { //If > 1 time thru (change dorgs) then these init
 
         //Disable the page
         togglePageBusy(true);
+
+       //Setup intro message
+       notificationMessage(workgroup.messages.intro, "notification");
 
         //Before we get any issues, let's start fresh and initalize everything
         blnTimeCardStatusInitialized = false;

@@ -1,9 +1,6 @@
 //This logs to the BACKGROUND PAGE view, seperate debugger from the F12 console per page
 //May want to convert this to use chrome.alarms
 
-const baseUrl = "https://letime.atlassian.net";
-const apiExtension = "/rest/api/2";
-const minHoursForSubmit = 40;
 var userId;
 var blnPollJira = false;
 var blnAdmin = false;
@@ -13,20 +10,98 @@ var config;
 var workgroup;
 var user;
 var JIRA;
+var blnRemoteConfig = false;
 
 console.log("Alvis Time: Is started and running");
 
-//Here we go - load user set and determine if admin
-loadJSON("config.json", function(response) { 
-    config = JSON.parse(response); 
+//Get our configuration, which will kick off the main thread when successful
+loadKeyAndOrg();
 
-    JIRA = JiraAPI(baseUrl, apiExtension, "NoJQLToInitialize");
+/****************
+Load our configuration and kick of the main processing thread on success
+****************/
+function loadKeyAndOrg() {
+    chrome.storage.local.get("orgKeya", function(data) {
+        if (data.orgKeya.length > 0) {
+            if (data == null || typeof data === 'undefined' || data.length <= 0) {
+               //bogus - we are done
+               console.log("Alvis Time: No config available. No doing anything.");
+            }
+            else {
+                //We have an org key, get our configuration and all of the config parameters - data.orgKeya
+                //Get the JSON file and make sure it exists - need to figure out how to laod/host this
+                if (blnRemoteConfig) {
 
-    //Get User info - may want this in a loop/interval.  This stars when browser opens, and if not already logged into Jira, will fail
+                    switch(data.orgKeya) {
+                        case "le-alvis-time":
+                            configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
+                            break;
+                        default:
+                            configURL = "";
+                            break;
+                    }
+
+                    getConfig(configURL,  function(err, response) {
+        
+                        if (err != null) {
+                            console.log("Alvis Time get config error. We are done:", JSON.parse(JSON.stringify(err)));
+                            //bogus - we are done
+                        } 
+                        else {
+                            //Success - Get all of our config parameters
+                            //config = JSON.parse(response); 
+                            orgKey = data.orgKeya;
+                            config = response;
+    
+                            //Got it, so kick off main control thread
+                            mainControlThread();
+                        }
+                    });
+                }
+                else {
+                    loadConfig(data.orgKeya + ".json", function(response) { 
+                        //See if it was bogus
+                        if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                            //bogus - we are done
+                            console.log("Alvis Time: No config available. No doing anything.");
+                        }
+                        else {
+                             //Success - Get all of our config parameters
+                            config = JSON.parse(response); 
+                            
+                           //Got it, so kick off main control thread
+                           mainControlThread();
+                        }
+                    });
+                }
+            }
+        }
+        else {
+            //bogus - we are done
+            console.log("Alvis Time: No config available. No doing anything.");
+        }
+    });
+
+    return true;
+
+}
+
+
+/****************
+Main control thread - When we are set, do this routine
+****************/
+function mainControlThread() { 
+
+    console.log("Alvis Time: Config loaded and we are running");
+
+    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "NoJQLToInitialize");
+
+    //Get User info - may want this in a loop/interval.  This starts when browser opens, and if not already logged into Jira, will fail
     //Idea is, to have it try again...then when you are logged in to Jira, it works
     JIRA.getUser()
         .then(onUserSuccess, onUserError);
-});
+
+}
 
 /****************
 Fetch for user was Successful -
@@ -59,15 +134,16 @@ function onUserSuccess(response) {
         }
     }
 
-    if (user.role == "admin")
-        blnAdmin = true;
-    else
-        blnAdmin = false;
-
     if (typeof workgroup === 'undefined' || typeof user == 'undefined') {
         console.log("Alvis Time: User not defined in any workgroup. Nothing to do here.");
     }
     else {
+
+        if (user.role == "admin")
+            blnAdmin = true;
+        else
+            blnAdmin = false;
+
         console.log("Alvis Time: You are in workgroup: " + workgroup.name + " and you are " + user.name + " who is admin:" + blnAdmin);
         //Hourly pull, test if Friday and if in time window 9-6 - an initial check then every hour
         checkForTimecards();
@@ -340,7 +416,7 @@ function formatDate(date) {
 }
 
 //For loading JSON file locally - simulate REST API till we get one
-function loadJSON(inputFileName, callback) {   
+function loadConfig(inputFileName, callback) {   
 
     var xobj = new XMLHttpRequest();
 
@@ -352,5 +428,28 @@ function loadJSON(inputFileName, callback) {
             callback(xobj.responseText);
             }
     };
+    
     xobj.send(null);  
-}   
+}    
+
+//For loading JSON file remotely - download a file
+function getConfig(url, callback) {
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    console.log("JSONTEST GETTING:" + url);
+    xhr.responseType = 'json';
+    
+    xhr.onload = function() {
+    
+        var status = xhr.status;
+        console.log("STATUS: " + status);
+        if (status == 200) {
+            callback(null, xhr.response);
+        } else {
+            callback(status);
+        }
+    };
+    
+    xhr.send();
+};
