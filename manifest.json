@@ -1,27 +1,18 @@
 {
-  //This tells what the extension is going to do, describes it to the browser, sets it all up
-  "manifest_version": 2,  //manifest version is the version currenctly supported by Google.  It has to be 2
+  "manifest_version": 2, 
   "name": "Alvis Time - Jira Time Log",
   "short_name": "Alvis Time",
-  "description": "Log your weekly time in seconds! Never use Service Now time reporting again!",
+  "description": "Log your weekly time to Jira in seconds!",
   "version": "1.0",
-
-  //Background scripts - more global, not specific to a tab content area.
   "background": {"scripts": ["jira-api.js", "background.js"]},
-
-  //Wires up the icon to the popup page
   "browser_action": {
    "default_icon": "images/icon.png",
    "default_popup": "popup.html"
   },
-
-  //What the extension has access to - could be all URL's, but if you want to limit it, done here -      "tabs",
   "permissions": [
-     "https://letime.atlassian.net/",
-     "storage"
+    "https://*.atlassian.net/",
+    "storage"
   ],
-  
-  //Icon set for various display sizes
   "icons": { 
     "16": "images/icon16.png",
     "48": "images/icon48.png",

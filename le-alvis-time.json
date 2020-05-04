@@ -66,8 +66,8 @@
                 {"name": "Admin", "query": "dude"}
             ],
             "users":  [
-                {"name": "Dawn Judd", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "admin", "email": "dawn@alhummer.com"},
-                {"name": "Roni Beifer", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8e", "role": "quality-analyst", "email": "roni@alhummer.com"}
+                {"name": "Dawn Judd", "userid": "557058:1eacdfb6-d451-4d6a-873a-8f1dc2b2ac8eFFF", "role": "admin", "email": "dawn@alhummer.com"},
+                {"name": "Roni Biefer", "userid": "557058:3496074d-0a2b-4074-91ad-c1447ead8416", "role": "quality-analyst", "email": "roni@alhummer.com"}
             ]
        }
     ]
