@@ -22,6 +22,7 @@ Load our configuration and kick of the main processing thread on success
 ****************/
 function loadKeyAndOrg() {
     chrome.storage.local.get("orgKeya", function(data) {
+ 
         if (data.orgKeya.length > 0) {
             if (data == null || typeof data === 'undefined' || data.length <= 0) {
                //bogus - we are done

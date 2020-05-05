@@ -68,6 +68,7 @@ function loadKeyAndOrg() {
     config = null;
 
     chrome.storage.local.get("orgKeya", function(data) {
+
         if (data.orgKeya.length > 0) {
             if (data == null || typeof data === 'undefined' || data.length <= 0) {
                 //Bogus
@@ -207,7 +208,10 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     function onUserSuccess(response) {
 
         //Report out we have a user
-        userId = response.accountId;
+        if (response.accountId)
+            userId = response.accountId;
+        else    
+            userId = response.key;
         userEmail = response.emailAddress;
         userName = response.displayName;
         console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
@@ -937,7 +941,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     else {
                         //console.log("WORKOG ENABLED FAILED TO GET:" + issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + workLogIndex);
                     }
-                    console.log("WORKOG DISABLED SET TO " + workLogEntry.disabled + " FOR:" + issueGroup.key + "-" + issue.id + "+" + w);
                 }          
             })
         })
@@ -1018,7 +1021,26 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         /************
         Issue summary
         ************/
-        var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>11411 Mobile - Development</td></tr></table>"
+
+        //Setup our classification grouping
+        if (workgroup.settings.customFieldForClassification) {
+            var customClassificationField = issue.fields[workgroup.settings.customFieldForClassification];
+            if (customClassificationField) {
+                issue.classification = customClassificationField.value;
+                if (customClassificationField.child) {
+                    issue.classification = issue.classification + " - " + customClassificationField.child.value;
+                }
+            }
+            else {
+                issue.classification = "No classification defined";
+            }
+        }
+        else {
+            issue.classification = "(issues not classified)";
+        }
+
+         
+        var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "</td></tr></table>"
         var summaryCell = buildHTML('td', issueDescription, {  
             class: 'truncate'
         });

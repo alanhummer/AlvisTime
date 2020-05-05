@@ -1,0 +1,81 @@
+{
+    "orgKey": "le-jira-time-onsite",
+    "orgName": "Lands' End",
+    "orgLogo": "images/logo.png",
+    "orgJiraBaseURI": "http://issues.landsend.com/jira",
+    "orgJiraAPIExtension": "/rest/api/2",
+    "workgroups": [
+        {
+            "name": "LE.com",
+            "settings": {
+                "hoursToSubmit": 40,
+                "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
+                "customFieldForClassification": "customfield_10901"
+            },
+            "titles": {
+                "welcome": "Greetings",
+                "week": "Week Of",
+                "close": "(close)"
+            },
+            "messages": { 
+                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54' target='_blank'>Find it and view it</a> and it will show up.",
+                "waiting": "Posting....",
+                "hoursNumeric": "Sorry, must be numeric hours",
+                "hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
+                "hoursTooMany": "You work too much!  Keep it under 16!",
+                "hoursPositive": "Must be positive number",
+                "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
+                "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+                "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
+            },
+            "issueGroups": [
+               {"name": "Projects", "key": "proj", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))"},
+               {"name": "Support", "key": "sup", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support'"},
+               {"name": "Run The Business", "key": "rtb", "query": "'Project - Subproject' = '10558 - Run the Business' and summary ~ 'LECom Engineering'"},
+               {"name": "Administration", "key": "admin", "query": "'Project - Subproject' = '10345 - Administration'"}
+            ],
+             "users":  [
+                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com"},
+                {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
+                {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
+                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com"},
+                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com"},
+                {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com"}
+            ]
+        },
+        {
+            "name": "LE.com QA",
+            "settings": {
+                "hoursToSubmit": 40,
+                "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
+                "customFieldForClassification": "customfield_10901"
+          },
+            "titles": {
+                "welcome": "Greetings",
+                "week": "Week Of",
+                "close": "(close)"
+            },
+            "messages": { 
+                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54' target='_blank'>Find it and view it</a> and it will show up.",
+                "waiting": "Posting....",
+                "hoursNumeric": "Sorry, must be numeric hours",
+                "hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
+                "hoursTooMany": "You work too much!  Keep it under 16!",
+                "hoursPositive": "Must be positive number",
+                "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
+                "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+                "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
+           },
+            "issueGroups": [
+                {"name": "Projects", "key": "proj", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))"},
+                {"name": "Support", "key": "sup", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support'"},
+                {"name": "Run The Business", "key": "rtb", "query": "'Project - Subproject' = '10558 - Run the Business' and summary ~ 'LECom Engineering'"},
+                {"name": "Administration", "key": "admin", "query": "'Project - Subproject' = '10345 - Administration'"}
+            ],
+            "users":  [
+                {"name": "Dawn Judd", "userid": "drjudd", "role": "admin", "email": "dawn.judd@landsend.com"},
+                {"name": "Roni Biefer", "userid": "rebiefe", "role": "quality-analyst", "email": "roni.biefer@landsend.com"}
+            ]
+       }
+    ]
+}
