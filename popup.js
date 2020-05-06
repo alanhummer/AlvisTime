@@ -68,66 +68,77 @@ function loadKeyAndOrg() {
     config = null;
 
     chrome.storage.local.get("orgKeya", function(data) {
-
-        if (data.orgKeya.length > 0) {
-            if (data == null || typeof data === 'undefined' || data.length <= 0) {
-                //Bogus
-                getNewOrgKey("");
-            }
-            else {
-                //We have an org key, get our configuration and all of the config parameters - data.orgKeya
-                //Get the JSON file and make sure it exists - need to figure out how to laod/host this
-                if (blnRemoteConfig) {
-
-                    switch(data.orgKeya) {
-                        case "le-alvis-time":
-                            configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
-                            break;
-                        default:
-                            configURL = "";
-                            break;
+        if (data) {
+            if (data.orgKeya) {
+                if (data.orgKeya.length > 0) {
+                    if (data == null || typeof data === 'undefined' || data.length <= 0) {
+                        //Bogus
+                        getNewOrgKey("");
                     }
+                    else {
+                        //We have an org key, get our configuration and all of the config parameters - data.orgKeya
+                        //Get the JSON file and make sure it exists - need to figure out how to laod/host this
+                        if (blnRemoteConfig) {
 
-                    getConfig(configURL,  function(err, response) {
-        
-                        if (err != null) {
-                            console.log("JSONTEST ERR:");
-                            console.dir(err);
-                            //Bogus
-                            //We do not have an org key, get one
-                            getNewOrgKey(data.orgKeya);
-                        } 
-                        else {
-                            console.log("JSONTEST DATA:");
-                            console.dir(response);
-    
-                            //Get all of our config parameters
-                            //config = JSON.parse(response); 
-                            orgKey = data.orgKeya;
-                            config = response;
-    
-                            //Get it, so put listner on DOM loaded event
-                            mainControlThread();
+                            switch(data.orgKeya) {
+                                case "le-alvis-time":
+                                    configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
+                                    break;
+                                default:
+                                    configURL = "";
+                                    break;
+                            }
+
+                            getConfig(configURL,  function(err, response) {
+                
+                                if (err != null) {
+                                    console.log("JSONTEST ERR:");
+                                    console.dir(err);
+                                    //Bogus
+                                    //We do not have an org key, get one
+                                    getNewOrgKey(data.orgKeya);
+                                } 
+                                else {
+                                    console.log("JSONTEST DATA:");
+                                    console.dir(response);
+            
+                                    //Get all of our config parameters
+                                    //config = JSON.parse(response); 
+                                    orgKey = data.orgKeya;
+                                    config = response;
+            
+                                    //Get it, so put listner on DOM loaded event
+                                    mainControlThread();
+                                }
+                            });
                         }
-                    });
+                        else {
+                            loadConfig(data.orgKeya + ".json", function(response) { 
+                                //See if it was bogus
+                                if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                                    //Bogus
+                                    //We do not have an org key, get one
+                                    getOrgKey(data.orgKeya);
+                                }
+                                else {
+                                    //Get all of our config parameters
+                                    config = JSON.parse(response); 
+                                    
+                                    //Get it, so put listner on DOM loaded event
+                                    mainControlThread();
+                                }
+                            });
+                        }
+                    }
                 }
                 else {
-                    loadConfig(data.orgKeya + ".json", function(response) { 
-                        //See if it was bogus
-                        if (response == null || typeof response === 'undefined' || response.length <= 0) {
-                            //Bogus
-                            //We do not have an org key, get one
-                            getOrgKey(data.orgKeya);
-                        }
-                        else {
-                            //Get all of our config parameters
-                            config = JSON.parse(response); 
-                            
-                            //Get it, so put listner on DOM loaded event
-                            mainControlThread();
-                        }
-                    });
+                    //We do not have an org key, get one
+                    getNewOrgKey("");
                 }
+            }
+            else {
+                //We do not have an org key, get one
+                getNewOrgKey("");
             }
         }
         else {
@@ -212,6 +223,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             userId = response.accountId;
         else    
             userId = response.key;
+
         userEmail = response.emailAddress;
         userName = response.displayName;
         console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
@@ -355,6 +367,17 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
  
         //Now run each issue group query from the workgroup
         workgroup.issueGroups.forEach(function(issueGroup) {
+
+
+            //AJH RIGHT HERE - NEED TO USE ONE CHROME STORAGE, HAVE IT BE AN ARRAY - copy code from orgkey use of chrome storage.
+            //Saved the collapse setting in local storage for each work group
+            var issueGroupDetail = issueGroup.key + "-details.open";
+            chrome.storage.local.get(issueGroupDetail, function (data) {
+                console.log("PULL OPEN FOR " + issueGroupDetail + " IS " + data.issueGroupDetail, JSON.parse(JSON.stringify(data)));
+                if (data) {
+                    issueGroup.expandGroup = data.key;                   
+                }
+            });
 
             //Initialize our issue group counters
             console.log("ISSUE GROUP: INITALIZING DAY TOTALS FOR: " + issueGroup.name);
@@ -978,6 +1001,13 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
         var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
         myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
+        myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.issues.count/gi, issueGroup.issues.length);
+
+        //Close the expansion of the issue group, if we need to
+        if (issueGroup.expandGroup)
+            myIssueGroupHTML = myIssueGroupHTML.replace(/<details open/gi, "<details closed");
+        else
+            myIssueGroupHTML = myIssueGroupHTML.replace(/<details closed/gi, "<details open");   
 
         //And put the totals message in
         if (totalTotal > 0) 
@@ -1001,6 +1031,27 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         })
 
+        //Setup listeners to track our collapsing - save for re-use
+        document.getElementById(issueGroup.key + "-details").addEventListener("toggle", function () {
+            var issueGroupDetail = issueGroup.key + "-details.open";
+
+            console.log("OPEN FOR " + issueGroupDetail + " IS " + document.getElementById(issueGroup.key + "-details").open);
+            chrome.storage.local.set({issueGroupDetail: document.getElementById(issueGroup.key + "-details").open});
+            issueGroup.expandGroup = document.getElementById(issueGroup.key + "-details").open;
+
+            //See what happened
+            chrome.storage.local.get(issueGroupDetail, function (data) {
+                console.log("PULL OPEN FOR CONFIRMATION " + issueGroupDetail + " IS " + data, JSON.parse(JSON.stringify(data)));
+                if (data) {
+                    issueGroup.expandGroup = data.key;
+                    console.log("PULL OPEN FOR CONFIRMATION " + issueGroupDetail + " IS " + data.key, JSON.parse(JSON.stringify(data.key)));
+                }
+            });
+
+        });
+
+        document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
+        
     }
 
     //Create our issue row - part of the issueGroup

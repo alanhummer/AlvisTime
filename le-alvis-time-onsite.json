@@ -40,6 +40,10 @@
                 {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
                 {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com"},
                 {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com"},
+                {"name": "Ron Schmitt", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com"},
+                {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com"},
+                {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com"},
+                {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com"},
                 {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com"}
             ]
         },
@@ -71,7 +75,7 @@
                 {"name": "Support", "key": "sup", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support'"},
                 {"name": "Run The Business", "key": "rtb", "query": "'Project - Subproject' = '10558 - Run the Business' and summary ~ 'LECom Engineering'"},
                 {"name": "Administration", "key": "admin", "query": "'Project - Subproject' = '10345 - Administration'"}
-            ],
+             ],
             "users":  [
                 {"name": "Dawn Judd", "userid": "drjudd", "role": "admin", "email": "dawn.judd@landsend.com"},
                 {"name": "Roni Biefer", "userid": "rebiefe", "role": "quality-analyst", "email": "roni.biefer@landsend.com"}

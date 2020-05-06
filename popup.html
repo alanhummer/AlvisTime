@@ -84,6 +84,10 @@
 					background: #f3f3f3;		
 				}
 
+				.issue-group-name:hover {
+					cursor: pointer;
+				}
+
 				.totals-title {
 					height: 20px;	
 					padding: 10px;
@@ -449,8 +453,8 @@
 				</thead>
 			</table>
 			<div id="all-issue-groups-container">
-				<details open>
-					<summary class="issue-group-name">issueGroup.name - <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div></summary>
+				<details open id="issueGroup.key-details">
+					<summary class="issue-group-name">issueGroup.name (issueGroup.issues.count)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div></summary>
 					<table id="issueGroup.key-issue-group-table">
 						<thead>
 							<tr class="issueRow">
