@@ -88,6 +88,50 @@
 					cursor: pointer;
 				}
 
+				.summary-display {
+					height: 20px;	
+					padding: 10px;
+					color: blue;
+					font-weight: bold;	
+					font-size: 16px;
+					text-align: center;
+				}
+
+				.summary-display:hover {
+					cursor: pointer;
+				}
+
+				.timecard-summary-class-description {
+					font-size: 12px;
+					color: blue;
+					border-bottom: 1px solid #dddddd;
+					text-align: right;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+
+				.timecard-summary-totals-description {
+					font-size: 18px;
+					color: red;
+					border-bottom: 1px solid #dddddd;
+					text-align: right;
+				}
+
+				.timecard-summary-class {
+					font-size: 16px;
+					color: blue;
+					border-bottom: 1px solid #dddddd;
+					text-align: center;
+				}
+
+				.timecard-summary-totals {
+					font-size: 18px;
+					color: red;
+					border-bottom: 1px solid #dddddd;
+					text-align: center;
+				}
+
 				.totals-title {
 					height: 20px;	
 					padding: 10px;
@@ -254,8 +298,23 @@
 					text-align: left;
 				}
 
+				#changeorg {
+					padding: 16px 0 0 10px;
+					width: 50%;
+					display: inline-block;
+					vertical-align: middle;
+					text-align: left;
+				}
 
 				#submit-button {
+					padding: 16px 0 0 10px;
+					width: 50%;
+					display: inline-block;
+					vertical-align: middle;
+					text-align: right;
+				}
+
+				#summary-button {
 					padding: 16px 0 0 10px;
 					width: 50%;
 					display: inline-block;
@@ -410,7 +469,79 @@
 		</style>
 	</head>
 	<body>
-		<div id="orgkeyrequest" style="color:green;display: inline-block; text-align:left; vertical-align:bottom;" class="issue-group-name">
+		<div id="timecard-summary2" class="summary-display" style="display: none;">
+			<div id="timecard-summary-wrapper1">
+				<table id="timecard-summary-details2">
+					<thead>
+						<tr>
+							<th width="30%" class="timecard-summary-class-description" style="text-align:left"></th>
+							<th width="9%" class="timecard-summary-class" style="background:#f3f3f3">Sat</th>
+							<th width="9%" class="timecard-summary-class" style="background:#f3f3f3">Sun</th>
+							<th width="9%" class="timecard-summary-class">Mon</th>
+							<th width="9%" class="timecard-summary-class">Tues</th>
+							<th width="9%" class="timecard-summary-class">Wed</th>						
+							<th width="9%" class="timecard-summary-class">Thur</th>
+							<th width="9%" class="timecard-summary-class">Fri</th>						
+							<th width="7%" class="timecard-summary-class">Total</th>	
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th width="30%" class="timecard-summary-class-description" style="text-align:left">10705 - LANDSEND.COM SUPPORT</th>
+							<td width="9%" class="timecard-summary-class" style="background:#f3f3f3"></td>
+							<td width="9%" class="timecard-summary-class" style="background:#f3f3f3"></td>
+							<td width="9%" class="timecard-summary-class"></td>
+							<td width="9%" class="timecard-summary-class"></td>
+							<td width="9%" class="timecard-summary-class"></td>						
+							<td width="9%" class="timecard-summary-class"></td>
+							<td width="9%" class="timecard-summary-class"></td>						
+							<td width="7%" class="timecard-summary-class"></td>	
+						</tr>
+						<tr>
+							<td width="30%" class="timecard-summary-class-description">19466 - Security</td>
+							<td width="9%" class="timecard-summary-class" style="background:#f3f3f3">0</td>
+							<td width="9%" class="timecard-summary-class" style="background:#f3f3f3">0</td>
+							<td width="9%" class="timecard-summary-class">0</td>
+							<td width="9%" class="timecard-summary-class">6</td>
+							<td width="9%" class="timecard-summary-class">12</td>						
+							<td width="9%" class="timecard-summary-class">0</td>
+							<td width="9%" class="timecard-summary-class">0</td>						
+							<td width="7%" class="timecard-summary-class">18</td>	
+						</tr>
+						<tr>
+							<td colspan="1" height="10"></td>
+							<td colspan="2" style="background:#f3f3f3" height="10"></td>
+							<td colspan="6" height="10"></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div id="timecard-summary" class="summary-display" style="display: none;">
+			<div id="timecard-summary-range"></div>
+			<br>
+			<div id="timecard-summary-wrapper">
+				<table id="timecard-summary-details">
+					<thead>
+						<tr>
+							<th width="30%" class="timecard-summary-class-description" style="text-align:left"></th>
+							<th width="9%" class="timecard-summary-class" style="background:#f3f3f3">Sat</th>
+							<th width="9%" class="timecard-summary-class" style="background:#f3f3f3">Sun</th>
+							<th width="9%" class="timecard-summary-class">Mon</th>
+							<th width="9%" class="timecard-summary-class">Tues</th>
+							<th width="9%" class="timecard-summary-class">Wed</th>						
+							<th width="9%" class="timecard-summary-class">Thur</th>
+							<th width="9%" class="timecard-summary-class">Fri</th>						
+							<th width="7%" class="timecard-summary-class">Total</th>	
+						</tr>
+					</thead>
+				</table>
+			</div>
+			<br><br>
+			<a target="_blank" id="summary-done"><img id="summary-done-image" src="images/done.png" height="33" class="week-images"></a>
+		</div>
+		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="issue-group-name">
 			Greetings and welcom to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time".  
 			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by below also (to do yet).<br><br>
 			<div style="text-align:center; vertical-align:bottom;">
@@ -420,7 +551,7 @@
 			<div id="orgKeyMessage"></div>
 			</div>
 		</div>
-		<div id="everything" style="display: block;">
+		<div id="everything" style="display: none;">
 		<div style="text-align:left;float:left;" id="user-select"></div>
 		<div style="text-align:right;float:right;" id="nav"><a target="_blank" id="closeLink">_CLOSE_</a></div>
 		<div id="date-range">
@@ -498,12 +629,17 @@
 		<div id="brand">
 			<table class="positioning-table">
 				<tr class="positioning-row">
-					<td width="300" class="positioning-cell" style="text-align: left;"><div id="logo"><img id="logoimage" src="" width="140" height="25" /></div></td>
-					<td width="470" class="positioning-cell"><a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" /></a></td>
+					<td width="300" class="positioning-cell" style="text-align: left;">
+						<div id="logo"><img id="logoimage" src="" width="140" height="25" /><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" /></a></div>
+					</td>
+					<td width="100" class="positioning-cell">
+						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" /></a>
+					</td>
+					<td width="370" class="positioning-cell">
+						<a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" /></a>
+					</td>
 				</tr>
 			</table> 
-		</div>
-		<div id="changeorg" style="text-align:center";><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" /></a></div>
 		</div>
 	</body>
 </html>

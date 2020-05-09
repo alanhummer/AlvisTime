@@ -30,6 +30,7 @@ var notice = "";
 
 //Some HTML snippets to use
 var issueGroupHTML;
+var summaryTable;
 
 //A global way to track, good to validate with
 var totalTotal = 0;
@@ -51,11 +52,13 @@ function onDOMContentLoaded() {
 
     //Initialize the view
     document.getElementById('everything').style.display =  'none';
-    document.getElementById('orgkeyrequest').style.display =  'block';
+    document.getElementById('orgkeyrequest').style.display =  'none';
+    document.getElementById('timecard-summary').style.display =  'none';
 
     //Loop until it is valid and we did one
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
+   
     loadKeyAndOrg();
 }
 
@@ -155,9 +158,14 @@ function loadKeyAndOrg() {
 CRUD manaagement of the orgKey
 ****************/
 function getNewOrgKey(inputValue) {
-    document.getElementById('orgkey').value = inputValue;
+
+    //Setup the view
     document.getElementById('everything').style.display =  'none';
     document.getElementById('orgkeyrequest').style.display =  'block';
+    document.getElementById('timecard-summary').style.display =  'none';
+
+    document.getElementById('orgkey').value = inputValue;
+
     if (inputValue.length > 0) {
         orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
     }
@@ -173,6 +181,170 @@ function setupNewOrg() {
     closeit();
 }
 
+/****************
+Showing the time card summary
+****************/
+function showTimeCardSummary() {
+
+    var classificationArray = [];
+    var classificationObject;
+    var classificationID = 0;
+    var classificationDisplay = "";
+    var row;
+
+    //Setup the view
+    document.getElementById('everything').style.display =  'none';
+    document.getElementById('orgkeyrequest').style.display =  'none';
+    document.getElementById('timecard-summary').style.display =  'block';
+
+    //Load our date header
+    document.getElementById('timecard-summary-range').innerHTML = range.innerHTML;
+
+    //Clear out our table
+    document.getElementById('timecard-summary-wrapper').innerHTML = summaryTable;
+
+    //Setup totals object
+    var classificationTotalsObject = {
+        "id": 0,
+        "description": "TOTALS:",
+        "descriptionChild": "TOTALS:",
+        "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+        "totalTotal": 0
+    }
+
+
+    //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
+    workgroup.issueGroups.forEach(function(issueGroup) {
+        console.log("AJH DOING ISSUE GROUP: " + issueGroup.name);
+        issueGroup.issues.forEach(function(issue) {
+            console.log("AJH DOING ISSUE: " + issue.issueTotalTime);
+            if (issue.issueTotalTime > 0) {
+                        
+                //Our classification display
+                classificationDisplay = "";
+                console.log("AJH CLASS DISPLAY 1: " + issue.classification, JSON.parse(JSON.stringify(issue.classification)));
+
+                console.log("AJH CLASS DISPLAY 2: " + issue.classification);
+
+                var classificationObject;
+                //See if we cna find our classification already
+                classificationArray.forEach(function(classObj) {
+                    if (classObj.description == issue.classification && classObj.descriptionChild == issue.classificationChild) {
+                        //Found one - done
+                        console.log("AJH CLASS FOUND MATCH: " + issue.classification);
+                        classificationObject = classObj;
+                    }
+                }) 
+
+                console.log("AJH CLASS DISPLAY 3: " + issue.classification);
+
+                //If not, create one
+                if (!classificationObject) {
+
+                    //A key for the classifications
+                    classificationID = classificationID + 1;
+
+                    classificationObject = {
+                        "id": classificationID,
+                        "description": issue.classification,
+                        "descriptionChild": issue.classificationChild,
+                        "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+                        "totalTotal": 0
+                    }
+
+                    console.log("AJH CREATING CLASS OBJ: " + issue.classification);
+
+                    //Now add the object to the array
+                    classificationArray.push(classificationObject);
+
+                }
+                console.log("AJH CLASS DISPLAY 4: " + issue.classification);
+                console.log("AJH DOING CLASSIFICATION: " + classificationObject.description);
+
+
+                //For each day, add the amounts to the totals for the classification
+                for (var dayIndex=0; dayIndex < 7; dayIndex++) {
+                    if (issue.worklogDisplayObjects[dayIndex].worklogTimeSpent > 0) {
+                        classificationObject.dayTotal[dayIndex] =  classificationObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
+                        classificationTotalsObject.dayTotal[dayIndex] =  classificationTotalsObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
+                    }
+                }
+
+                //For double checking totals
+                classificationObject.totalTotal = classificationObject.totalTotal + issue.issueTotalTime;
+                classificationTotalsObject.totalTotal = classificationTotalsObject.totalTotal + issue.issueTotalTime;
+
+            }
+        })
+    })
+
+    //Setup starter object
+    var prevClassificationObject = {
+        "id": 0,
+        "description": "(not defined)",
+        "descriptionChild": "(not defined)",
+        "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+        "totalTotal": 0
+    }
+
+    //for each cusotmer field classification, if > 0 hours, load it to the grid
+    classificationArray.forEach(function(classificationObject) {
+
+            console.log("AJH MAKING ROW:" + classificationObject.description);
+
+            if (classificationObject.description == prevClassificationObject.description) {
+                //Same main class, don't show the main class name
+            }
+            else {
+                //filler - if not the first one
+                if (prevClassificationObject.description != "(not defined)") {
+
+                    //New main class, so start fresh and show the class name - filller first
+                    row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "", "3");
+
+                    //And add it to our issue group table
+                    document.getElementById("timecard-summary-details").appendChild(row);   
+  
+                    //New main class, so start fresh and show the class name - filller first
+                    row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "#99b3ff;", "1");
+
+                    //And add it to our issue group table
+                    document.getElementById("timecard-summary-details").appendChild(row);   
+
+                }
+
+                //New main class, so start fresh and show the class name
+                row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "head");
+
+                //And add it to our issue group table
+                document.getElementById("timecard-summary-details").appendChild(row);   
+
+            }
+
+            //Now have to dcreate the row now
+            row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "detail");
+
+            //And add it to our issue group table
+            document.getElementById("timecard-summary-details").appendChild(row);   
+
+            //Reset our previous object
+            prevClassificationObject = classificationObject;
+
+    })
+
+    //Final fill buffer
+    row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-class", "fill", "#99b3ff;", "3");
+
+    //And add it to our issue group table
+    document.getElementById("timecard-summary-details").appendChild(row);   
+
+    //And the totals
+    row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-totals", "total");
+
+    //And add it to our issue group table
+    document.getElementById("timecard-summary-details").appendChild(row);   
+
+}
 
 
 /****************
@@ -189,6 +361,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Log where we are at
     console.log("Alvis Time: API Endpoint: " + config.orgJiraBaseURI + config.orgJiraAPIExtension);
 
+    //Clear out our array/display in case this is a re-post
+    
+
     //Set up UI Element for Close Button
     document.getElementById('closeLink').href = "nowhere";
     document.getElementById('closeLink').onclick = closeit;
@@ -199,15 +374,28 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById('nextWeek').href = "nowhere";
     document.getElementById('nextWeek').onclick = nextWeek;  
 
-    //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/evenlistener
+    //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses()}); 
 
-    //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/evenlistener
+    //Change org button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey)}); 
 
+    //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
+    document.getElementById("summary-image").addEventListener ("click", function(){ showTimeCardSummary()}); 
+    document.getElementById("summary-done-image").addEventListener ("click", function(){ 
+        //Setup the view
+        document.getElementById('everything').style.display =  'block';
+        document.getElementById('orgkeyrequest').style.display =  'none';
+        document.getElementById('timecard-summary').style.display =  'none';
+    });    
+    
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
     document.getElementById('all-issue-groups-container').innerHTML = "";
+
+    //And for summary table
+    summaryTable = document.getElementById('timecard-summary-wrapper').innerHTML;
+    document.getElementById('timecard-summary-wrapper').innerHTML = ""
 
     //Get User info
     JIRA.getUser()
@@ -277,10 +465,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             }
         }
 
-        //Turn on our app
+        //Setup the view
         document.getElementById('everything').style.display =  'block';
         document.getElementById('orgkeyrequest').style.display =  'none';
-
+        document.getElementById('timecard-summary').style.display =  'none';
+        
         // Set week date range header in html
         range = document.getElementById('week-dates-description');
         getWeek();
@@ -1074,12 +1263,17 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         ************/
 
         //Setup our classification grouping
+        issue.classificationChild = "";
+        issue.classification = "";
         if (workgroup.settings.customFieldForClassification) {
             var customClassificationField = issue.fields[workgroup.settings.customFieldForClassification];
             if (customClassificationField) {
                 issue.classification = customClassificationField.value;
                 if (customClassificationField.child) {
-                    issue.classification = issue.classification + " - " + customClassificationField.child.value;
+                    issue.classificationChild = customClassificationField.child.value;
+                }
+                else {
+                    issue.classificationChild = "";
                 }
             }
             else {
@@ -1091,7 +1285,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         }
 
          
-        var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "</td></tr></table>"
+        var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
         var summaryCell = buildHTML('td', issueDescription, {  
             class: 'truncate'
         });
@@ -1434,6 +1628,170 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     }
 
 }
+
+
+//Create our sumation row
+function generateTimecardSummaryRow(issueClassification, inputClass, inputType, inputColor, inputSize) {
+
+    //Accumulate our sum
+    var dailyTotal = [0, 0, 0, 0, 0, 0, 0];
+    var rowTotalTotal = 0;
+    var showTotal;
+    var descToDisplay;
+    
+        /********
+    Summary row - define here and add stuff to it
+    ********/
+    if (inputType == "head") {
+        var row = buildHTML('tr', null, {});
+    }
+    else if (inputType == "fill") {
+        if (inputColor.length > 0) {
+            var row = buildHTML('tr', null, {
+                style: "background: " + inputColor
+            });  
+        }
+        else {
+            var row = buildHTML('tr', null, {});  
+        }
+    }
+    else {
+        var row = buildHTML('tr', null, {
+            'id': issueClassification.id + '-summary-id'
+        });       
+    }
+
+
+    /************
+    Classifiation summary
+    ************/
+    console.log("ISSUE CLASSIFICATION:" + issueClassification.descriptionChild);
+
+    if (inputType == "head") {
+        if (issueClassification.description.length > 0)
+            descToDisplay = issueClassification.description;
+        else
+            descToDisplay = "(no project)"
+
+        var summaryCell = buildHTML('th', descToDisplay, {  
+            class: inputClass + '-description',
+            style: "text-align:left"
+
+        });
+    }
+    else if (inputType == "fill") {
+        var summaryCell = buildHTML('td', "", {  
+            class: inputClass + '-description',
+            style: "height:" + inputSize + "px"
+        });       
+    }
+    else {
+        if (issueClassification.descriptionChild.length > 0)
+            descToDisplay = issueClassification.descriptionChild;
+        else
+            descToDisplay = "(no sub-project)"
+
+        var summaryCell = buildHTML('td', descToDisplay, {  
+            class: inputClass + '-description'
+        });
+    }
+
+
+    //Write the Summary cell
+    row.appendChild(summaryCell);       
+
+    /*********
+    Classification totals for the 7 Days of the Week
+    *********/
+
+    //We have the issue and array goes Saturdy --> Friday
+    for (var i = 0; i < 7; i++) {
+
+        //Rip thru each day of the week
+
+        //Create table cell element for this worklog
+        if (inputType == "head") {
+            var timeInputDayCell = buildHTML('th', "", {  
+                class: inputClass
+            });
+        }
+        else if (inputType == "fill") {
+            var timeInputDayCell = buildHTML('td', "", {  
+                class: inputClass,
+
+            });        
+        }
+        else {
+            if (issueClassification.dayTotal[i])
+                showTotal = issueClassification.dayTotal[i];
+            else
+                showTotal = "0";
+
+            var timeInputDayCell = buildHTML('td', showTotal, {  
+                class: inputClass
+            });           
+        }
+
+
+        //Make Saturday and Sunday gray
+
+        if (i < 2) {
+            if (inputType == "fill") {
+                if (inputColor.length <= 0) {
+                    timeInputDayCell.style.backgroundColor = "#f3f3f3";
+                }
+             }
+            else {
+                timeInputDayCell.style.backgroundColor = "#f3f3f3";
+            }
+        }
+
+
+
+        //Add to the row
+        row.appendChild(timeInputDayCell);
+    }
+
+    /*********
+    Summary Total
+    *********/
+    
+    //Add the final total cell
+    if (inputType == "head") {
+        var timeInputTotal = buildHTML('th', "", {
+            class: inputClass  
+        });
+    }
+    else if (inputType == "fill") {
+        var timeInputTotal = buildHTML('td', "", {
+            class: inputClass  
+        });        
+    }
+    else {
+        if (issueClassification.totalTotal > 0) {
+            var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
+                class: inputClass,
+                id: issueClassification.id + "+total"
+            });
+        }
+        else {
+            var timeInputTotal = buildHTML('td', "0", {
+                class: inputClass,
+                id: issueClassification.id + "+total"
+            });           
+        }
+    }
+
+
+    //Add to the column
+    row.appendChild(timeInputTotal);
+    
+    console.log("RETURNING ROW: ", JSON.parse(JSON.stringify(row)));
+
+    return row;
+
+}
+
 
 /***************
 Helper functions 
