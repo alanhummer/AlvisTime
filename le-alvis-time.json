@@ -4,6 +4,7 @@
     "orgLogo": "images/logo.png",
     "orgJiraBaseURI": "https://letime.atlassian.net",
     "orgJiraAPIExtension": "/rest/api/2",
+    "orgHelpLogo": "images/help.png",
     "workgroups": [
         {
             "name": "LE.com",

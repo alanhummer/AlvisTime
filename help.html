@@ -469,137 +469,36 @@
 		</style>
 	</head>
 	<body>
-		<!--The Time card summary presentation -->
-		<div id="timecard-summary" class="summary-display" style="display: none;">
-			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a  id="closeLink-summary" target="_blank"><img id="close-image-summary" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-summary" target="_blank"><img id="help-image-summary" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
-			</div>
-			<div id="timecard-summary-range"></div>
-			<br>
-			<div id="timecard-summary-wrapper">
-				<table id="timecard-summary-details">
-					<thead>
-						<tr>
-							<th width="30%" class="timecard-summary-class-description" style="text-align:left"></th>
-							<th width="8%" class="timecard-summary-class" style="background:#f3f3f3">Sat</th>
-							<th width="8%" class="timecard-summary-class" style="background:#f3f3f3">Sun</th>
-							<th width="8%" class="timecard-summary-class">Mon</th>
-							<th width="8%" class="timecard-summary-class">Tues</th>
-							<th width="8%" class="timecard-summary-class">Wed</th>						
-							<th width="8%" class="timecard-summary-class">Thur</th>
-							<th width="8%" class="timecard-summary-class">Fri</th>						
-							<th width="14%" class="timecard-summary-class">Total</th>	
-						</tr>
-					</thead>
-				</table>
-			</div>
-			<br><br>
-		</div>
-		<!--The Orge Key presentation-->
-		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="issue-group-name">
-			Greetings and welcom to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time".  
-			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by below also (to do yet).<br><br>
-			<div style="text-align:center; vertical-align:bottom;">
-			Please enter valid organization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey" type="text" style="width: 250px;display: inline-block;">
-			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-org-key" src="images/submit-org-key.png" width="176" height="33" class="week-images"></a>&nbsp;OR&nbsp;
-			<a tabindex="2" target="_blank" id="submit-link2"><img id="setup-new-org" src="images/setup-new-organization.png" width="176" height="33" class="week-images"></a><br><br>
-			<div id="orgKeyMessage"></div>
-			</div>
-		</div>
 		<!--The Main Presentation-->
-		<div id="everything" style="display: none;">
-		<div style="text-align:left;float:left;" id="user-select"></div>
-		<div style="text-align:right;float:right;width: 200;" id="nav">
-			<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-			<a id="helpLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
-		</div>
-		<div id="date-range">
-			<table class="positioning-table">
-				<tr class="positioning-row">
-					<td width="100" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="64" height="64" class="week-images"></a></td>
-					<td width="300" class="positioning-cell"><div id="week-dates-description" class="week-description"></div></td>
-					<td width="100" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="64" height="64" class="week-images"></a></td>
-					<td width="100" class="positioning-cell"><div id="loader-container"><div class="loader" id="loader"></div></div></td>
-				</tr>
-			</table> 
-		</div>
-		<div id="notice"></div>
-		<div id="table-container">
-			<table>
-				<thead>
-					<tr>
-						<th width="30%"></th>
-						<th width="10%"></th>
-						<th width="7%">Sat</th>
-						<th width="7%">Sun</th>
-						<th width="7%">Mon</th>
-						<th width="7%">Tues</th>
-						<th width="7%">Wed</th>						
-						<th width="7%">Thur</th>
-						<th width="7%">Fri</th>						
-						<th width="7%">Total</th>	
-						<th width="4%"></th>
-					</tr>          
-				</thead>
-			</table>
-			<div id="all-issue-groups-container">
-				<details open id="issueGroup.key-details">
-					<summary class="issue-group-name">issueGroup.name (issueGroup.issues.count)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div></summary>
-					<table id="issueGroup.key-issue-group-table">
-						<thead>
-							<tr class="issueRow">
-								<th width="30%"></th>
-								<th width="10%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>					
-								<th width="7%"></th>
-								<th width="7%"></th>					
-								<th width="7%"></th>
-								<th width="4%"></th>
-							</tr>
-						</thead>
-					</table>
-				</details>
+		<div id="help-text" style="display: block;">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
+				<a id="help" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
 			</div>
-			<div id="totals-container">
-				<table id="total-issue-group-table">
-					<thead>
-						<tr>
-							<th width="30%"></th>
-							<th width="10%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>					
-							<th width="7%"></th>
-							<th width="7%"></th>					
-							<th width="7%"></th>
-							<th width="4%"></th>
-						</tr>
-					</thead>
-				</table>
-				</summary>
-			</div>
-		</div>
-		<div id="brand">
-			<table class="positioning-table">
-				<tr class="positioning-row">
-					<td width="300" class="positioning-cell" style="text-align: left;">
-						<div id="logo"><img id="logoimage" src="" width="140" height="25" /><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" /></a></div>
-					</td>
-					<td width="100" class="positioning-cell">
-						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" /></a>
-					</td>
-					<td width="370" class="positioning-cell">
-						<a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" /></a>
-					</td>
-				</tr>
-			</table> 
+			Project Focus on Projects – Capital: Design, Development, Testing, Deployment.  Already doing very well.  
+			Cap ratio > 90%
+			
+			Support
+			<ul>
+				KTLO (Mandatory Support)
+				Problem Incidents – break/fix, severity issue, hot fixes of production systems.  Does not include low priority QA defects that didn’t make a release. 
+				Operations – Non-discretionary preventative maintenance. DB tuning, environment/stacks maintenance.
+				Off Hours / On Call – Being retired. Don’t use. 
+				Audits and Compliance – participation in SOX and PCI audits (evidence gathering etc), or engineering work in response to an audit issue. 
+			</ul>
+			<ul>
+				Improvements (Discretionary Support)
+				Requests/Other – Small, yet high priority business requests under 80 hr.  Note: this existed before “Enhancements”.   Generally don’t use for le.com or international web.
+				Security – Security approved engineering changes to achieve and/or remain compliant with IT Security Policy.
+				Tech Debt – Addressing “Debt” of previous engineering trade-offs made to hit cost and budget constraints.
+			</ul>
+			<ul>		
+				Support/Expense Mgmt Policy Updates (for our areas): 
+				All improvement support tickets requires management approval.
+				Request/Other should not be used for ecommerce requests – rather these get prioritized through enhancements.
+				Security tickets – vetted and approved by IT Security.
+				Tech Debt – Assess against short term revenue generating, cost reduction, risk reduction.  Goal: Reduce by half, and half the remaining gets prioritized through enhancements.  
+			</ul>	
 		</div>
 	</body>
 </html>

@@ -18,6 +18,7 @@ var orgKey = "";
 var userId;
 var userEmail;
 var userName = "";
+var userMinHoursToSubmit = 0;
 var blnAdmin = false; //Easy access to admin boolean
 var blnRemoteConfig = false;
 
@@ -363,11 +364,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     //Clear out our array/display in case this is a re-post
     
-
     //Set up UI Element for Close Button
     document.getElementById('closeLink').href = "nowhere";
     document.getElementById('closeLink').onclick = closeit;
-    
+   
+    //Set up UI Element for Help Button
+    document.getElementById('helpLink').href = "nowhere";
+    document.getElementById('helpLink').onclick = openHelp;
+
     //Set up UI Element for Previous and next buttons
     document.getElementById('previousWeek').href = "nowhere";
     document.getElementById('previousWeek').onclick = previousWeek;
@@ -382,12 +386,15 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("summary-image").addEventListener ("click", function(){ showTimeCardSummary()}); 
-    document.getElementById("summary-done-image").addEventListener ("click", function(){ 
+    document.getElementById("close-image-summary").addEventListener ("click", function(){ 
         //Setup the view
         document.getElementById('everything').style.display =  'block';
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
     });    
+    //Set up UI Element for Help Button
+    document.getElementById('helpLink-summary').href = "nowhere";
+    document.getElementById('helpLink-summary').onclick = openHelp;
     
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
@@ -412,8 +419,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         else    
             userId = response.key;
 
-        userEmail = response.emailAddress;
-        userName = response.displayName;
         console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
 
         var userOptions;  //This will hold the selection list of users to chane between, if we are an admin
@@ -452,6 +457,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             //closeit();
         }        
 
+        userEmail = user.email;
+        userName = user.name
+
         //See if we are admin 
         if (user.role == "admin") {
             blnAdmin = true;
@@ -463,6 +471,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 else
                     userOptions = userOptions + "<option>" + workgroup.users[u].name + "</option>";
             }
+        }
+
+        //Set our min hours - if user overirde of workgroup level
+        if (typeof user.minHoursToSubmit === 'undefined') {
+            userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
+        }
+        else {
+            userMinHoursToSubmit = user.minHoursToSubmit;
         }
 
         //Setup the view
@@ -516,9 +532,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 userId = workgroup.users[i].userid;
                 userEmail = workgroup.users[i].email;
                 userName = workgroup.users[i].name;
+
+                //Set our min hours - if user overirde of workgroup level
+                if (typeof workgroup.users[i].minHoursToSubmit === 'undefined') {
+                    userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
+                }
+                else {
+                    userMinHoursToSubmit = workgroup.users[i].minHoursToSubmit;
+                }
             }
         }
         console.log("Alvis Time: Changed to " + userName + " + " + userId + " + " + userEmail);
+
+        console.log("HOURS TO SUBMIT:" + userMinHoursToSubmit);
 
         //Get the issues - need to reset everything since we changed user
         getTheIssues();
@@ -557,39 +583,48 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Now run each issue group query from the workgroup
         workgroup.issueGroups.forEach(function(issueGroup) {
 
-
-            //AJH RIGHT HERE - NEED TO USE ONE CHROME STORAGE, HAVE IT BE AN ARRAY - copy code from orgkey use of chrome storage.
-            //Saved the collapse setting in local storage for each work group
-            var issueGroupDetail = issueGroup.key + "-details.open";
-            chrome.storage.local.get(issueGroupDetail, function (data) {
-                console.log("PULL OPEN FOR " + issueGroupDetail + " IS " + data.issueGroupDetail, JSON.parse(JSON.stringify(data)));
+            //See what we have for saved collspase setting for this issue group
+            var expandKeyName = issueGroup.key + "-expand";
+            chrome.storage.local.get(expandKeyName, function(data) {
                 if (data) {
-                    issueGroup.expandGroup = data.key;                   
+                    if (data[expandKeyName]) {
+                        issueGroup.expandGroup = true;
+                    }
+                    else {
+                        if (data == null || typeof data === 'undefined' || data.length <= 0) {
+                            issueGroup.expandGroup = false;
+                        }
+                        else {
+                            issueGroup.expandGroup = false;
+                        }
+                    }
                 }
-            });
+                else {
+                    issueGroup.expandGroup = true;
+                }
+                
+                //Initialize our issue group counters
+                console.log("ISSUE GROUP: INITALIZING DAY TOTALS FOR: " + issueGroup.name);
+                issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
+                issueGroup.timeTotal = 0;
 
-            //Initialize our issue group counters
-            console.log("ISSUE GROUP: INITALIZING DAY TOTALS FOR: " + issueGroup.name);
-            issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
-            issueGroup.timeTotal = 0;
+                // Create the query
+                myJQL = issueGroup.query;
+                myJQL = myJQL.replace(/user.name/gi, userName);
+                myJQL = myJQL.replace(/user.userid/gi, userId);
+                myJQL = myJQL.replace(/user.email/gi, userEmail);
 
-            // Create the query
-            myJQL = issueGroup.query;
-            myJQL = myJQL.replace(/user.name/gi, userName);
-            myJQL = myJQL.replace(/user.userid/gi, userId);
-            myJQL = myJQL.replace(/user.email/gi, userEmail);
+                //Initialize our tracking elements
+                issueGroup.issuesProcessed = 0;
+                issueGroup.issuesLoaded = false;
 
-            //Initialize our tracking elements
-            issueGroup.issuesProcessed = 0;
-            issueGroup.issuesLoaded = false;
+                //Log the query
+                console.log("Alvis Time: Doing a query - " + issueGroup.name + " JQL:" + myJQL);
 
-            //Log the query
-            console.log("Alvis Time: Doing a query - " + issueGroup.name + " JQL:" + myJQL);
-
-            //Let run it and get the issues
-            JIRA.getIssues(myJQL, issueGroup)
-                .then(onIssueFetchSuccess, onIssueFetchFailure);
-
+                //Let run it and get the issues
+                JIRA.getIssues(myJQL, issueGroup)
+                    .then(onIssueFetchSuccess, onIssueFetchFailure);
+            });                
         })
     }
 
@@ -843,7 +878,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 }
                 break;
             default: //same as "entry" and "submit-for-approval"
-                if (totalTotal >= workgroup.settings.hoursToSubmit) {
+                if (totalTotal >= userMinHoursToSubmit) {
                     document.getElementById("submit-image").src = "images/submit-for-approval.png";
                     document.getElementById("submit-image").className = "enabled-image";
                     timecardStatus = "submit-for-approval";
@@ -1028,7 +1063,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
                  //Total-Total - Turn green/red if nwe changed over/under 40
                 document.getElementById("total+total+total").innerText = totalTotal;
-                if (totalTotal >= workgroup.settings.hoursToSubmit)
+                if (totalTotal >= userMinHoursToSubmit)
                     document.getElementById("total+total+total").style.backgroundColor = "green";
                 else
                     document.getElementById("total+total+total").style.backgroundColor = "red"; 
@@ -1220,23 +1255,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         })
 
+        //Set open or closed
+        document.getElementById(issueGroup.key + "-details").open = issueGroup.expandGroup;
+
         //Setup listeners to track our collapsing - save for re-use
         document.getElementById(issueGroup.key + "-details").addEventListener("toggle", function () {
-            var issueGroupDetail = issueGroup.key + "-details.open";
 
-            console.log("OPEN FOR " + issueGroupDetail + " IS " + document.getElementById(issueGroup.key + "-details").open);
-            chrome.storage.local.set({issueGroupDetail: document.getElementById(issueGroup.key + "-details").open});
-            issueGroup.expandGroup = document.getElementById(issueGroup.key + "-details").open;
-
-            //See what happened
-            chrome.storage.local.get(issueGroupDetail, function (data) {
-                console.log("PULL OPEN FOR CONFIRMATION " + issueGroupDetail + " IS " + data, JSON.parse(JSON.stringify(data)));
-                if (data) {
-                    issueGroup.expandGroup = data.key;
-                    console.log("PULL OPEN FOR CONFIRMATION " + issueGroupDetail + " IS " + data.key, JSON.parse(JSON.stringify(data.key)));
-                }
+            //Setup our storage keys to save the collapse setting for this group
+            var expandKeyName = issueGroup.key + "-expand";
+            var expandKeyObj = {};
+            expandKeyObj[expandKeyName] = document.getElementById(issueGroup.key + "-details").open;
+            chrome.storage.local.set(expandKeyObj, function () {
+                issueGroup.expandGroup = document.getElementById(issueGroup.key + "-details").open;
             });
-
         });
 
         document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
@@ -1471,7 +1502,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //Set the total element to red/green if > 40 yet.
         timeInputTotal.style.color = "white";
-        if (rowTotalTotal >= workgroup.settings.hoursToSubmit)
+        if (rowTotalTotal >= userMinHoursToSubmit)
             timeInputTotal.style.backgroundColor = "green";
         else
             timeInputTotal.style.backgroundColor = "red";        
@@ -1638,6 +1669,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     var rowTotalTotal = 0;
     var showTotal;
     var descToDisplay;
+    var hoursPercentage;
     
         /********
     Summary row - define here and add stuff to it
@@ -1755,7 +1787,10 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     /*********
     Summary Total
     *********/
-    
+
+    console.log("HOURS CALC:" + issueClassification.totalTotal + " / " + totalTotal);
+    hoursPercentage = Number((100 * issueClassification.totalTotal / totalTotal).toFixed(0));
+
     //Add the final total cell
     if (inputType == "head") {
         var timeInputTotal = buildHTML('th', "", {
@@ -1769,10 +1804,29 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     }
     else {
         if (issueClassification.totalTotal > 0) {
-            var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
-                class: inputClass,
-                id: issueClassification.id + "+total"
-            });
+
+            if (inputType == "total") {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
+                    class: inputClass,
+                    id: issueClassification.id + "+total"
+                });
+            }
+            else {
+                if (hoursPercentage < 10) {
+                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                        class: inputClass,
+                        id: issueClassification.id + "+total"
+                    });
+                }
+                else {
+                    console.log("HOURS COMPARE: " + hoursPercentage + " < 3 " + (hoursPercentage < 3));
+                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                        class: inputClass,
+                        id: issueClassification.id + "+total",
+                        style: "color:red;"
+                    });
+                }              
+            }
         }
         else {
             var timeInputTotal = buildHTML('td', "0", {
@@ -1807,6 +1861,20 @@ function closeit(){
 //Do nthing....
 function doNothing() {
     return false;
+}
+
+//Open the help window
+function openHelp(){
+
+    chrome.windows.create ({
+        url: config.orgHelpPage,
+        type: "popup"
+    });
+    //window.open(inputURI);
+    return false;
+
+    //window.open(config.orgHelpPage, "_help", "scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,width=800px,height=600px,left=0,top=0");
+    //return false; //This causes the href to not get invoked
 }
 
 

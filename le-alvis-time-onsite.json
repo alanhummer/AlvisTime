@@ -4,11 +4,14 @@
     "orgLogo": "images/logo.png",
     "orgJiraBaseURI": "http://issues.landsend.com/jira",
     "orgJiraAPIExtension": "/rest/api/2",
+    "orgHelpLogo": "images/help_button.png",
+    "orgCloseLogo": "images/close_button.png",
+    "orgHelpPage": "help.html",   
     "workgroups": [
         {
             "name": "LE.com",
             "settings": {
-                "hoursToSubmit": 40,
+                "minHoursToSubmit": 40,
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
                 "customFieldForClassification": "customfield_10901"
             },
@@ -29,18 +32,19 @@
                 "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
             },
             "issueGroups": [
-               {"name": "Projects", "key": "proj", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))"},
-               {"name": "Support", "key": "sup", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support'"},
-               {"name": "Run The Business", "key": "rtb", "query": "'Project - Subproject' = '10558 - Run the Business' and summary ~ 'LECom Engineering'"},
-               {"name": "Administration", "key": "admin", "query": "'Project - Subproject' = '10345 - Administration'"}
+               {"name": "Projects", "key": "proj", "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business') AND (project != LE-Internal))"},
+               {"name": "Projects 2", "key": "proj2", "query": "project = LE-Internal AND 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')"},
+               {"name": "Support", "key": "sup", "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support')"},
+               {"name": "Run The Business", "key": "rtb", "query": "project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business'"},
+               {"name": "Administration", "key": "admin", "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration'"}
             ],
              "users":  [
                 {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com"},
                 {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
                 {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
                 {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com"},
-                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com"},
-                {"name": "Ron Schmitt", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com"},
+                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0},
+                {"name": "Ron Schmitt", "userid": "jward", "role": "developer", "email": "ron.schmitt@landsend.com"},
                 {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com"},
                 {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com"},
                 {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com"},
