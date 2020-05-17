@@ -81,7 +81,8 @@
 					color: blue;
 					font-weight: bold;	
 					font-size: 16px;
-					background: #f3f3f3;		
+					background: #f3f3f3;
+					width: 100%;		
 				}
 
 				.issue-group-name:hover {
@@ -374,6 +375,11 @@
 					padding: 10px;
 				}
 				
+				.stick-to-right {
+	       			float: right;
+					border-right: 15px solid rgba(255, 255, 255, 0.2);
+					padding: 0px;
+	  			}
 
 				/* SPINNER */
 				.loader {
@@ -555,24 +561,27 @@
 			</table>
 			<div id="all-issue-groups-container">
 				<details open id="issueGroup.key-details">
-					<summary class="issue-group-name">issueGroup.name (issueGroup.issues.count)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div></summary>
-						<table id="issueGroup.key-issue-group-table">
-							<thead>
-								<tr class="issueRow">
-									<th width="30%"></th>
-									<th width="10%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>					
-									<th width="7%"></th>
-									<th width="7%"></th>					
-									<th width="7%"></th>
-									<th width="4%"></th>
-								</tr>
-							</thead>
-						</table>
+					<summary class="issue-group-name">
+						issueGroup.name (<div id="issueGroup.key-issue-group-count" style="display: inline-block;">issueGroup.issues.count</div>)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div>
+						<div class="stick-to-right" id="issueGroup.key-classification-selection"></div>
+					</summary>
+					<table id="issueGroup.key-issue-group-table">
+						<thead>
+							<tr class="issueRow">
+								<th width="30%"></th>
+								<th width="10%"></th>
+								<th width="7%"></th>
+								<th width="7%"></th>
+								<th width="7%"></th>
+								<th width="7%"></th>
+								<th width="7%"></th>					
+								<th width="7%"></th>
+								<th width="7%"></th>					
+								<th width="7%"></th>
+								<th width="4%"></th>
+							</tr>
+						</thead>
+					</table>
 				</details>
 			</div>
 			<div id="totals-container">

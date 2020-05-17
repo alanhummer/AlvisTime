@@ -1222,6 +1222,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Draw our issues group - collapsable table/grid
     function drawIssueGroupTable(issueGroup, issueGroupIndex) {
         
+        //Array for holding unique classfiications
+        var classifications = [];
+
         //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
         var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
         myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
@@ -1253,8 +1256,66 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             //And add it to our issue group table
             document.getElementById(issueGroup.key + "-issue-group-table").appendChild(row);
 
+            //Add classifcation to list, if not already there
+            if (classifications.indexOf(issue.classification) >= 0) {
+                //skip it
+            }
+            else {
+                classifications.push(issue.classification);
+                console.log("PUSHED: |" + issue.classification + "|")
+            }
+
         })
 
+        //Do our classification selection
+        if (classifications.length > 1) {
+            
+            //Setup our selection list
+            var classificationSelect = buildHTML('select', null, {
+                id: issueGroup.key + "-classification-select"
+            });
+
+            //Our first entry will be ALL entries
+            var classificationOption = buildHTML('option', "(All Classifications)", {
+            }); 
+            classificationSelect.appendChild(classificationOption);
+
+            //Now do the list of our unique classifications for this issues query
+            classifications.forEach(function (classification) {
+                var classificationOption = buildHTML('option', classification, {
+                });
+                classificationSelect.appendChild(classificationOption);
+            });
+            document.getElementById(issueGroup.key + "-classification-selection").appendChild(classificationSelect);
+
+            //And handle when selection changes
+            document.getElementById(issueGroup.key + "-classification-select").addEventListener("change", function () { 
+
+                //For keeping track of how many match
+                var hitCount = 0;
+
+                //We picked one, so let filter on that value - only enable ones that match select, disable those that dont
+                issueGroup.issues.forEach(function (issue) {
+                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All Classifications)" || document.getElementById(issueGroup.key + "-classification-select").value == issue.classification) {
+                        document.getElementById(issueGroup.key + "+" + issue.id).style.display =  '';
+                        hitCount++;
+                     }
+                    else {
+                       document.getElementById(issueGroup.key + "+" + issue.id).style.display =  'none';
+                    }
+
+                    //Update our counts
+                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All Classifications)") {
+                        document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = issueGroup.issues.length;
+                    }
+                    else {
+                        document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = hitCount + " / " + issueGroup.issues.length;
+                    }
+
+                });
+            });
+        }   
+ 
         //Set open or closed
         document.getElementById(issueGroup.key + "-details").open = issueGroup.expandGroup;
 
@@ -1285,7 +1346,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         Issue row - define here and add stuff to it
         ********/
         var row = buildHTML('tr', null, {
-            'data-issue-id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex,
+            id: issueGroup.key + "+" + issue.id,
             class: 'issueRow'
         });
 
@@ -1315,6 +1376,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             issue.classification = "(issues not classified)";
         }
 
+        issue.classification = trim(issue.classification);
+        issue.classificationChild = trim(issue.classificationChild);
          
         var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
         var summaryCell = buildHTML('td', issueDescription, {  
@@ -2006,6 +2069,12 @@ function sleep(inputMS) {
 //Why do you have to have your own rounding function? Very lame
 function round(value, decimals) {
     return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
+}
+
+//Why string trim not native? Very lame
+function trim(inputString) {
+    var tempString = String(inputString);
+    return tempString.trim();
 }
 
 // Get Query String parameter
