@@ -163,14 +163,32 @@ function onUserSuccess(response) {
             blnAdmin = false;
 
         console.log("Alvis Time: You are in workgroup: " + workgroup.name + " and you are " + user.name + " who is admin:" + blnAdmin);
-        //Hourly pull, test if Friday and if in time window 1-6 an initial check then every 2 hours
-        checkForTimecards();
-        var timecardPoll = setInterval(checkForTimecards, 7200 * 1000); //3600 * 1000); //** RESET Poll every 2 hours checking for 1-6PM and then querying jira
 
-        //If admin, start a loop - Hourly pull, test if Friday and if in time window  an initial check then every hour
-        if (blnAdmin) {
-            checkForApproval();
-            var approvalPoll = setInterval(checkForApproval, 3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+        //Poll by config frequency, test if a day and if in time window configured then every n hours - if defined in config
+        if (workgroup.settings.timecardNotification.active) {
+            checkForTimecards();
+            var timecardPoll ;
+            if (workgroup.settings.timecardNotification.frequency) { //in hours
+                timecardPoll = setInterval(checkForTimecards, (workgroup.settings.timecardNotification.frequency * 3600) * 1000); //** RESET Poll every n hours checking for 1-6PM and then querying jira
+            }
+            else {
+                timecardPoll = setInterval(checkForTimecards, 7200 * 1000); //** RESET Poll every 2 hours checking for 1-6PM and then querying jira
+            }
+
+        }
+
+        //If admin, start a loop - pull however frequently, test if certaing day and if in time window  an initial check then every hour - if defined in config
+        if (workgroup.settings.approvalNotification.active) {
+            if (blnAdmin) {
+                checkForApproval();
+                var approvalPoll;
+                if (workgroup.settings.approvalNotification.frequency) { //in hours
+                    approvalPoll = setInterval(checkForApproval, (workgroup.settings.approvalNotification.frequency * 3600) * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+                }
+                else {
+                    approvalPoll = setInterval(checkForApproval, 3600 * 1000); //** RESET Poll every hour checking for 1-6PM and then querying jira
+                }
+            }
         }
 
     }
@@ -194,8 +212,8 @@ function checkForApproval() {
     var today = new Date();
 
     //if we are during the working day
-    if (today.getDay() > 0 && today.getDay() <= 5 ) { //Monday - Friday
-        if (today.getHours() >= 9 && today.getHours() <= 18 || blnTestOverride) {    //If we are 9-6
+    if (today.getDay() >= workgroup.settings.timecardNotification.dayRangeLow && today.getDay() <= workgroup.settings.timecardNotification.dayRangeHigh ) { //Monday - Friday = 1-5
+        if (today.getHours() >= workgroup.settings.timecardNotification.hourRangeLow && today.getHours() <= workgroup.settings.timecardNotification.hourRangeHigh || blnTestOverride) {    //If we are 9-6
             //for each users, see if they have a card to approve
             for(var i=0;i<workgroup.users.length;i++) {
                 jiraTimeCardApprovalCheck(workgroup.users[i]);
@@ -252,8 +270,8 @@ function checkForTimecards() {
     var today = new Date();
 
     //if we are Friday
-    if (today.getDay() == 5 || blnTestOverride) { //Friday
-        if (today.getHours() >= 13 && today.getHours() <= 18 || blnTestOverride) {    //If we are 1-6
+    if ((today.getDay() == workgroup.settings.approvalNotification.dayRangeLow && today.getDay() <= workgroup.settings.approvalNotification.dayRangeHigh) || blnTestOverride) { //Friday = 5-5
+        if (today.getHours() >= workgroup.settings.approvalNotification.hourRangeLow && today.getHours() <= workgroup.settings.approvalNotification.hourRangeHigh || blnTestOverride) {    //If we are in time range
             if (blnPollJira && !blnHaveTimecard) { //Just do this the one time where they say OK - not to be too pesky
                 jiraTimeCardSubmittedCheck();
             }

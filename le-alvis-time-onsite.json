@@ -13,7 +13,23 @@
             "settings": {
                 "minHoursToSubmit": 40,
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
-                "customFieldForClassification": "customfield_10901"
+                "customFieldForClassification": "customfield_10901",
+                "timecardNotification":  {
+                    "active": true,
+                    "frequency": 1,
+                    "dayRangeLow": 12,
+                    "dayRangeHigh": 5,
+                    "hourRangeLow": 12,
+                    "hourRangeHigh": 5
+                },
+                "approvalNotification":  {
+                    "active": true,
+                    "frequency": 1,
+                    "dayRangeLow": 12,
+                    "dayRangeHigh": 5,
+                    "hourRangeLow": 12,
+                    "hourRangeHigh": 5
+                }
             },
             "titles": {
                 "welcome": "Greetings",
