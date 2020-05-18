@@ -1276,7 +1276,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             });
 
             //Our first entry will be ALL entries
-            var classificationOption = buildHTML('option', "(All Classifications)", {
+            var classificationOption = buildHTML('option', "(All " + issueGroup.name + ")", {
             }); 
             classificationSelect.appendChild(classificationOption);
 
@@ -1296,7 +1296,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
                 //We picked one, so let filter on that value - only enable ones that match select, disable those that dont
                 issueGroup.issues.forEach(function (issue) {
-                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All Classifications)" || document.getElementById(issueGroup.key + "-classification-select").value == issue.classification) {
+
+                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")" || document.getElementById(issueGroup.key + "-classification-select").value == issue.classification) {
                         document.getElementById(issueGroup.key + "+" + issue.id).style.display =  '';
                         hitCount++;
                      }
@@ -1305,7 +1306,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     }
 
                     //Update our counts
-                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All Classifications)") {
+                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")") {
                         document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = issueGroup.issues.length;
                     }
                     else {
