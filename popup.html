@@ -332,28 +332,6 @@
 					font-weight: bold;
 				}
 
-				.reporting-group {
-					color: green;
-				}
-
-				.reporting-groups {
-					font-size: 16px;
-					color: #cccccc;
-					text-align: right;
-					vertical-align: top;
-					font-weight: bold;
-					border:0px;
-				}
-
-				.reporting-groups-cell {
-					text-align: right;
-					vertical-align: top;
-					font-weight: bold;
-					border:0px;
-					border-bottom: 0px;
-					padding: 0px;
-				}
-
 				.jira-issue-link:hover {
 					cursor: pointer;
 				}
@@ -380,6 +358,71 @@
 					border-right: 15px solid rgba(255, 255, 255, 0.2);
 					padding: 0px;
 	  			}
+
+				.big-summary {
+	       			float: left;
+					border-right: 15px solid rgba(255, 255, 255, 0.2);
+					padding: 0px;
+					font-size: 15px;
+					font-weight: bold;
+	  			}
+
+				.small-summary {
+	       			float: left;
+					border-right: 12px solid rgba(255, 255, 255, 0.2);
+					padding: 0px;
+					font-size: 12px;
+					font-weight: bold;
+	  			}
+
+			  	.reporting-group {
+					float: left;
+					padding: 0px;
+					font-size: 8px;
+					font-weight: bold;
+				}
+
+				/* Line Clamping */
+				.line-clamp
+				{
+					display            : block;
+					display            : -webkit-box;
+					-webkit-box-orient : vertical;
+					position           : relative;
+
+					line-height        : 1.2;
+					overflow           : hidden;
+					text-overflow      : ellipsis;
+					padding            : 0 !important;
+				}
+
+
+				.line-clamp-1
+				{
+					-webkit-line-clamp : 1;
+					height             : calc(1em * 1.2 * 1);
+				}
+				.line-clamp-2
+				{
+					-webkit-line-clamp : 2;
+					height             : calc(1em * 1.2 * 2);
+				}
+				.line-clamp-3
+				{
+					-webkit-line-clamp : 3;
+					height             : calc(1em * 1.2 * 3);
+				}
+				.line-clamp-4
+				{
+					-webkit-line-clamp : 4;
+					height             : calc(1em * 1.2 * 4);
+				}
+				.line-clamp-5
+				{
+					-webkit-line-clamp : 5;
+					height             : calc(1em * 1.2 * 5);
+				}
+				/* End of Line Clamping */
 
 				/* SPINNER */
 				.loader {

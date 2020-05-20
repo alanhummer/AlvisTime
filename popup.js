@@ -1379,12 +1379,22 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         issue.classification = trim(issue.classification);
         issue.classificationChild = trim(issue.classificationChild);
-         
-        var issueDescription = "<table><tr><td>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
-        var summaryCell = buildHTML('td', issueDescription, {  
-            class: 'truncate'
-        });
 
+        var issueDescription;
+        var summaryCell;
+        if (issue.fields.summary == issue.fields.summary.toUpperCase()) {
+            //All upper case - skip classifiations and make it more pronounced
+            issueDescription = "<table><tr><td class='big-summary'>" + issue.fields.summary + "</td></tr></table>"
+            summaryCell = buildHTML('td', issueDescription, {  
+            });
+        }
+        else {
+            issueDescription = "<table><tr><td class='small-summary'>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
+            summaryCell = buildHTML('td', issueDescription, {  
+                class: 'truncate'
+            });
+        }
+         
         //Write the Summary cell
         row.appendChild(summaryCell);       
 
