@@ -6,6 +6,7 @@
     "orgJiraAPIExtension": "/rest/api/2",
     "orgHelpLogo": "images/help_button.png",
     "orgCloseLogo": "images/close_button.png",
+    "orgGoLogo": "images/go_button.png",
     "orgHelpPage": "help.html",   
     "workgroups": [
         {
@@ -37,7 +38,7 @@
                 "close": "(close)"
             },
             "messages": { 
-                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54' target='_blank'>Find it and view it</a> and it will show up.",
+                "intro": "Enter time in 1/4 hour increments. If you do not see an issue you, enter it in the prompt at the end.",
                 "waiting": "Posting....",
                 "hoursNumeric": "Sorry, must be numeric hours",
                 "hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
@@ -48,10 +49,41 @@
                 "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
             },
             "issueGroups": [
-               {"name": "Projects", "key": "proj", "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND (('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) AND (project != LE-Internal))) OR (project = LE-Internal AND 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY 'Project - Subproject'"},
-               {"name": "Support", "key": "sup", "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support')"},
-               {"name": "Run The Business", "key": "rtb", "query": "project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business'"},
-               {"name": "Administration", "key": "admin", "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration'"}
+                {
+                    "name": "Projects", 
+                    "key": "proj",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 90,
+                    "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) OR (project = LE-Internal AND 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Support", 
+                    "key": "sup",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0, 
+                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Run The Business", 
+                    "key": "rtb", 
+                    "JiraProjectKey": "LEIN",
+                    "minPercentage": 0,
+                    "query": "project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business' ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Administration", 
+                    "key": "admin",
+                    "JiraProjectKey": "LEIN",
+                    "minPercentage": 0,
+                    "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration' ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "<div style='vertical-align:middle;color:red;display:inline-block;'>Don't see an issue you need? Enter it here:  _JIRAPROJECTKEY_-<input id='issue-id' type='text' style='width: 40px;'>_GOIMAGE_&nbsp;&nbsp;&nbsp;</div>", 
+                    "key": "lookup",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0,
+                    "query": "issueKey in (_ISSUEKEYS_) ORDER BY issueKey"
+                }           
             ],
              "users":  [
                 {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com"},

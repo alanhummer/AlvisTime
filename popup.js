@@ -36,6 +36,11 @@ var summaryTable;
 //A global way to track, good to validate with
 var totalTotal = 0;
 
+//An individual issues to query
+var lookupIssueKeys = [];
+var lookupIssueGroup;
+var lookupIssueGroupIndex;
+
 //And so we begin....
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
 
@@ -77,7 +82,7 @@ function loadKeyAndOrg() {
                 if (data.orgKeya.length > 0) {
                     if (data == null || typeof data === 'undefined' || data.length <= 0) {
                         //Bogus
-                        getNewOrgKey("");
+                        getNewOrgKey("", "true");
                     }
                     else {
                         //We have an org key, get our configuration and all of the config parameters - data.orgKeya
@@ -96,16 +101,12 @@ function loadKeyAndOrg() {
                             getConfig(configURL,  function(err, response) {
                 
                                 if (err != null) {
-                                    console.log("JSONTEST ERR:");
-                                    console.dir(err);
+                                    console.log("Alvis Time: Get config error - " + issue.classification, JSON.parse(JSON.stringify(err)));
                                     //Bogus
                                     //We do not have an org key, get one
-                                    getNewOrgKey(data.orgKeya);
+                                    getNewOrgKey(data.orgKeya, "true");
                                 } 
                                 else {
-                                    console.log("JSONTEST DATA:");
-                                    console.dir(response);
-            
                                     //Get all of our config parameters
                                     //config = JSON.parse(response); 
                                     orgKey = data.orgKeya;
@@ -122,10 +123,11 @@ function loadKeyAndOrg() {
                                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
                                     //Bogus
                                     //We do not have an org key, get one
-                                    getOrgKey(data.orgKeya);
+                                    getNewOrgKey(data.orgKeya, "true");
                                 }
                                 else {
                                     //Get all of our config parameters
+                                    orgKey = data.orgKeya;
                                     config = JSON.parse(response); 
                                     
                                     //Get it, so put listner on DOM loaded event
@@ -137,17 +139,17 @@ function loadKeyAndOrg() {
                 }
                 else {
                     //We do not have an org key, get one
-                    getNewOrgKey("");
+                    getNewOrgKey("", "false");
                 }
             }
             else {
                 //We do not have an org key, get one
-                getNewOrgKey("");
+                getNewOrgKey("", "false");
             }
         }
         else {
             //We do not have an org key, get one
-            getNewOrgKey("");
+            getNewOrgKey("", "false");
         }
     });
 
@@ -158,7 +160,7 @@ function loadKeyAndOrg() {
 /****************
 CRUD manaagement of the orgKey
 ****************/
-function getNewOrgKey(inputValue) {
+function getNewOrgKey(inputValue, inputErr) {
 
     //Setup the view
     document.getElementById('everything').style.display =  'none';
@@ -167,14 +169,32 @@ function getNewOrgKey(inputValue) {
 
     document.getElementById('orgkey').value = inputValue;
 
-    if (inputValue.length > 0) {
-        orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
+    if (inputErr == "false") {
+        orgKeyMessage("ABC Enter a valid organization key. " + inputValue + " is not valid", "error")
     }
 }
 
 function updateOrgKey() {
-    chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
-    loadKeyAndOrg();
+    //Let's make sure it is valid
+    if (document.getElementById("orgkey").value.length > 0) {
+        loadConfig(document.getElementById("orgkey").value + ".json", function(response) { 
+            //See if it was bogus
+            if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                //Bogus
+                orgKeyMessage("B Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
+            }
+            else {
+                //All good
+                chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
+                window.location.reload(false); 
+                //loadKeyAndOrg();
+            }
+        });
+    }
+    else {
+        //org key cannot be empty
+        orgKeyMessage("C Enter a valid organization key. It cannot be empty.", "error")
+    }
 }
 
 function setupNewOrg() {
@@ -198,6 +218,9 @@ function showTimeCardSummary() {
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'block';
 
+    //Load our name
+    document.getElementById('timecard-summary-name').innerHTML = userName;
+
     //Load our date header
     document.getElementById('timecard-summary-range').innerHTML = range.innerHTML;
 
@@ -216,28 +239,20 @@ function showTimeCardSummary() {
 
     //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
     workgroup.issueGroups.forEach(function(issueGroup) {
-        console.log("AJH DOING ISSUE GROUP: " + issueGroup.name);
         issueGroup.issues.forEach(function(issue) {
-            console.log("AJH DOING ISSUE: " + issue.issueTotalTime);
             if (issue.issueTotalTime > 0) {
                         
                 //Our classification display
                 classificationDisplay = "";
-                console.log("AJH CLASS DISPLAY 1: " + issue.classification, JSON.parse(JSON.stringify(issue.classification)));
-
-                console.log("AJH CLASS DISPLAY 2: " + issue.classification);
 
                 var classificationObject;
                 //See if we cna find our classification already
                 classificationArray.forEach(function(classObj) {
                     if (classObj.description == issue.classification && classObj.descriptionChild == issue.classificationChild) {
                         //Found one - done
-                        console.log("AJH CLASS FOUND MATCH: " + issue.classification);
                         classificationObject = classObj;
                     }
                 }) 
-
-                console.log("AJH CLASS DISPLAY 3: " + issue.classification);
 
                 //If not, create one
                 if (!classificationObject) {
@@ -253,15 +268,10 @@ function showTimeCardSummary() {
                         "totalTotal": 0
                     }
 
-                    console.log("AJH CREATING CLASS OBJ: " + issue.classification);
-
                     //Now add the object to the array
                     classificationArray.push(classificationObject);
 
                 }
-                console.log("AJH CLASS DISPLAY 4: " + issue.classification);
-                console.log("AJH DOING CLASSIFICATION: " + classificationObject.description);
-
 
                 //For each day, add the amounts to the totals for the classification
                 for (var dayIndex=0; dayIndex < 7; dayIndex++) {
@@ -290,8 +300,6 @@ function showTimeCardSummary() {
 
     //for each cusotmer field classification, if > 0 hours, load it to the grid
     classificationArray.forEach(function(classificationObject) {
-
-            console.log("AJH MAKING ROW:" + classificationObject.description);
 
             if (classificationObject.description == prevClassificationObject.description) {
                 //Same main class, don't show the main class name
@@ -372,6 +380,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById('helpLink').href = "nowhere";
     document.getElementById('helpLink').onclick = openHelp;
 
+    
+    //Set up UI Element for Close Button on Org Key
+    document.getElementById('closeLink-orgkey').href = "nowhere";
+    document.getElementById('closeLink-orgkey').onclick = closeit;
+
+    //Set up UI Element for Help Button
+    document.getElementById('helpLink-orgkey').href = "nowhere";
+    document.getElementById('helpLink-orgkey').onclick = openHelp;
+
+
     //Set up UI Element for Previous and next buttons
     document.getElementById('previousWeek').href = "nowhere";
     document.getElementById('previousWeek').onclick = previousWeek;
@@ -382,7 +400,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses()}); 
 
     //Change org button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
-    document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey)}); 
+    document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey, false)}); 
 
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("summary-image").addEventListener ("click", function(){ showTimeCardSummary()}); 
@@ -392,6 +410,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
     });    
+
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
     document.getElementById('helpLink-summary').onclick = openHelp;
@@ -452,7 +471,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         if (typeof workgroup === 'undefined' || typeof user === 'undefined') {
             //sorry charlie
             alert("Sorry, you aren't set up for this app");
-            getNewOrgKey("");
+            getNewOrgKey("", false);
             return;
             //closeit();
         }        
@@ -505,7 +524,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
         
         //Get the issues and show them off
-        getTheIssues();
+        processIssueGroups("intro");
 
     }
 
@@ -544,29 +563,28 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         }
         console.log("Alvis Time: Changed to " + userName + " + " + userId + " + " + userEmail);
 
-        console.log("HOURS TO SUBMIT:" + userMinHoursToSubmit);
-
         //Get the issues - need to reset everything since we changed user
-        getTheIssues();
+        processIssueGroups("userchange");
 
     }
 
     /****************
     This does all the calling - restarts everything up
     ****************/       
-    function getTheIssues() {
+    function processIssueGroups(inputMessageType) {
 
         //Disable the page
         togglePageBusy(true);
 
-       //Setup intro message
-       notificationMessage(workgroup.messages.intro, "notification");
+        //Setup intro message
+        if (inputMessageType != "addedissue") {
+            notificationMessage(workgroup.messages.intro, "notification");
+        }
 
         //Before we get any issues, let's start fresh and initalize everything
         blnTimeCardStatusInitialized = false;
         blnPageLoaded = false;
         totalTotal = 0;
-        var myJQL = "";
 
         //Disable the submit button as starting point
         //document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
@@ -583,49 +601,101 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Now run each issue group query from the workgroup
         workgroup.issueGroups.forEach(function(issueGroup) {
 
-            //See what we have for saved collspase setting for this issue group
-            var expandKeyName = issueGroup.key + "-expand";
-            chrome.storage.local.get(expandKeyName, function(data) {
-                if (data) {
-                    if (data[expandKeyName]) {
-                        issueGroup.expandGroup = true;
-                    }
-                    else {
-                        if (data == null || typeof data === 'undefined' || data.length <= 0) {
-                            issueGroup.expandGroup = false;
-                        }
-                        else {
-                            issueGroup.expandGroup = false;
-                        }
-                    }
-                }
-                else {
+            //Run Isssue Group quer and load the issues.
+            loadGroupIssues(issueGroup);
+
+        })
+    }
+
+    /****************
+    loadGroupIssues
+    ****************/
+    function loadGroupIssues(issueGroup) {
+
+        var myJQL = "";
+        var lookupString = "";
+
+        //See what we have for saved collspase setting for this issue group
+        var expandKeyName = issueGroup.key + "-expand";
+        chrome.storage.local.get(expandKeyName, function(data) {
+            if (data) {
+                if (data[expandKeyName]) {
                     issueGroup.expandGroup = true;
                 }
-                
-                //Initialize our issue group counters
-                console.log("ISSUE GROUP: INITALIZING DAY TOTALS FOR: " + issueGroup.name);
-                issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
-                issueGroup.timeTotal = 0;
+                else {
+                    if (data == null || typeof data === 'undefined' || data.length <= 0) {
+                        issueGroup.expandGroup = false;
+                    }
+                    else {
+                        issueGroup.expandGroup = false;
+                    }
+                }
+            }
+            else {
+                issueGroup.expandGroup = true;
+            }
+            
+            //Initialize our issue group counters
+            issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
+            issueGroup.timeTotal = 0;
 
-                // Create the query
-                myJQL = issueGroup.query;
-                myJQL = myJQL.replace(/user.name/gi, userName);
-                myJQL = myJQL.replace(/user.userid/gi, userId);
-                myJQL = myJQL.replace(/user.email/gi, userEmail);
+            // Create the query
+            myJQL = issueGroup.query;
+            myJQL = myJQL.replace(/user.name/gi, userName);
+            myJQL = myJQL.replace(/user.userid/gi, userId);
+            myJQL = myJQL.replace(/user.email/gi, userEmail);
 
-                //Initialize our tracking elements
-                issueGroup.issuesProcessed = 0;
-                issueGroup.issuesLoaded = false;
+            //If for specific issues, load them here
+            if (myJQL.includes("_ISSUEKEYS_")) {
+                if (lookupIssueKeys.length > 0) {
+                    for (var i=0;i<lookupIssueKeys.length;i++) {
+                        if (lookupString.length > 0)
+                        lookupString = lookupString + ", " + lookupIssueKeys[i];
+                        else
+                        lookupString = lookupIssueKeys[i];
+                    };
+                    myJQL = myJQL.replace(/_ISSUEKEYS_/gi, lookupIssueKeys);   
+        
+                }
+                else {
+                    //No issue ids to lookup
+                    myJQL = "summary ~ alvis-time-dude";
+                }  
+            }
 
-                //Log the query
-                console.log("Alvis Time: Doing a query - " + issueGroup.name + " JQL:" + myJQL);
+            //Initialize our tracking elements
+            issueGroup.issuesProcessed = 0;
+            issueGroup.issuesLoaded = false;
+        
+            //Log the query
+            console.log("Alvis Time: Doing a query - " + issueGroup.key + " JQL:" + myJQL);
 
-                //Let run it and get the issues
-                JIRA.getIssues(myJQL, issueGroup)
-                    .then(onIssueFetchSuccess, onIssueFetchFailure);
-            });                
-        })
+            //Let run it and get the issues
+            JIRA.getIssues(myJQL, issueGroup)
+                .then(onIssueFetchSuccess, function (error) {
+     
+                    console.log("Alvis Time: Issue fetch error - ", JSON.parse(JSON.stringify(error)));
+
+                    //Show the error
+                    genericResponseError(error);
+
+                    if (error.response.errorMessages.length > 0 && error.response.errorMessages[0].includes("for field 'issueKey' is invalid.")) {
+                        //Took error, so remove most recently added issue id
+                        let popped = lookupIssueKeys.pop();
+
+                        console.log("Alvis Time: Removed - ", JSON.parse(JSON.stringify(popped)));
+
+                        //Relaod with new set
+                        loadGroupIssues(issueGroup);
+                    }
+                    else {
+                        //All done, some weird error
+                        togglePageBusy(false);
+
+                        console.log("Alvis Time: Wierd Error - ", JSON.parse(JSON.stringify(error)));
+                    }
+                });
+        }); 
     }
 
     /****************
@@ -643,7 +713,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         responseObject.issueGroup.issues.forEach(function(issue) {
 
             //Log it as awe go
-            console.log("Alvis Time: Doing issue: " + issue.id);
+            console.log("Alvis Time: Doing issue: " + issue.key);
 
             //Initialize our worklogs we will be showing
             initializeWorkLogArray(issue);
@@ -667,17 +737,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     }
 
     /****************
-    Fetch for issues failed -
-    ****************/    
-    function onIssueFetchFailure(error) {
-
-        //Enable the page
-        togglePageBusy(false);
-
-        genericResponseError(error);
-    }
-
-    /****************
     Got Worklog Successfully -
     ****************/    
     function onWorklogFetchSuccess(responseObject) {
@@ -687,8 +746,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
         responseObject.issue.worklogs = responseObject.worklogs;
-
-        console.log("BETZ WE HAVE " + userEmail + " COUNT:" + responseObject.issue.worklogs.length);
 
         //Process each worklogs?  Or just store them to be used yet?
         responseObject.issue.worklogs.forEach(function (worklog) {
@@ -701,8 +758,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
                 //We only want the worklogs with a comment wnd it is tagged for this user
                 if (typeof worklog.comment != "undefined") {
-
-                    console.log("BETZ WE HAVE " + userEmail + " COMMENT:" + worklog.comment);
 
                     if (worklog.comment.includes(userId + "|")) {
 
@@ -735,8 +790,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                         }
                         
                         //OK, lets load it into our display objects for this issue -what to do if dups?
-                        console.log("BETZ DO WE HAVE IT?: " + userEmail, JSON.parse(JSON.stringify(worklog)));
-
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogId = worklog.id;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted = worklog.started;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600;
@@ -749,7 +802,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                         responseObject.issueGroup.timeTotal = responseObject.issueGroup.timeTotal + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
                         totalTotal = totalTotal + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent
 
-                        console.log("ISSUE GROUP: ADDDIN TO: " + responseObject.issueGroup.name + "(" + dayIndex + ")  = " + responseObject.issueGroup.dayTotals[dayIndex]);
                     }
                 }
             }
@@ -773,31 +825,26 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                         if (issue.worklogsLoaded) {
                             if (issue.worklogsProcessed == issue.worklogs.length) {
                                 //This one all done
-                                //console.log("DONE ?: " + blnDone + " - " + issueGroup.name + " - " + issue.id + " = " + issue.worklogsProcessed + " VS " + issue.worklogs.length);
                             }
                             else {
                                 //Not done yet - not done with worklogs
                                 blnDone = false;
-                                //console.log("NOT DONE 1: " + blnDone + " - " + issueGroup.name + " - " + issue.id + " = " + issue.worklogsProcessed + " VS " + issue.worklogs.length);
                             }
                         }
                         else {
                             //Not done yet - not started with worklogs
                             blnDone = false;
-                            //console.log("NOT DONE 2: " + blnDone + " - " + issueGroup.name + " - " + issue.id + " = " + issue.worklogsLoaded);
                         }
                     })
                 }
                 else {
                     //Not done yet - not done with issues
                     blnDone = false;    
-                    //console.log("NOT DONE 3: " + blnDone + " - " + issueGroup.name + " - " + issueGroup.issuesProcessed + " VS " + issueGroup.issues.length);                 
                 }
             }
             else {
                 //blnDone done yet - not started with issues
                 blnDone = false;
-                //console.log("NOT DONE 4: " + blnDone + " - " + issueGroup.name + " - " + issueGroup.issuesLoaded);                 
             }
 
         })
@@ -805,7 +852,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //See if we are done
         if (blnDone) {
             //We are done gathering all of our data. Now lets build out our UI.
-            console.log("DONE DONE WITH LOADING: " + blnDone, JSON.parse(JSON.stringify(config)));
             if (!blnPageLoaded) {
                 //Keeping track 
                 blnPageLoaded = true;
@@ -837,6 +883,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             //Draw the issue group - it is the dropdown sub-grouping
             drawIssueGroupTable(issueGroup, issueGroupIndex);
 
+            //If our lookup group, save it
+            if (issueGroup.key == "lookup") {
+                lookupIssueGroup = issueGroup;
+                lookupIssueGroupIndex = issueGroupIndex;
+            }
+
         })
         
         //Now have to do the total row
@@ -845,6 +897,37 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //And add it to our issue group table
         document.getElementById("total-issue-group-table").appendChild(row);   
 
+        //Wire up the issue search button
+        document.getElementById("issue-search").addEventListener ("click", event => {
+   
+            //Stop event from propogating up
+            event.stopPropagation();
+            event.preventDefault();
+
+            //See if we already have it
+            if (issueExists(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value)) {
+                //already have it           
+                notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " already exists", "error"); 
+                //Clear out input field
+                document.getElementById("issue-id").value = "";
+            }
+            else {
+                //Do not have it, so add it to our list
+                lookupIssueKeys.push(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value);
+
+                //Already have it message     
+                notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " added to list", "alert"); 
+
+                //Added an issue to our set, so reset everything
+                processIssueGroups("addedissue");
+
+            }
+
+            return false;
+
+        });
+
+
         //Setup our button
         setButtonStatus();
      
@@ -852,6 +935,42 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         togglePageBusy(false);
 
     }
+
+    /****************
+    Find issue in our issue Groups - and put focus there
+    ****************/
+    function issueExists(inputIssueKey) {
+
+        var blnResponse = false;
+        var locationKey;
+
+        //Go thru each issue group, each issue and find it
+        for (var g=0;g<workgroup.issueGroups.length;g++) {
+            for (var i=0;i<workgroup.issueGroups[g].issues.length;i++) {
+                //See if this issue matches
+                if (workgroup.issueGroups[g].issues[i].key == inputIssueKey) {
+                    //we have a match
+                    locationKey = workgroup.issueGroups[g].key + "+" + g + "+" + workgroup.issueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
+                    alert("LOCATION KEY IS: " + locationKey);
+                   
+                    //Expand if not already expanded
+                    if (!workgroup.issueGroups[g].expandGroup) {
+                        workgroup.issueGroups[g].expandGroup = true;
+                        document.getElementById(workgroup.issueGroups[g].key + "-details").open = workgroup.issueGroups[g].expandGroup;
+                    }
+                    document.getElementById(locationKey).focus(); 
+                    document.getElementById(locationKey).select();
+
+                    blnResponse = true;
+                    return blnResponse;
+                }
+            }
+        };
+
+        return blnResponse;
+
+    }
+
 
     /****************
     Set Button Status based on our data
@@ -964,8 +1083,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             "worklogDayOfWeek": workLogIndex
         }       
 
-        console.log("UPD ISSUE ID: "+ workLogObject.worklogIssueId + " WORKLOG ID: " + workLogObject.worklogId + " TIME STARTED: " + workLogObject.worklogTimeStarted + " TIME SPENT: " + workLogObject.worklogTimeSpent + " COMMENT: " + workLogObject.worklogComment + " DAY OF WEEK: " + workLogObject.worklogDayOfWeek);
-      
         //Validate it first
         if (worklogChangeItem.value.length <= 0) {
             worklogChangeItem.value = 0;
@@ -1053,9 +1170,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 issueGroupObject.timeTotal = issueGroupObject.timeTotal + deltaTimeSpent;
                 totalTotal = totalTotal + deltaTimeSpent;
 
-                console.log("DOING DIFF:" + deltaTimeSpent + " ISSUE TOT:" + issueObject.issueTotalTime);
-
-                //And the display values issue Total
+                 //And the display values issue Total
                 document.getElementById(issueGroupKey + "+" + issueId + "+total").innerText = issueObject.issueTotalTime; 
                 
                 //Day totals
@@ -1071,8 +1186,18 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 //Gotta update issue group messages
                 workgroup.issueGroups.forEach(function(issueGroup) {
                     //Issue Group totals
-                    if (issueGroup.timeTotal > 0) 
-                        document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%";
+                    if (issueGroup.timeTotal > 0) {
+                        var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
+                        if (issueGroupPercentage >= issueGroup.minPercentage) {
+                            //Hit threshhold, leave it grean
+                            document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
+                        }
+                        else {
+                            //Did not hit threshhold, make it red
+                            document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
+                            document.getElementById(issueGroup.key + "-issue-group-message").style.color="red";
+                        }
+                    }
                     else
                         document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + 0 + "%";
                 })
@@ -1120,7 +1245,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     //Here is where we updates status to approved
                     updateTimecardStatus("submitted", "approved");
                     //Changed status, so reset everything
-                    getTheIssues();
+                    processIssueGroups("worklogsubmitted");
                 }
                 break;
             case "submit-for-approval":
@@ -1128,7 +1253,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 updateTimecardStatus("entry", "submitted");
 
                 //Changed status, so reset everything
-                getTheIssues();
+                processIssueGroups("worklogsubmitforapproval");
 
             default: //includes "entry"
                 break;
@@ -1151,8 +1276,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
                     if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
                         workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
-                        //console.log("STATUS UPDATE - DOING ONE (" + i + " , " + j + ") = " + workLogObject.worklogId + " is " + workLogObject.worklogComment);
-                        
+                         
                         JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
                         .then(function(data) {
                             //Success
@@ -1186,7 +1310,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                         workLogEntry.disabled = !inputEnabled;
                     }
                     else {
-                        //console.log("WORKOG ENABLED FAILED TO GET:" + issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + workLogIndex);
+                        //what?
                     }
                 }          
             })
@@ -1226,6 +1350,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         var classifications = [];
 
         //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
+        issueGroup.name = issueGroup.name.replace(/_JIRAPROJECTKEY_/gi, issueGroup.JiraProjectKey); 
+        issueGroup.name = issueGroup.name.replace(/_GOIMAGE_/gi, "<img id='issue-search' src='" + config.orgGoLogo + "' height='33' style='display: inline-block; vertical-align:middle'>");
+
         var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
         myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
         myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.issues.count/gi, issueGroup.issues.length);
@@ -1237,12 +1364,24 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             myIssueGroupHTML = myIssueGroupHTML.replace(/<details closed/gi, "<details open");   
 
         //And put the totals message in
-        if (totalTotal > 0) 
-            myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%");
+        if (totalTotal > 0) {
+            //See if we are past our minimums
+            var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
+            if (issueGroupPercentage >= issueGroup.minPercentage) {
+                //Hit threshhold, leave it grean
+                myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%");
+            }
+            else {
+                //Did not hit threshhold, make it red
+                myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, '<div style="color:red;">' + issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%</div>");
+            }
+        }
         else
             myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + 0 + "%");
  
         //Create our container for htis
+
+        //AJH?
         var issueGroupDiv = buildHTML('div');
         issueGroupDiv.innerHTML = myIssueGroupHTML;
         document.getElementById('all-issue-groups-container').appendChild(issueGroupDiv);
@@ -1262,13 +1401,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             }
             else {
                 classifications.push(issue.classification);
-                console.log("PUSHED: |" + issue.classification + "|")
             }
 
         })
 
         //Do our classification selection
-        if (classifications.length > 1) {
+        if (classifications.length > 1 && issueGroup.key != "lookup") {
             
             //Setup our selection list
             var classificationSelect = buildHTML('select', null, {
@@ -1338,10 +1476,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     //Create our issue row - part of the issueGroup
     function generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex) {
-
-        console.log("DOING ISSUE ROW: ", JSON.parse(JSON.stringify(issue)));
-        console.log("SUMMARY: " + issue.fields.summary);
-        //id, key, self, summary, description, worklogs
 
         /********
         Issue row - define here and add stuff to it
@@ -1464,8 +1598,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         var bufferCell = buildHTML('td');
         bufferCell.appendChild(varBuffer);
         row.appendChild(bufferCell);
-
-        console.log("RETURNING ROW: ", JSON.parse(JSON.stringify(row)));
 
         return row;
 
@@ -1597,8 +1729,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         bufferCell.appendChild(varBuffer);
         row.appendChild(bufferCell);
 
-        console.log("RETURNING ROW: ", JSON.parse(JSON.stringify(row)));
-
         return row;
 
     }
@@ -1623,11 +1753,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         if (typeof issue.worklogs === 'undefined') {
             timeInputDay.value = 0;
-            console.log("AJH DOING ISSUE: " + issue.id + ", " + dayIndex + " = UNDEF");
         }
         else {
             //We have right user, right day, drop it in for display
-            console.log("AJH DOING ISSUE: " + issue.id + ", " + dayIndex + " = " +  inputWorklogObject.worklogId + " = " + inputWorklogObject.worklogTimeStarted + " = " + inputWorklogObject.worklogTimeSpent + " comment:" + inputWorklogObject.worklogComment);             
             timeInputDay.value = inputWorklogObject.worklogTimeSpent;
 
             //Lets take care of the worklog status
@@ -1636,7 +1764,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             var worklogEmail = worklogParts[1];
             var worklogStatus = worklogParts[2];                           
 
-            console.log("PARTS ARE: " + worklogUserID + ", " + worklogEmail + ", " + worklogStatus);
             //Make sure its valid
             if (worklogStatus == "entry" || worklogStatus == "submit-for-approval" || worklogStatus == "submitted" || worklogStatus == "approved") {
                 //We are good - as long as this is a real card
@@ -1661,7 +1788,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Open Jira ticket in a new window
     function jiraIssuelink(inputURI) {
 
-        console.log("WE ARE DLING LOINK:" + inputURI);
         chrome.windows.create ({
             url: inputURI,
             type: "popup"
@@ -1714,7 +1840,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         getWeek(offset);
         
         //Changed the week, so reset everything
-        getTheIssues();
+        processIssueGroups("previousweek");
 
         return false; //This causes the href to not get invoked
     }
@@ -1727,7 +1853,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         getWeek(offset);
             
         //Changed the week, so reset everything
-        getTheIssues();
+        processIssueGroups("nextweek");
 
         return false; //This causes the href to not get invoked
     }
@@ -1771,9 +1897,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     /************
     Classifiation summary
     ************/
-    console.log("ISSUE CLASSIFICATION:" + issueClassification.descriptionChild);
-
-    if (inputType == "head") {
+     if (inputType == "head") {
         if (issueClassification.description.length > 0)
             descToDisplay = issueClassification.description;
         else
@@ -1861,11 +1985,9 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     /*********
     Summary Total
     *********/
-
-    console.log("HOURS CALC:" + issueClassification.totalTotal + " / " + totalTotal);
     hoursPercentage = Number((100 * issueClassification.totalTotal / totalTotal).toFixed(0));
 
-    //Add the final total cell
+    //Add the final total cell - Here is whwere we could ahve some rules to flag/id things out of or ranges
     if (inputType == "head") {
         var timeInputTotal = buildHTML('th', "", {
             class: inputClass  
@@ -1893,11 +2015,10 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
                     });
                 }
                 else {
-                    console.log("HOURS COMPARE: " + hoursPercentage + " < 3 " + (hoursPercentage < 3));
                     var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
                         class: inputClass,
-                        id: issueClassification.id + "+total",
-                        style: "color:red;"
+                        id: issueClassification.id + "+total"
+                        //style: "color:red;"
                     });
                 }              
             }
@@ -1914,8 +2035,6 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     //Add to the column
     row.appendChild(timeInputTotal);
     
-    console.log("RETURNING ROW: ", JSON.parse(JSON.stringify(row)));
-
     return row;
 
 }
@@ -2100,18 +2219,26 @@ function getUrlParameter(name) {
 //For loading JSON file locally - simulate REST API till we get one
 function loadConfig(inputFileName, callback) {   
 
-    var xobj = new XMLHttpRequest();
+    try {
+        var xobj = new XMLHttpRequest();
 
-    xobj.overrideMimeType("application/json");
-    xobj.open('GET', inputFileName, true); 
-    xobj.onreadystatechange = function () {
-            if (xobj.readyState == 4 && xobj.status == "200") {
-            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-            callback(xobj.responseText);
-            }
-    };
-    
-    xobj.send(null);  
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', inputFileName, true); 
+        xobj.onreadystatechange = function () {
+                if (xobj.readyState == 4 && xobj.status == "200") {
+                    // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                    callback(xobj.responseText);
+                }
+                else {
+                    callback("");
+                }
+        };
+        
+        xobj.send(null);  
+    }
+    catch {
+        callback("");
+    }
 }    
 
 //For loading JSON file remotely - download a file
@@ -2119,13 +2246,11 @@ function getConfig(url, callback) {
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
-    console.log("JSONTEST GETTING:" + url);
     xhr.responseType = 'json';
     
     xhr.onload = function() {
     
         var status = xhr.status;
-        console.log("STATUS: " + status);
         if (status == 200) {
             callback(null, xhr.response);
         } else {
@@ -2135,10 +2260,5 @@ function getConfig(url, callback) {
     
     xhr.send();
 };
-
-
-
-
-
 
 

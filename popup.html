@@ -89,6 +89,16 @@
 					cursor: pointer;
 				}
 
+				.instructions {
+					height: 255px;	
+					padding: 0px;
+					color: blue;
+					font-weight: bold;	
+					font-size: 16px;
+					width: 100%;		
+					text-align: left;
+				}
+
 				.summary-display {
 					height: 20px;	
 					padding: 10px;
@@ -534,7 +544,7 @@
 				<a  id="closeLink-summary" target="_blank"><img id="close-image-summary" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
 				<a id="helpLink-summary" target="_blank"><img id="help-image-summary" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
 			</div>
-			<div id="timecard-summary-range"></div>
+			<div id="timecard-summary-name"></div><div id="timecard-summary-range"></div>
 			<br>
 			<div id="timecard-summary-wrapper">
 				<table id="timecard-summary-details">
@@ -556,9 +566,15 @@
 			<br><br>
 		</div>
 		<!--The Orge Key presentation-->
-		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="issue-group-name">
-			Greetings and welcom to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time".  
-			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by below also (to do yet).<br><br>
+		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-orgkey" target="_blank"><img id="close-image-orgkey" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
+				<a id="helpLink-orgkey" target="_blank"><img id="help-image-orgkey" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+			</div>
+			<div style="display: inline-block;padding:10px">
+			Greetings and welcome to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time".  
+			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by the button below also (to do yet).<br><br>
+			</div>
 			<div style="text-align:center; vertical-align:bottom;">
 			Please enter valid organization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey" type="text" style="width: 250px;display: inline-block;">
 			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-org-key" src="images/submit-org-key.png" width="176" height="33" class="week-images"></a>&nbsp;OR&nbsp;
@@ -603,29 +619,31 @@
 				</thead>
 			</table>
 			<div id="all-issue-groups-container">
-				<details open id="issueGroup.key-details">
-					<summary class="issue-group-name">
-						issueGroup.name (<div id="issueGroup.key-issue-group-count" style="display: inline-block;">issueGroup.issues.count</div>)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div>
-						<div class="stick-to-right" id="issueGroup.key-classification-selection"></div>
-					</summary>
-					<table id="issueGroup.key-issue-group-table">
-						<thead>
-							<tr class="issueRow">
-								<th width="30%"></th>
-								<th width="10%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>
-								<th width="7%"></th>					
-								<th width="7%"></th>
-								<th width="7%"></th>					
-								<th width="7%"></th>
-								<th width="4%"></th>
-							</tr>
-						</thead>
-					</table>
-				</details>
+				<div id="issueGroup.key-container">
+					<details open id="issueGroup.key-details">
+						<summary class="issue-group-name">
+							issueGroup.name (<div id="issueGroup.key-issue-group-count" style="display: inline-block;">issueGroup.issues.count</div>)- <div style="color:green;display: inline-block;" id="issueGroup.key-issue-group-message">_ISSUEGROUP_TOTALS_MESSAGE_</div>
+							<div class="stick-to-right" id="issueGroup.key-classification-selection"></div>
+						</summary>
+						<table id="issueGroup.key-issue-group-table">
+							<thead>
+								<tr class="issueRow">
+									<th width="30%"></th>
+									<th width="10%"></th>
+									<th width="7%"></th>
+									<th width="7%"></th>
+									<th width="7%"></th>
+									<th width="7%"></th>
+									<th width="7%"></th>					
+									<th width="7%"></th>
+									<th width="7%"></th>					
+									<th width="7%"></th>
+									<th width="4%"></th>
+								</tr>
+							</thead>
+						</table>
+					</details>
+				</div>
 			</div>
 			<div id="totals-container">
 				<table id="total-issue-group-table">
