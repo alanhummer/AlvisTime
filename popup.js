@@ -577,7 +577,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         togglePageBusy(true);
 
         //Setup intro message
-        if (inputMessageType != "addedissue") {
+        if (inputMessageType != "addedissue" && inputMessageType != "previousweek" && inputMessageType != "nextweek") {
             notificationMessage(workgroup.messages.intro, "notification");
         }
 
@@ -1801,9 +1801,20 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     ***************/
 
     //Get the range of dates for the week, based on offset
-    function getWeek(offset) {
-        offset = offset || 0; // if the function did not supply a new offset, the offset is 0
-        firstDay = new Date();
+    function getWeek(inputOffset) {
+
+        //Get our date objects
+        today = new Date();
+
+        if (inputOffset == null || typeof inputOffset === 'undefined' || inputOffset.length <= 0) {
+            //If just loaded and today is sun/mon/tues - so default week to LAST week
+            if (today.getDay() < 3)
+                offset = -1;
+            else
+                offset = 0; 
+        }
+
+        firstDay = new Date();;
         firstDay.setDate(firstDay.getDate() - dayOfWeekOffset + (offset * 7));
         firstDay.setHours(0, 0, 0, 0); //This sets it to mignight morning of
         
@@ -1817,7 +1828,17 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         lastDay.setDate(lastDay.getDate() + 6);
         lastDay.setHours(23,59,59,59); //This gets it to just before midnight, night of the last day is the first day plus 6
 
+        //Build our date range header
         range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
+
+        //If Monday or Tuesday AND week selected is current week Then DO WARNING - make it read
+        if (today.getDay() < 3 && offset == 0) {
+            range.innerHTML = "<div style='color:red'>" + workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay) + "</div>";
+            notificationMessage('WARNING: You may be entering time for the WRONG week.  You may want PRIOR week', "error");
+        }
+        else {
+            notificationMessage(workgroup.messages.intro, "notification");
+        }
 
     }
         
