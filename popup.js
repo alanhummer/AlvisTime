@@ -509,6 +509,15 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         range = document.getElementById('week-dates-description');
         getWeek();
 
+        //Put the dates in the columns        
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SAT_/gi, makeMMDD(firstDay));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SUN_/gi, makeMMDD(addDays(firstDay, 1)));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_MON_/gi, makeMMDD(addDays(firstDay, 2)));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_TUE_/gi, makeMMDD(addDays(firstDay, 3)));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_WED_/gi, makeMMDD(addDays(firstDay, 4)));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_THR_/gi, makeMMDD(addDays(firstDay, 5)));
+        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_FRI_/gi, makeMMDD(lastDay));
+
         //And logo
         document.getElementById('logoimage').src = config.orgLogo;        
 
@@ -1851,6 +1860,20 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         var dateString = mm + '/'+ dd + '/'+ y;
         return dateString;
         
+    }
+
+    function makeMMDD(date) {
+        var dd = date.getDate();
+        var mm = date.getMonth() + 1;
+        
+        var dateString = mm + '-'+ dd;
+        return dateString;      
+    }
+
+    function addDays(inputDate, inputCount) {
+        var date = new Date(inputDate);
+        date.setDate(date.getDate() + inputCount);
+        return date;
     }
 
     //Rotate back 1 week

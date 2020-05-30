@@ -192,7 +192,7 @@
 				table {
 					width: 100%;
 					table-layout: fixed;
-					margin: 0 10px;
+					/*margin: 0 10px; AHH*/
 				}
 
 				table, th, td {
@@ -208,7 +208,7 @@
 				}
 
 				th, td {
-					/* padding: 6px; */
+					padding: 6px;
 					text-align: left;
 				}
 
@@ -222,6 +222,11 @@
 					border-bottom: 1px solid #dddddd;
 				}
 				
+				.issueTitle {
+					line-height: 9px;
+					text-align: center;
+				}
+
 				.truncate {
 					overflow: hidden;
 					text-overflow: ellipsis;
@@ -276,7 +281,6 @@
 					color: green;
 					text-align: left;
 					vertical-align: top;
-					/*padding: 16px 0 16px 10px;*/
 					width: 100%;
 					display: inline-block;
 				}
@@ -601,19 +605,19 @@
 		</div>
 		<div id="notice"></div>
 		<div id="table-container">
-			<table>
+			<table class="issueTitle" class="border-bottom: 1px solid #dddddd;" id="issue-title-header">
 				<thead>
 					<tr>
 						<th width="30%"></th>
 						<th width="10%"></th>
-						<th width="7%">Sat</th>
-						<th width="7%">Sun</th>
-						<th width="7%">Mon</th>
-						<th width="7%">Tues</th>
-						<th width="7%">Wed</th>						
-						<th width="7%">Thur</th>
-						<th width="7%">Fri</th>						
-						<th width="7%">Total</th>	
+						<th width="7%" class="issueTitle" >_SAT_<br>Sat</th>
+						<th width="7%" class="issueTitle" >_SUN_<br>Sun</th>
+						<th width="7%" class="issueTitle" >_MON_<br>Mon</th>
+						<th width="7%" class="issueTitle" >_TUE_<br>Tue</th>
+						<th width="7%" class="issueTitle" >_WED_<br>Wed</th>						
+						<th width="7%" class="issueTitle" >_THR_<br>Thr</th>
+						<th width="7%" class="issueTitle" >_FRI_<br>Fri</th>						
+						<th width="7%" class="issueTitle" >Total</th>	
 						<th width="4%"></th>
 					</tr>          
 				</thead>
@@ -627,17 +631,17 @@
 						</summary>
 						<table id="issueGroup.key-issue-group-table">
 							<thead>
-								<tr class="issueRow">
+								<tr class="issueTitle" class="border-bottom: 1px solid #dddddd;">
 									<th width="30%"></th>
 									<th width="10%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>
-									<th width="7%"></th>					
-									<th width="7%"></th>
-									<th width="7%"></th>					
-									<th width="7%"></th>
+									<th width="7%" class="issueTitle" >Sat</th>
+									<th width="7%" class="issueTitle" >Sun</th>
+									<th width="7%" class="issueTitle" >Mon</th>
+									<th width="7%" class="issueTitle" >Tue</th>
+									<th width="7%" class="issueTitle" >Wed</th>					
+									<th width="7%" class="issueTitle" >Thr</th>
+									<th width="7%" class="issueTitle" >Fri</th>					
+									<th width="7%" class="issueTitle" >Total</th>
 									<th width="4%"></th>
 								</tr>
 							</thead>
@@ -645,21 +649,21 @@
 					</details>
 				</div>
 			</div>
-			<div id="totals-container">
+			<div id="totals-container" style="background:#f3f3f3">
 				<table id="total-issue-group-table">
 					<thead>
-						<tr>
-							<th width="30%"></th>
-							<th width="10%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>
-							<th width="7%"></th>					
-							<th width="7%"></th>
-							<th width="7%"></th>					
-							<th width="7%"></th>
-							<th width="4%"></th>
+						<tr height="0px;">
+							<th width="30%" height="0px;"></th>
+							<th width="10%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>					
+							<th width="7%" height="0px;"></th>
+							<th width="7%" height="0px;"></th>					
+							<th width="7%" height="0px;"></th>
+							<th width="4%" height="0px;"></th>
 						</tr>
 					</thead>
 				</table>
