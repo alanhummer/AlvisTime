@@ -19,6 +19,7 @@ var userId;
 var userEmail;
 var userName = "";
 var userMinHoursToSubmit = 0;
+var userMaxHoursToSubmit = 999;
 var blnAdmin = false; //Easy access to admin boolean
 var blnRemoteConfig = false;
 
@@ -60,6 +61,7 @@ function onDOMContentLoaded() {
     document.getElementById('everything').style.display =  'none';
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'none';
+    document.getElementById('help-text').style.display =  'none';
 
     //Loop until it is valid and we did one
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
@@ -166,6 +168,7 @@ function getNewOrgKey(inputValue, inputErr) {
     document.getElementById('everything').style.display =  'none';
     document.getElementById('orgkeyrequest').style.display =  'block';
     document.getElementById('timecard-summary').style.display =  'none';
+    document.getElementById('help-text').style.display =  'none';
 
     document.getElementById('orgkey').value = inputValue;
 
@@ -202,6 +205,18 @@ function setupNewOrg() {
     closeit();
 }
 
+//For sorting array of objects, this is the compare
+function timePriorityCompare(a, b) {
+    let comparison = 0;
+    if (a.timePriority > b.timePriority) {
+        comparison = 1;
+    } else if (a.timePriority < b.timePriority) {
+        comparison = -1;
+    }
+    return comparison;
+}
+
+
 /****************
 Showing the time card summary
 ****************/
@@ -211,12 +226,14 @@ function showTimeCardSummary() {
     var classificationObject;
     var classificationID = 0;
     var classificationDisplay = "";
+    var hoursToOffset = 0;
     var row;
 
     //Setup the view
     document.getElementById('everything').style.display =  'none';
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'block';
+    document.getElementById('help-text').style.display =  'none';
 
     //Load our name
     document.getElementById('timecard-summary-name').innerHTML = userName;
@@ -235,7 +252,6 @@ function showTimeCardSummary() {
         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
         "totalTotal": 0
     }
-
 
     //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
     workgroup.issueGroups.forEach(function(issueGroup) {
@@ -265,7 +281,10 @@ function showTimeCardSummary() {
                         "description": issue.classification,
                         "descriptionChild": issue.classificationChild,
                         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
-                        "totalTotal": 0
+                        "totalTotal": 0,
+                        "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0],
+                        "postedTotal": 0,
+                        "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
 
                     //Now add the object to the array
@@ -295,11 +314,57 @@ function showTimeCardSummary() {
         "description": "(not defined)",
         "descriptionChild": "(not defined)",
         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
-        "totalTotal": 0
+        "totalTotal": 0,
+        "timePriority": 0
     }
 
-    //for each cusotmer field classification, if > 0 hours, load it to the grid
+    //Setup our offset totals object
+    var classificationTotalsOffsetObject = {
+        "id": -1,
+        "description": "OFFSET:",
+        "descriptionChild": "OFFSET:",
+        "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+        "totalTotal": 0,
+        "timePriority": 0
+    }
+    
+    //Make a copy of our totals for use in offset methods
+    var classificationTotalsNetObject = {
+        "id": -1,
+        "description": "NET TOTALS:",
+        "descriptionChild": "NET TOTALS:",
+        "dayTotal": [classificationTotalsObject.dayTotal[0], classificationTotalsObject.dayTotal[1], classificationTotalsObject.dayTotal[2], classificationTotalsObject.dayTotal[3], classificationTotalsObject.dayTotal[4], classificationTotalsObject.dayTotal[5], classificationTotalsObject.dayTotal[6]],
+        "totalTotal": classificationTotalsObject.totalTotal
+    }
+
+    //Let's sort our array of classification objects by timePriority
+    classificationArray = classificationArray.sort(timePriorityCompare);
+
+    //Set our hours to offset
+    if (classificationTotalsObject.totalTotal > userMaxHoursToSubmit) {
+        hoursToOffset = classificationTotalsObject.totalTotal - userMaxHoursToSubmit;
+        //Fill in our time to the "posted time" by priority untill we run out (ie: 40)
+        //do time priority 1 first, dish out posted time to those items, then 2, then 3...keep going til reach max hours mark
+        hoursToDrawDown = userMaxHoursToSubmit;
+        classificationArray.forEach(function(classificationObject) {
+            for (var dayIndex=0; dayIndex < 7; dayIndex++) {
+                if (hoursToDrawDown >=  classificationObject.dayTotal[dayIndex]) {
+                    classificationObject.dayPostedTotal[dayIndex] = classificationObject.dayTotal[dayIndex];
+                }
+                else {
+                    classificationObject.dayPostedTotal[dayIndex] = hoursToDrawDown;                   
+                }
+                classificationObject.postedTotal = classificationObject.postedTotal + classificationObject.dayPostedTotal[dayIndex]
+                hoursToDrawDown = hoursToDrawDown - classificationObject.dayPostedTotal[dayIndex];
+            }
+            //console.log("CLASSIFICATION OBJECT SORTED DRAW DOWN:", JSON.parse(JSON.stringify(classificationObject)));
+        });
+    }
+
+    //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
+
+            console.log("OFFSET: Hours to offset = " + hoursToOffset);
 
             if (classificationObject.description == prevClassificationObject.description) {
                 //Same main class, don't show the main class name
@@ -336,6 +401,48 @@ function showTimeCardSummary() {
             //And add it to our issue group table
             document.getElementById("timecard-summary-details").appendChild(row);   
 
+            //AJH Here is where the adjustment row goes
+            //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
+            if (classificationObject.postedTotal < classificationObject.totalTotal) {
+
+                //Doing an offset, build an offset object
+                offsetObject = {
+                    "id": 0,
+                    "description": "Offset",
+                    "descriptionChild": "Offset",
+                    "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+                    "totalTotal": 0,
+                    "timePriority": classificationObject.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+                }
+
+                //Now do an offset
+
+                //For each day, add the amounts to the totals for the classification
+                for (var dayIndex=0; dayIndex < 7; dayIndex++) {
+                    console.log("OFFSET: TOTALS FOR " + classificationTotalsObject.description + " DAY: " + dayIndex + " IS " + classificationTotalsObject.dayTotal[dayIndex] + " VS " + workgroup.settings.dayHoursMax);
+                    offsetObject.dayTotal[dayIndex] = classificationObject.dayTotal[dayIndex] - classificationObject.dayPostedTotal[dayIndex];
+                    offsetObject.totalTotal = offsetObject.totalTotal + offsetObject.dayTotal[dayIndex];
+
+                    //Fill in our offset totals object
+                    classificationTotalsOffsetObject.dayTotal[dayIndex] = classificationTotalsOffsetObject.dayTotal[dayIndex] + offsetObject.dayTotal[dayIndex];
+                    classificationTotalsOffsetObject.totalTotal = classificationTotalsOffsetObject.totalTotal + offsetObject.dayTotal[dayIndex];                 
+                    
+                    //Fill in our offset net object
+                    classificationTotalsNetObject.dayTotal[dayIndex] = classificationTotalsNetObject.dayTotal[dayIndex] - offsetObject.dayTotal[dayIndex];
+                    classificationTotalsNetObject.totalTotal = classificationTotalsNetObject.totalTotal - offsetObject.dayTotal[dayIndex];
+
+               }
+
+                console.log("OFFSET: DONE.  Now we have hours to offset = " + hoursToOffset, JSON.parse(JSON.stringify(classificationTotalsObject)));
+
+                //Now have to create the offset row
+                row = generateTimecardSummaryRow(offsetObject, "timecard-summary-class", "offset");
+
+                //And add it to our issue group table
+                document.getElementById("timecard-summary-details").appendChild(row);  
+
+            }
+
             //Reset our previous object
             prevClassificationObject = classificationObject;
 
@@ -352,6 +459,19 @@ function showTimeCardSummary() {
 
     //And add it to our issue group table
     document.getElementById("timecard-summary-details").appendChild(row);   
+
+    //And the offset totals
+    row = generateTimecardSummaryRow(classificationTotalsOffsetObject, "timecard-summary-totals", "offset-total");
+
+    //And add it to our issue group table
+    document.getElementById("timecard-summary-details").appendChild(row);   
+
+    //And the net
+    row = generateTimecardSummaryRow(classificationTotalsNetObject, "timecard-summary-totals-net", "total");
+
+    //And add it to our issue group table
+    document.getElementById("timecard-summary-details").appendChild(row);   
+
 
 }
 
@@ -409,7 +529,17 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('everything').style.display =  'block';
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
-    });    
+        document.getElementById('help-text').style.display =  'none';
+    }); 
+    
+    //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
+    document.getElementById("close-image-help").addEventListener ("click", function(){ 
+        //Setup the view
+        document.getElementById('everything').style.display =  'block';
+        document.getElementById('orgkeyrequest').style.display =  'none';
+        document.getElementById('timecard-summary').style.display =  'none';
+        document.getElementById('help-text').style.display =  'none';
+    });   
 
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
@@ -499,11 +629,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         else {
             userMinHoursToSubmit = user.minHoursToSubmit;
         }
+        //Set our max hours - if user overirde of workgroup level
+        if (typeof user.maxHoursToSubmit === 'undefined') {
+            userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
+        }
+        else {
+            userMaxHoursToSubmit = user.maxHoursToSubmit;
+        }
 
         //Setup the view
         document.getElementById('everything').style.display =  'block';
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
+        document.getElementById('help-text').style.display =  'none';
         
         // Set week date range header in html
         range = document.getElementById('week-dates-description');
@@ -568,6 +706,13 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 else {
                     userMinHoursToSubmit = workgroup.users[i].minHoursToSubmit;
                 }
+                 //Set our max hours - if user overirde of workgroup level
+                 if (typeof workgroup.users[i].maxHoursToSubmit === 'undefined') {
+                    userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
+                }
+                else {
+                    userMaxHoursToSubmit = workgroup.users[i].maxHoursToSubmit;
+                } 
             }
         }
         console.log("Alvis Time: Changed to " + userName + " + " + userId + " + " + userEmail);
@@ -1389,8 +1534,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + 0 + "%");
  
         //Create our container for htis
-
-        //AJH?
         var issueGroupDiv = buildHTML('div');
         issueGroupDiv.innerHTML = myIssueGroupHTML;
         document.getElementById('all-issue-groups-container').appendChild(issueGroupDiv);
@@ -1931,10 +2074,15 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
             var row = buildHTML('tr', null, {});  
         }
     }
-    else {
+    else if (inputType == "detail" || inputType == "total" || inputType == "offset-total") {
         var row = buildHTML('tr', null, {
             'id': issueClassification.id + '-summary-id'
         });       
+    }
+    else { //Offset
+        var row = buildHTML('tr', null, {
+            'id': issueClassification.id + '-summary-id'
+        });        
     }
 
 
@@ -1959,7 +2107,17 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
             style: "height:" + inputSize + "px"
         });       
     }
-    else {
+    else if (inputType == "detail" || inputType == "offset-total") {
+        if (issueClassification.descriptionChild.length > 0)
+            descToDisplay = issueClassification.descriptionChild;
+        else
+            descToDisplay = "(no sub-project)"
+
+        var summaryCell = buildHTML('td', descToDisplay, {  
+            class: inputClass + '-description'
+        });
+    }
+    else { //Offset
         if (issueClassification.descriptionChild.length > 0)
             descToDisplay = issueClassification.descriptionChild;
         else
@@ -1995,7 +2153,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
 
             });        
         }
-        else {
+        else if (inputType == "detail" || inputType == "total") {
             if (issueClassification.dayTotal[i])
                 showTotal = issueClassification.dayTotal[i];
             else
@@ -2005,6 +2163,41 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
                 class: inputClass
             });           
         }
+        else if (inputType == "offset-total") {
+            if (issueClassification.dayTotal[i])
+                showTotal = issueClassification.dayTotal[i];
+            else
+                showTotal = "0";
+
+            if (showTotal > 0) {
+                var timeInputDayCell = buildHTML('td', showTotal, {  
+                    class: inputClass + "-offset"
+                });    
+            }
+            else {
+                var timeInputDayCell = buildHTML('td', "-", {  
+                    class: inputClass
+                });                 
+            }
+       
+        }
+        else { //Offset
+            if (issueClassification.dayTotal[i])
+                showTotal = issueClassification.dayTotal[i];
+            else
+                showTotal = "0";
+
+            if (showTotal > 0) {
+                var timeInputDayCell = buildHTML('td', showTotal, {  
+                    class: inputClass + "-offset"
+                });                   
+            }    
+            else {
+                var timeInputDayCell = buildHTML('td', "-", {  
+                    class: inputClass
+                });
+            }            
+         }
 
 
         //Make Saturday and Sunday gray
@@ -2019,8 +2212,6 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
                 timeInputDayCell.style.backgroundColor = "#f3f3f3";
             }
         }
-
-
 
         //Add to the row
         row.appendChild(timeInputDayCell);
@@ -2042,12 +2233,18 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
             class: inputClass  
         });        
     }
-    else {
+    else if (inputType == "detail" || inputType == "total" || inputType == "offset-total") {
         if (issueClassification.totalTotal > 0) {
 
             if (inputType == "total") {
                 var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
                     class: inputClass,
+                    id: issueClassification.id + "+total"
+                });               
+            }
+            else if (inputType == "offset-total") {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
+                    class: inputClass + "-offset",
                     id: issueClassification.id + "+total"
                 });
             }
@@ -2069,6 +2266,29 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         }
         else {
             var timeInputTotal = buildHTML('td', "0", {
+                class: inputClass,
+                id: issueClassification.id + "+total"
+            });           
+        }
+    }
+    else { //Offset
+        if (issueClassification.totalTotal > 0) {
+            if (hoursPercentage < 10) {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                    class: inputClass + "-offset",
+                    id: issueClassification.id + "+total"
+                });
+            }
+            else {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                    class: inputClass + "-offset",
+                    id: issueClassification.id + "+total"
+                    //style: "color:red;"
+                });
+            }              
+        }
+        else {
+            var timeInputTotal = buildHTML('td', "-", {
                 class: inputClass,
                 id: issueClassification.id + "+total"
             });           
@@ -2103,10 +2323,16 @@ function doNothing() {
 //Open the help window
 function openHelp(){
 
-    chrome.windows.create ({
-        url: config.orgHelpPage,
-        type: "popup"
-    });
+    //Initialize the view
+    document.getElementById('everything').style.display =  'none';
+    document.getElementById('orgkeyrequest').style.display =  'none';
+    document.getElementById('timecard-summary').style.display =  'none';
+    document.getElementById('help-text').style.display =  'block';
+    
+    //chrome.windows.create ({
+    //   url: config.orgHelpPage,
+    //    type: "popup"
+    //});
     //window.open(inputURI);
     return false;
 

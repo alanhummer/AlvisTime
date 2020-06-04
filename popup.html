@@ -122,12 +122,36 @@
 					white-space: nowrap;
 				}
 
+				.timecard-summary-class-offset-description {
+					font-size: 12px;
+					color: red;
+					border-bottom: 1px solid #dddddd;
+					text-align: right;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+
 				.timecard-summary-totals-description {
+					font-size: 18px;
+					color: blue;
+					border-bottom: 1px solid #dddddd;
+					text-align: right;
+				}
+
+				.timecard-summary-totals-offset-description {
 					font-size: 18px;
 					color: red;
 					border-bottom: 1px solid #dddddd;
 					text-align: right;
 				}
+
+				.timecard-summary-totals-net-description {
+					font-size: 18px;
+					color: purple;
+					border-bottom: 1px solid #dddddd;
+					text-align: right;
+				}				
 
 				.timecard-summary-class {
 					font-size: 16px;
@@ -136,9 +160,30 @@
 					text-align: center;
 				}
 
+				.timecard-summary-class-offset {
+					font-size: 16px;
+					color: red;
+					border-bottom: 1px solid #dddddd;
+					text-align: center;
+				}
+
 				.timecard-summary-totals {
 					font-size: 18px;
+					color: blue;
+					border-bottom: 1px solid #dddddd;
+					text-align: center;
+				}
+				
+				.timecard-summary-totals-offset {
+					font-size: 18px;
 					color: red;
+					border-bottom: 1px solid #dddddd;
+					text-align: center;
+				}
+
+				.timecard-summary-totals-net {
+					font-size: 18px;
+					color: purple;
 					border-bottom: 1px solid #dddddd;
 					text-align: center;
 				}
@@ -585,6 +630,49 @@
 			<a tabindex="2" target="_blank" id="submit-link2"><img id="setup-new-org" src="images/setup-new-organization.png" width="176" height="33" class="week-images"></a><br><br>
 			<div id="orgKeyMessage"></div>
 			</div>
+		</div>
+		<!--The Help Presentation-->
+		<div id="help-text" style="display:none;font-size:16px">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-help" target="_blank"><img id="close-image-help" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
+				<a id="helpLink-help" target="_blank"><img id="help-image-help" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+			</div>
+			<ul>
+				Welcome to <b>Alvis Time!</b>  Time card entry integrated with Jira.
+				We believe Alvis Time is simple and easy to learn and use.  3 simple steps:<br><br>
+				<ol>
+				<li><b>Set week</b> you want to enter time for (scroll buttons at the top)</li>
+				<li><b>Enter time</b> into Jira ticket buckets for each day of the week (expand/collapse the issue groups)</li>
+				<li>When "done", <b>submit your time</b> for approval (button at the bottom, turns green when you hit required # hours)</li>
+				</ol>
+			</ul>
+			<ul>
+				<b>PROJECT WORK:</b> For LANDS END, we are trying to maximize time on capital projects. Our big rocks. 3 simple points:<br><br>
+				<ol>
+				<li>Make sure to book any meeting, planning, onboarding, etc. time as it relates to projects, to that project.  Alvis Time has project generic project buckets for this stuff.</li>
+				<li>Goal is 90% of time to project work.  Alvis time has totals, percentages and "red"/"green" indicators to highlight this</li>
+				<li>If there are any issues that do not have project/sub-project designation, we'll need to add it to them so that we can account correctly.  Feel free to do that with the Jira links from Alvis Time.</li>
+				</ol>
+			</ul>
+			<ul>
+				<b>KTLO SUPPORT WORK:</b> For LANDS END, we are trying to keep all support as "Keep The Lights On" (Mandatory Support).  3 simple "primary" support buckets:<br><br>
+				<ol>
+				<li><b>Problem Incidents</b>  - break/fix, severity issues, hot fixes of production systems.  Does not include low priority QA defects that didn't make a release. </li>
+				<li><b>Operations</b>  - Non-discretionary preventative maintenance. DB tuning, environment/stacks maintenance.</li>
+				<li><b>Audits and Compliance</b>  - participation in SOX and PCI audits (evidence gathering etc), or engineering work in response to an audit issue. </li>
+				</ol>			
+			</ul>
+			<ul>
+				<b>OTHER SUPPORT WORK:</b> For LANDS END, we are trying to keep all other "Support" to a minimum (Descretionary Support).  3 simple "secondary" support buckets:<br><br>
+				<ol>
+				<li><b>Security</b>  - Security approved engineering changes to achieve and/or remain compliant with IT Security Policy. S/B vetted by IT Security.</li>
+				<li><b>Tech Debt</b>  - Addressing "Debt" of previous engineering trade-offs made to hit cost and budget constraints. Assess against short term revenue generating, cost reduction, risk reduction. Try to move Tech Debt items into LE.com enhancements</li>
+				<li><b>Requests/Other</b>  - <b>(do not use)</b> - Small, yet high priority business requests under 80 hr.  Note: this existed before "Enhancements". </li>
+				</ol>			
+			</ul>
+			<ul>
+				That's it.  Have fun with <b>Alvis Time!</b><br><br><br><br><br><br>
+			</ul>
 		</div>
 		<!--The Main Presentation-->
 		<div id="everything" style="display: none;">
