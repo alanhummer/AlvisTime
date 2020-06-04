@@ -73,7 +73,7 @@
                     "JiraProjectKey": "LEIN",
                     "minPercentage": 0,
                     "timePriority": 4,
-                    "query": "project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business' ORDER BY Project, 'Project - Subproject', issueKey"
+                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Administration", 
