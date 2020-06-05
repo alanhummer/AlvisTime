@@ -341,7 +341,7 @@ function showTimeCardSummary() {
     classificationArray = classificationArray.sort(timePriorityCompare);
 
     //Set our hours to offset
-    if (classificationTotalsObject.totalTotal > userMaxHoursToSubmit) {
+    //if (classificationTotalsObject.totalTotal > userMaxHoursToSubmit) {
         hoursToOffset = classificationTotalsObject.totalTotal - userMaxHoursToSubmit;
         //Fill in our time to the "posted time" by priority untill we run out (ie: 40)
         //do time priority 1 first, dish out posted time to those items, then 2, then 3...keep going til reach max hours mark
@@ -359,7 +359,7 @@ function showTimeCardSummary() {
             }
             //console.log("CLASSIFICATION OBJECT SORTED DRAW DOWN:", JSON.parse(JSON.stringify(classificationObject)));
         });
-    }
+   // }
 
     //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
@@ -1054,6 +1054,21 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Wire up the issue search button
         document.getElementById("issue-search").addEventListener ("click", event => {
    
+            //Expand group, if not already expanded
+            if (!lookupIssueGroup.expandGroup) {
+                lookupIssueGroup.expandGroup = true;
+                document.getElementById(lookupIssueGroup.key + "-details").open = lookupIssueGroup.expandGroup;
+            }
+
+            //Setup our storage keys to save the collapse setting for this group
+            var expandKeyName = lookupIssueGroup.key + "-expand";
+            var expandKeyObj = {};
+            expandKeyObj[expandKeyName] = document.getElementById(lookupIssueGroup.key + "-details").open;
+            chrome.storage.local.set(expandKeyObj, function () {
+                lookupIssueGroup.expandGroup = document.getElementById(lookupIssueGroup.key + "-details").open;
+            });
+
+
             //Stop event from propogating up
             event.stopPropagation();
             event.preventDefault();
@@ -1105,7 +1120,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 if (workgroup.issueGroups[g].issues[i].key == inputIssueKey) {
                     //we have a match
                     locationKey = workgroup.issueGroups[g].key + "+" + g + "+" + workgroup.issueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
-                    alert("LOCATION KEY IS: " + locationKey);
+                    //alert("LOCATION KEY IS: " + locationKey);
                    
                     //Expand if not already expanded
                     if (!workgroup.issueGroups[g].expandGroup) {
@@ -1622,7 +1637,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             });
         });
 
-        document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
+        //I think this does nothing - document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
         
     }
 
