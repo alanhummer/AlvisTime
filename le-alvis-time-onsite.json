@@ -7,6 +7,7 @@
     "orgHelpLogo": "images/help_button.png",
     "orgCloseLogo": "images/close_button.png",
     "orgGoLogo": "images/go_button.png",
+    "orgPostTimeImage": "images/post_time.png",
     "orgHelpPage": "help.html",   
     "workgroups": [
         {

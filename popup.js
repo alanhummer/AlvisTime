@@ -472,9 +472,7 @@ function showTimeCardSummary() {
     //And add it to our issue group table
     document.getElementById("timecard-summary-details").appendChild(row);   
 
-
 }
-
 
 /****************
 Main control thread - When document loaded, do this routine
@@ -531,7 +529,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
     }); 
-    
+
+         
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("close-image-help").addEventListener ("click", function(){ 
         //Setup the view
@@ -540,6 +539,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
     });   
+
+    //Now let's add summary post button
+    var postTimeDiv = buildHTML('div');
+    postTimeDiv.innerHTML = "<img id='post-image' src='" + config.orgPostTimeImage + "' height='33' style='display: inline-block; vertical-align:middle'><br><br><br>";
+    document.getElementById("timecard-summary").append(postTimeDiv);
+    
+    //This is our post time button wire-up    
+    //document.getElementById("post-time-card-link").addEventListener ("click", function(){ alert('dude')}); 
+    //document.getElementById('post-image').onclick = postTime;
+    document.getElementById("post-image").addEventListener ("click", function(){ postTime()}); 
 
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
@@ -551,7 +560,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     //And for summary table
     summaryTable = document.getElementById('timecard-summary-wrapper').innerHTML;
-    document.getElementById('timecard-summary-wrapper').innerHTML = ""
+    document.getElementById('timecard-summary-wrapper').innerHTML = "";
 
     //Get User info
     JIRA.getUser()
@@ -2546,4 +2555,15 @@ function getConfig(url, callback) {
     xhr.send();
 };
 
+
+//Here is the code for doing the post to Service Now
+/***************
+Posting functions 
+***************/
+function postTime() {
+
+    console.log("Alvis Time: WE ARE POSTING TIME");
+    alert("here we go");
+
+};
 
