@@ -129,6 +129,10 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
                 // consider all statuses between 200 and 400 successful
                 if (req.status >= 200 && req.status < 400) {
                     console.log("Alvis Time: API call successfull for " + reqType + " " + req.responseURL);
+                    if (reqType == "updateWorklog") {
+                        console.log("WORKLOG RESPONSE: ");
+                        console.log(req);
+                    }
                     //Based on the request, send back a stowaway object
                     switch (reqType) {
                         case "getIssues":

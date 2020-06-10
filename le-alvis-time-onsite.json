@@ -18,6 +18,7 @@
                 "dayHoursMax": 8,
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
                 "customFieldForClassification": "customfield_10901",
+                "remainingEstimateField": "aggregatetimeestimate",
                 "timecardNotification":  {
                     "active": true,
                     "frequency": 1,
@@ -53,19 +54,30 @@
             },
             "issueGroups": [
                 {
-                    "name": "Projects", 
-                    "key": "proj",
+                    "name": "Proj - Tasks", 
+                    "key": "proj-task",
                     "JiraProjectKey": "LECOM",
-                    "minPercentage": 90,
+                    "minPercentage": 0,
                     "timePriority": 2,
-                    "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) OR (project = LE-Internal AND 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                    "classSelect": true,
+                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))"
+                },
+                {
+                    "name": "Proj - General", 
+                    "key": "proj-gen",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0,
+                    "timePriority": 3,
+                    "classSelect": false,
+                    "query": "project = LE-Internal AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Support", 
                     "key": "sup",
                     "JiraProjectKey": "LECOM",
                     "minPercentage": 0,
-                    "timePriority": 3,
+                    "timePriority": 4,
+                    "classSelect": false,
                     "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
@@ -73,7 +85,8 @@
                     "key": "rtb", 
                     "JiraProjectKey": "LEIN",
                     "minPercentage": 0,
-                    "timePriority": 4,
+                    "timePriority": 5,
+                    "classSelect": false,
                     "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
@@ -82,6 +95,7 @@
                     "JiraProjectKey": "LEIN",
                     "minPercentage": 0,
                     "timePriority": 1,
+                    "classSelect": false,
                     "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration' ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
@@ -89,6 +103,7 @@
                     "key": "lookup",
                     "JiraProjectKey": "LECOM",
                     "minPercentage": 0,
+                    "classSelect": false,
                     "query": "issueKey in (_ISSUEKEYS_) ORDER BY issueKey"
                 }           
             ],
@@ -112,8 +127,9 @@
             "settings": {
                 "hoursToSubmit": 40,
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
-                "customFieldForClassification": "customfield_10901"
-          },
+                "customFieldForClassification": "customfield_10901",
+                "remainingEstimateField": "aggregatetimeestimate"
+            },
             "titles": {
                 "welcome": "Greetings",
                 "week": "Week Of",

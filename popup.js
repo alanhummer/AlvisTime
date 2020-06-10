@@ -173,7 +173,7 @@ function getNewOrgKey(inputValue, inputErr) {
     document.getElementById('orgkey').value = inputValue;
 
     if (inputErr == "false") {
-        orgKeyMessage("ABC Enter a valid organization key. " + inputValue + " is not valid", "error")
+        orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
     }
 }
 
@@ -183,8 +183,8 @@ function updateOrgKey() {
         loadConfig(document.getElementById("orgkey").value + ".json", function(response) { 
             //See if it was bogus
             if (response == null || typeof response === 'undefined' || response.length <= 0) {
-                //Bogus
-                orgKeyMessage("B Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
+                //BogusM
+                orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
             }
             else {
                 //All good
@@ -196,7 +196,7 @@ function updateOrgKey() {
     }
     else {
         //org key cannot be empty
-        orgKeyMessage("C Enter a valid organization key. It cannot be empty.", "error")
+        orgKeyMessage("Enter a valid organization key. It cannot be empty.", "error")
     }
 }
 
@@ -694,6 +694,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         togglePageBusy(false);
         
         //Put it to you window instead
+        alert("could not connect: " + error);
+        //orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
         genericResponseError(error);
     }
 
@@ -865,6 +867,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     Fetch for issues was Successful -
     ****************/
     function onIssueFetchSuccess(responseObject) {
+
+        console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
 
         //ResponseObject conatains "response" and "issuesGroup" objects - assign our retreived issues ot the issueGroup
         responseObject.issueGroup.issues = responseObject.issues;
@@ -1442,7 +1446,13 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         return false;
     }
 
-    
+    /****************
+    Post the change for remaining estimate
+    ****************/   
+    function postRemainingEstimateChange(remainingEstimateItem) {
+        alert("DID REM EST: " + remainingEstimateItem.value);
+    }
+
     /****************
     Update the status of all of the worklogs for this time card
     ****************/   
@@ -1582,7 +1592,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         })
 
         //Do our classification selection
-        if (classifications.length > 1 && issueGroup.key != "lookup") {
+        if (classifications.length > 1 && issueGroup.classSelect) {
             
             //Setup our selection list
             var classificationSelect = buildHTML('select', null, {
@@ -1690,13 +1700,23 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         issue.classification = trim(issue.classification);
         issue.classificationChild = trim(issue.classificationChild);
 
+        //Setup our remaining estimate
+        issue.remainingEstimate = "0";
+        if (workgroup.settings.remainingEstimateField) {
+            var issueRemainingEstimate = issue.fields[workgroup.settings.remainingEstimateField];
+            if (issueRemainingEstimate) {
+                issue.remainingEstimate = issueRemainingEstimate / 3600;
+            }
+        }
+
         var issueDescription;
         var summaryCell;
-        if (issue.fields.summary == issue.fields.summary.toUpperCase()) {
-            //All upper case - skip classifiations and make it more pronounced
+         if (issue.fields.summary == issue.fields.summary.toUpperCase()) {
+            //All upper case - skip classifiations and make it more pronounced, also skip remaining hours
             issueDescription = "<table><tr><td class='big-summary'>" + issue.fields.summary + "</td></tr></table>"
             summaryCell = buildHTML('td', issueDescription, {  
             });
+            issue.remainingEstimate = "";
         }
         else {
             issueDescription = "<table><tr><td class='small-summary'>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
@@ -1766,7 +1786,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Add total tiem entry to the row
         row.appendChild(timeInputTotalCell);
 
-        
+        //And our remaining estimate column
+        var timeRemainingEstimate = createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, issue.worklogDisplayObjects[i], i);
+        var timeRemainingCell = buildHTML('td');
+        timeRemainingCell.appendChild(timeRemainingEstimate);
+
+        //Add remaining estimate to the row
+        row.appendChild(timeRemainingCell);
+  
         //And our buffer
         var varBuffer = buildHTML('text', "", {
             innterText: ""
@@ -1897,6 +1924,15 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Add total tiem entry to the row
         row.appendChild(timeInputTotalCell);
         
+        //And our remaining estimate column
+        var timeRemainingEstimate = buildHTML('text', "", {
+            class: 'total-time-total',
+            id: "total+total+remaining"
+        });
+        var timeRemainingCell = buildHTML('td');
+        timeRemainingCell.appendChild(timeRemainingEstimate);
+        row.appendChild(timeRemainingCell);
+
         //And our buffer
         var varBuffer = buildHTML('text', "", {
             innterText: ""
@@ -1960,6 +1996,36 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         return timeInputDay;
 
     }
+
+    //Create the reamainging estimate cell entry
+    function createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, inputWorklogObject) {
+            
+        var remainingEstimateInput;    
+        //If we have a value, make it editable
+         if (issue.remainingEstimate) {
+            //Create the html input field for this worklog
+            remainingEstimateInput = buildHTML('input', null, {
+                class: 'issue-time-input',
+                'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
+            });                
+
+            //Wire up the listener to handle posts when the data changes
+            remainingEstimateInput.addEventListener ("change", function(){ postRemainingEstimateChange(this)});  
+
+            remainingEstimateInput.value = issue.remainingEstimate;
+         }
+         else {
+             //Create an empty field
+            remainingEstimateInput = buildHTML('text', "", {
+                class: 'issue-time-input',
+                'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
+            });
+
+         }
+
+        return remainingEstimateInput;
+    }
+
 
     //Open Jira ticket in a new window
     function jiraIssuelink(inputURI) {
@@ -2319,10 +2385,9 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         }
     }
 
-
     //Add to the column
     row.appendChild(timeInputTotal);
-    
+
     return row;
 
 }
@@ -2423,6 +2488,7 @@ function notificationMessage(message, messageType) {
     notification.style.display = 'block';
     if (messageType == "error") {
         notification.style.color = "red";    
+        orgKeyMessage(message, "error");
     }
     else if (messageType == "notification") {
         notification.style.color = "blue";   
@@ -2430,6 +2496,7 @@ function notificationMessage(message, messageType) {
     else {
         notification.style.color = "green";   
     }
+
 }
 
 // Corp Key message
