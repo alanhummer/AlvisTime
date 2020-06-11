@@ -1384,7 +1384,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                         document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + 0 + "%";
                 })
 
-                 //And set our button status
+                //Get latest remaining estimate
+                JIRA.getRemainingEstimate(issueId)
+                .then(function(responseObject) {
+                    //Success, update remaining estimate value
+                    var remainingEstimate = responseObject.fields.timetracking.remainingEstimate;
+                    remainingEstimate = remainingEstimate.replace("h", "");
+                    document.getElementById(issueGroupKey + "+" + issueGroupIndex + "+" + issueId + "+" + issueIndex + "+remest").value = remainingEstimate;
+                }, function(error) {
+                    //Failure
+                    genericResponseError(error);
+                });
+
+                //And set our button status
                 setButtonStatus();    
 
                 //When posted successfully, turn to blue
@@ -1449,8 +1461,32 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     /****************
     Post the change for remaining estimate
     ****************/   
-    function postRemainingEstimateChange(remainingEstimateItem) {
-        alert("DID REM EST: " + remainingEstimateItem.value);
+    function postRemainingEstimateChange(remainingEstimateItem, inputIssue) {
+
+        //If we are already busy, get out to avoid multiple clicks
+        if (!blnInteractive)
+            return;
+
+        togglePageBusy(true);
+        
+        //Post update for this remaining estimate
+        JIRA.updateRemainingEstimate(inputIssue.id, remainingEstimateItem.value)
+        .then(function(data) {
+            //Success
+            notificationMessage("Updated Estimate for " + inputIssue.key + " to " + remainingEstimateItem.value, "notification");
+            //When posted successfully, turn to blue
+            remainingEstimateItem.style.color = "#0000ff";
+
+        }, function(error) {
+            //Failure, turn to red
+            remainingEstimateItem.style.color = "#ff0000";
+            genericResponseError(error);
+        });
+
+        togglePageBusy(false);
+
+        return false;
+
     }
 
     /****************
@@ -2010,7 +2046,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             });                
 
             //Wire up the listener to handle posts when the data changes
-            remainingEstimateInput.addEventListener ("change", function(){ postRemainingEstimateChange(this)});  
+            remainingEstimateInput.addEventListener ("change", function(){ postRemainingEstimateChange(this, issue)});  
 
             remainingEstimateInput.value = issue.remainingEstimate;
          }

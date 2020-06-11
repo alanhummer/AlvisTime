@@ -22,7 +22,9 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         getIssue : getIssue,
         getIssues: getIssues,
         getIssueWorklogs : getIssueWorklogs,
-        updateWorklog : updateWorklog
+        updateWorklog : updateWorklog,
+        updateRemainingEstimate : updateRemainingEstimate,
+        getRemainingEstimate : getRemainingEstimate
     };
 
 //AJH DIFF AUTH '   function login() {
@@ -102,6 +104,22 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         }
 
         return ajaxWrapper(url, options, "updateWorklog", {});
+    }
+
+    function updateRemainingEstimate(issueId, remainingEstimateHours) {
+
+        var options;
+        options = {
+            type: 'PUT',
+            data: JSON.stringify({"update": {"timetracking": [{"edit": {"remainingEstimate": remainingEstimateHours + "h"}}]}})
+        }  
+
+        return ajaxWrapper('/issue/' + issueId, options, "updateRemainingEstimate", {});
+
+    }
+
+    function getRemainingEstimate(issueId) {
+        return ajaxWrapper('/issue/' + issueId + '?expand=changelog', {}, "getRemainingEstimate", {});
     }
 
     function ajaxWrapper (urlExtension, optionsOverrides, reqType, objStowaway, objStowaway2) {
