@@ -1,6 +1,6 @@
 /****************
 This JS is the main processing set - when DOM loaded, code is fired to get, display, process JIRA time entries
-****************/
+****************/ 
 var config;  //object that will hold all configuration options
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
@@ -20,8 +20,10 @@ var userEmail;
 var userName = "";
 var userMinHoursToSubmit = 0;
 var userMaxHoursToSubmit = 999;
+var userDaysToHangOntoPriorWeek = 1;
 var blnAdmin = false; //Easy access to admin boolean
 var blnRemoteConfig = false;
+var blnPostTimeSet = false; //So we only have post button loaded 1x
 
 //Is the screen interactive, used for toggle
 var blnInteractive = true;
@@ -41,6 +43,15 @@ var totalTotal = 0;
 var lookupIssueKeys = [];
 var lookupIssueGroup;
 var lookupIssueGroupIndex;
+
+//Hold onto items there were posted
+var postedClassficationArray = [];
+
+//Hold recent settings
+var recentUserName = "";
+var recentOffset = "";
+var recentPage = "";
+var displayUser = "";
 
 //And so we begin....
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
@@ -63,11 +74,17 @@ function onDOMContentLoaded() {
     document.getElementById('timecard-summary').style.display =  'none';
     document.getElementById('help-text').style.display =  'none';
 
-    //Loop until it is valid and we did one
+    //And the buttons
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
-   
-    loadKeyAndOrg();
+    document.getElementById("close-image-orgkey").addEventListener ("click", function(){ closeit()}); 
+    document.getElementById("help-image-orgkey").addEventListener ("click", function(){ openHelp()}); 
+    document.getElementById("close-image-help").addEventListener ("click", function(){ closeit()}); 
+    document.getElementById("help-image-help").addEventListener ("click", function(){ openHelp()}); 
+
+    //Initialize - grab save user, week, page and load the key and or
+    initializeApp();
+
 }
 
 /****************
@@ -77,6 +94,11 @@ function loadKeyAndOrg() {
 
     //Initalize this
     config = null;
+
+    //Well, we have started...show any saved date
+    if (recentUserName.length > 0 && recentOffset > 0 && recentPage.length > 0) {
+        console.log("Alvis Time: Recent USER: " + recentUserName + " OFFSET: " + recentOffset + " PAGE: " + recentPage);
+    }    
 
     chrome.storage.local.get("orgKeya", function(data) {
         if (data) {
@@ -173,7 +195,11 @@ function getNewOrgKey(inputValue, inputErr) {
     document.getElementById('orgkey').value = inputValue;
 
     if (inputErr == "false") {
-        orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
+        if (inputValue.length > 0) 
+            orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
+        else
+        orgKeyMessage("Enter a valid organization key. It cannot be empty.", "error")
+      
     }
 }
 
@@ -216,7 +242,6 @@ function timePriorityCompare(a, b) {
     return comparison;
 }
 
-
 /****************
 Showing the time card summary
 ****************/
@@ -228,6 +253,16 @@ function showTimeCardSummary() {
     var classificationDisplay = "";
     var hoursToOffset = 0;
     var row;
+
+    //Save our page laoded
+    if (blnAdmin) {
+        chrome.storage.local.set({"recentPage": "timecard-summary"}, function () {});  
+        recentPage = "timecard-summary";      
+    }
+
+
+    console.log("Alvis Time: Posted array is ");
+    console.log(postedClassficationArray);
 
     //Setup the view
     document.getElementById('everything').style.display =  'none';
@@ -257,7 +292,7 @@ function showTimeCardSummary() {
     workgroup.issueGroups.forEach(function(issueGroup) {
         issueGroup.issues.forEach(function(issue) {
             if (issue.issueTotalTime > 0) {
-                        
+ 
                 //Our classification display
                 classificationDisplay = "";
 
@@ -278,12 +313,15 @@ function showTimeCardSummary() {
 
                     classificationObject = {
                         "id": classificationID,
+                        "userId": userId,
+                        "legacyPostTime": false, //What is this?
+                        "weekOf": ISODate(firstDay),
                         "description": issue.classification,
                         "descriptionChild": issue.classificationChild,
                         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
                         "totalTotal": 0,
-                        "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0],
-                        "postedTotal": 0,
+                        "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+                        "postedTotal": 0, //For offset hours
                         "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
 
@@ -401,7 +439,12 @@ function showTimeCardSummary() {
             //And add it to our issue group table
             document.getElementById("timecard-summary-details").appendChild(row);   
 
-            //AJH Here is where the adjustment row goes
+            //If admin, dd listener to checkbox
+            if (blnAdmin) {
+                document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
+            }
+
+            //Here is where the adjustment row goes
             //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
             if (classificationObject.postedTotal < classificationObject.totalTotal) {
 
@@ -528,6 +571,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
+        //Save our page laoded
+        if (blnAdmin) {
+            chrome.storage.local.set({"recentPage": "everything"}, function () {});  
+            recentPage = "everything";                
+        }
     }); 
 
          
@@ -538,17 +586,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
+        //Save our page laoded
+        if (blnAdmin) {
+            chrome.storage.local.set({"recentPage": "everything"}, function () {});  
+            recentPage = "everything";                
+        }
     });   
-
-    //Now let's add summary post button
-    var postTimeDiv = buildHTML('div');
-    postTimeDiv.innerHTML = "<img id='post-image' src='" + config.orgPostTimeImage + "' height='33' style='display: inline-block; vertical-align:middle'><br><br><br>";
-    document.getElementById("timecard-summary").append(postTimeDiv);
-    
-    //This is our post time button wire-up    
-    //document.getElementById("post-time-card-link").addEventListener ("click", function(){ alert('dude')}); 
-    //document.getElementById('post-image').onclick = postTime;
-    document.getElementById("post-image").addEventListener ("click", function(){ postTime()}); 
 
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
@@ -572,12 +615,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     function onUserSuccess(response) {
 
         //Report out we have a user
-        if (response.accountId)
+        if (response.accountId) {
             userId = response.accountId;
-        else    
-            userId = response.key;
-
-        console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
+        }
+        else {
+            if (response.name) {
+                userId = response.name;
+            }
+            else {
+                if (response.key) {
+                    userId = response.key;  
+                }
+            }
+        }
 
         var userOptions;  //This will hold the selection list of users to chane between, if we are an admin
 
@@ -617,11 +667,53 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         userEmail = user.email;
         userName = user.name
+        displayUser = userName;
+
+        console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
 
         //See if we are admin 
         if (user.role == "admin") {
             blnAdmin = true;
+
             console.log("Alvis Time: You are admin");
+        
+            if (recentUserName.length > 0) {
+
+                //Change user if we saved one
+                for (var i=0;i<workgroup.users.length;i++) {
+                    if (workgroup.users[i].name == recentUserName) {
+                        userId = workgroup.users[i].userid;
+                        userEmail = workgroup.users[i].email;
+                        userName = workgroup.users[i].name;
+                        user = workgroup.users[i];
+        
+                        //Set our min hours - if user overirde of workgroup level
+                        if (typeof workgroup.users[i].minHoursToSubmit === 'undefined') {
+                            userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
+                        }
+                        else {
+                            userMinHoursToSubmit = workgroup.users[i].minHoursToSubmit;
+                        }
+                        
+                        //Set our max hours - if user overirde of workgroup level
+                        if (typeof workgroup.users[i].maxHoursToSubmit === 'undefined') {
+                            userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
+                        }
+                        else {
+                            userMaxHoursToSubmit = workgroup.users[i].maxHoursToSubmit;
+                        }
+                         
+                        //Set our days to wait to see next weeks time
+                        if (typeof workgroup.users[i].daysToHangOntoPriorWeek === 'undefined') {
+                            userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
+                        }
+                        else {
+                            userDaysToHangOntoPriorWeek = workgroup.users[i].daysToHangOntoPriorWeek;
+                        }
+                    }
+                }
+            }
+         
             //Build users selection list
             for (var u=0; u < workgroup.users.length; u++) {
                 if (workgroup.users[u].name == user.name) 
@@ -645,6 +737,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         else {
             userMaxHoursToSubmit = user.maxHoursToSubmit;
         }
+        //Set our days to wait to see next weeks time
+        if (typeof user.daysToHangOntoPriorWeek === 'undefined') {
+            userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
+        }
+        else {
+            userDaysToHangOntoPriorWeek = user.daysToHangOntoPriorWeek;
+        }
+
 
         //Setup the view
         document.getElementById('everything').style.display =  'block';
@@ -654,7 +754,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         
         // Set week date range header in html
         range = document.getElementById('week-dates-description');
-        getWeek();
+
+        //Get the week we arein
+        if (blnAdmin)
+            getWeek(recentOffset);
+        else
+            getWeek();
 
         //Put the dates in the columns        
         document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SAT_/gi, makeMMDD(firstDay));
@@ -670,7 +775,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //If admin, allow to change user
         if (blnAdmin) {
-            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + userName + " - " + workgroup.name + "</div>";
+            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + displayUser + " - " + workgroup.name + "</div>";
             document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
         }
         else
@@ -678,9 +783,24 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //Close link
         document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
-        
-        //Get the issues and show them off
-        processIssueGroups("intro");
+
+        //Grab our stored classification posts, if we have them
+        if (blnAdmin) {
+            chrome.storage.local.get("postedArray", function(data) {
+                if (data) {
+                    if (data["postedArray"]) {
+                        postedClassficationArray = data["postedArray"];
+                    }
+                }
+                //Get the issues and show them off
+                processIssueGroups("intro");
+
+            });
+        }
+        else {
+            //Get the issues and show them off
+            processIssueGroups("intro");
+        }
 
     }
 
@@ -724,12 +844,33 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 else {
                     userMaxHoursToSubmit = workgroup.users[i].maxHoursToSubmit;
                 } 
+                //Set our days to wait to see next weeks time
+                if (typeof workgroup.users[i].daysToHangOntoPriorWeek === 'undefined') {
+                    userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
+                }
+                else {
+                    userDaysToHangOntoPriorWeek = workgroup.users[i].daysToHangOntoPriorWeek;
+                }
             }
         }
         console.log("Alvis Time: Changed to " + userName + " + " + userId + " + " + userEmail);
 
-        //Get the issues - need to reset everything since we changed user
-        processIssueGroups("userchange");
+        //Set our storage for user and continue on
+        chrome.storage.local.set({"recentUserName": userName}, function () {});
+
+        //Grab our stored classification posts, if we have them
+        if (blnAdmin) {
+            postedClassficationArray = [];
+            chrome.storage.local.remove("postedArray", function() {
+                //Get the issues - need to reset everything since we changed user
+                processIssueGroups("userchange");
+            });
+        }
+        else {
+            //Get the issues - need to reset everything since we changed user
+            processIssueGroups("userchange");
+        }
+        
 
     }
 
@@ -1022,6 +1163,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             if (!blnPageLoaded) {
                 //Keeping track 
                 blnPageLoaded = true;
+                
+                //Show the page
                 timecardPageLoad(); //This will load all of the data to the page
             } 
         }
@@ -1115,6 +1258,10 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
      
         //Enable the page
         togglePageBusy(false);
+
+        //If we recent page is summary, go to it
+        if (recentPage == "timecard-summary")
+            showTimeCardSummary();
 
     }
 
@@ -1736,6 +1883,20 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         issue.classification = trim(issue.classification);
         issue.classificationChild = trim(issue.classificationChild);
 
+
+        //Gotta fix our bogus classification's (for "problemes", there is none) AJH
+        if (issue.classification == "No classification defined") {
+            if (issue.fields["issuetype"].name == "Problem") { //Hardcoding for now
+                issue.classification = "10705 - LandsEnd.com Support";
+                issue.classificationChild = "19461 - Problems/Incidents"
+                console.log("Alvis Time: Reset the classifiation for " + issue.key + " = " + issue.classification + " - " + issue.classificationChild);
+            }
+        }
+        else if (issue.classificationChild == "Checkout") {
+            //Problems with SN and Jira out of sync - checkout is a not a sub-project
+            issue.classificationChild = "";
+        }
+        
         //Setup our remaining estimate
         issue.remainingEstimate = "0";
         if (workgroup.settings.remainingEstimateField) {
@@ -2062,7 +2223,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         return remainingEstimateInput;
     }
 
-
     //Open Jira ticket in a new window
     function jiraIssuelink(inputURI) {
 
@@ -2081,18 +2241,24 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Get the range of dates for the week, based on offset
     function getWeek(inputOffset) {
 
+        //Log what we have
+        console.log("DAY TO HANG:" + userDaysToHangOntoPriorWeek);
+
         //Get our date objects
         today = new Date();
 
         if (inputOffset == null || typeof inputOffset === 'undefined' || inputOffset.length <= 0) {
             //If just loaded and today is sun/mon/tues - so default week to LAST week
-            if (today.getDay() < 3)
+            if (today.getDay() < userDaysToHangOntoPriorWeek)
                 offset = -1;
             else
                 offset = 0; 
         }
+        else {
+            offset = inputOffset;
+        }
 
-        firstDay = new Date();;
+        firstDay = new Date();
         firstDay.setDate(firstDay.getDate() - dayOfWeekOffset + (offset * 7));
         firstDay.setHours(0, 0, 0, 0); //This sets it to mignight morning of
         
@@ -2110,7 +2276,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
 
         //If Monday or Tuesday AND week selected is current week Then DO WARNING - make it read
-        if (today.getDay() < 3 && offset == 0) {
+        if (today.getDay() < userDaysToHangOntoPriorWeek && offset == 0) {
             range.innerHTML = "<div style='color:red'>" + workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay) + "</div>";
             notificationMessage('WARNING: You may be entering time for the WRONG week.  You may want PRIOR week', "error");
         }
@@ -2152,6 +2318,10 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         getWeek(offset);
         
+        //Store our week for resuse and continue
+        if (blnAdmin)
+            chrome.storage.local.set({"recentOffset": offset}, function () {});
+        
         //Changed the week, so reset everything
         processIssueGroups("previousweek");
 
@@ -2164,7 +2334,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         offset = offset + 1;
 
         getWeek(offset);
-            
+
+        //Store our week for resuse and continue
+        if (blnAdmin)
+            chrome.storage.local.set({"recentOffset": offset}, function () {});
+
         //Changed the week, so reset everything
         processIssueGroups("nextweek");
 
@@ -2184,7 +2358,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     var descToDisplay;
     var hoursPercentage;
     
-        /********
+    /********
     Summary row - define here and add stuff to it
     ********/
     if (inputType == "head") {
@@ -2351,11 +2525,13 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     //Add the final total cell - Here is whwere we could ahve some rules to flag/id things out of or ranges
     if (inputType == "head") {
         var timeInputTotal = buildHTML('th', "", {
+            //style: "display: inline-block",
             class: inputClass  
         });
     }
     else if (inputType == "fill") {
         var timeInputTotal = buildHTML('td', "", {
+            //style: "display: inline-block",
             class: inputClass  
         });        
     }
@@ -2363,27 +2539,31 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         if (issueClassification.totalTotal > 0) {
 
             if (inputType == "total") {
-                var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                     class: inputClass,
+                    //style: "display: inline-block",
                     id: issueClassification.id + "+total"
                 });               
             }
             else if (inputType == "offset-total") {
-                var timeInputTotal = buildHTML('td', issueClassification.totalTotal, {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                     class: inputClass + "-offset",
+                    //style: "display: inline-block",
                     id: issueClassification.id + "+total"
                 });
             }
             else {
                 if (hoursPercentage < 10) {
-                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                         class: inputClass,
+                        //style: "display: inline-block",
                         id: issueClassification.id + "+total"
                     });
                 }
                 else {
-                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                    var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                         class: inputClass,
+                        //style: "display: inline-block",
                         id: issueClassification.id + "+total"
                         //style: "color:red;"
                     });
@@ -2393,6 +2573,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         else {
             var timeInputTotal = buildHTML('td', "0", {
                 class: inputClass,
+                //style: "display: inline-block",
                 id: issueClassification.id + "+total"
             });           
         }
@@ -2400,14 +2581,16 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     else { //Offset
         if (issueClassification.totalTotal > 0) {
             if (hoursPercentage < 10) {
-                var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                     class: inputClass + "-offset",
+                    //style: "display: inline-block",
                     id: issueClassification.id + "+total"
                 });
             }
             else {
-                var timeInputTotal = buildHTML('td', issueClassification.totalTotal + " - " + hoursPercentage + "%", {
+                var timeInputTotal = buildHTML('td', issueClassification.totalTotal  + " - " + hoursPercentage + "%", {
                     class: inputClass + "-offset",
+                    //style: "display: inline-block",
                     id: issueClassification.id + "+total"
                     //style: "color:red;"
                 });
@@ -2416,16 +2599,67 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         else {
             var timeInputTotal = buildHTML('td', "-", {
                 class: inputClass,
+                //style: "display: inline-block",
                 id: issueClassification.id + "+total"
             });           
         }
     }
 
-    //Add to the column
+    //Add the column
     row.appendChild(timeInputTotal);
 
-    return row;
+    //And our selection cell
+    var postTimeCell = buildHTML('td', "", {
+        class: inputClass
+    });        
 
+    if (inputType == "detail" && blnAdmin) {
+
+        if (findClassificationInPostedArray(issueClassification)) {
+            var classificationPostTime = buildHTML('img', "", {
+                class: "enabled-image",
+                src: "images/red_go_button.png",
+                height: "25px",
+                id:  issueClassification.id + "+posttime",
+                style: "float: right;"
+            });
+        }
+        else {
+            var classificationPostTime = buildHTML('img', "", {
+                class: "enabled-image",
+                src: "images/go_button.png",
+                height: "25px",
+                id:  issueClassification.id + "+posttime",
+                style: "float: right;"
+            });
+        }
+        //Add checkbox to the cell
+        postTimeCell.appendChild(classificationPostTime);
+    }
+
+    //Add the column
+    row.appendChild(postTimeCell);
+
+    return row;
+}
+
+//Pushed button for this classification entry to post it
+function doClassificationPostTime(inputImage, inputClassificationObject) {
+
+    inputClassificationObject.legacyPostTime = true;
+    postTime(inputClassificationObject);
+
+}
+
+//Find classification in our posted array
+function findClassificationInPostedArray(inputClassification) {
+    for (i=0;i<postedClassficationArray.length;i++) {
+        if (postedClassficationArray[i].description == inputClassification.description && postedClassficationArray[i].descriptionChild == inputClassification.descriptionChild &&
+            postedClassficationArray[i].userId == inputClassification.userId && postedClassficationArray[i].weekOf == inputClassification.weekOf) {
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -2479,6 +2713,18 @@ function showWorkLogObject(inputMessage, inputWorklog) {
     console.log("WORK LOG ******************************");
 } 
 
+
+// isDate function - JS doenst have good date functionality so build it yourself       
+function isDate(inputDate) { 
+
+    lDate = new Date(inputDate);
+              
+    // If the date object is invalid it 
+    // will return 'NaN' on getTime()  
+    // and NaN is never equal to itself. 
+    return inputDate.getTime() === inputDate.getTime(); 
+
+}; 
 
 
 // html generator
@@ -2593,6 +2839,23 @@ function sleep(inputMS) {
     } 
 }
 
+//Return the date as yyyy-mm-dd
+function ISODate(inputDate) {
+
+    inputDate = new Date(inputDate);
+    var lYear = inputDate.getFullYear();
+    var lMonth = inputDate.getMonth()+1;
+    var lDay = inputDate.getDate();
+    
+    if (lDay < 10) {
+        lDay = '0' + lDay;
+    }
+    if (lMonth < 10) {
+        lMonth = '0' + lMonth;
+    }
+    return (lYear +'-' + lMonth + '-' + lDay);
+}
+
 //Why do you have to have your own rounding function? Very lame
 function round(value, decimals) {
     return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
@@ -2658,15 +2921,59 @@ function getConfig(url, callback) {
     xhr.send();
 };
 
+//Now is time to put is back where we were - user, week, page
+function initializeApp() {
+
+    //Grab most recent user, use it if we have one - THIS NEEDS WORK AJH - LOAD USER/DATE/PAGE AT STARTUP
+    chrome.storage.local.get("recentUserName", function(data) {
+        if (data) {
+            if (data["recentUserName"]) {
+                recentUserName = data["recentUserName"];
+            }
+        }
+        //Grab most recent week, use it if we have one
+        chrome.storage.local.get("recentOffset", function(data2) {
+            if (data2) {
+                if (data2["recentOffset"]) {
+                    recentOffset = data2["recentOffset"];
+                }
+            }
+            //Grab most recent week, use it if we have one              
+            chrome.storage.local.get("recentPage", function(data3) {
+                if (data3) {
+                    if (data3["recentPage"]) {
+                        recentPage = data3["recentPage"];
+                    }
+                }
+                //All done, do key and org next    
+                loadKeyAndOrg();
+            });
+        });
+    });
+}
+
 
 //Here is the code for doing the post to Service Now
 /***************
 Posting functions 
 ***************/
-function postTime() {
+function postTime(inputCLassificationObject) {
 
-    console.log("Alvis Time: WE ARE POSTING TIME");
-    alert("here we go");
+    postedClassficationArray.push(inputCLassificationObject);
 
-};
+    //Hold our data on local storage
+    chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
+        chrome.storage.local.set({"timeEntry": inputCLassificationObject}, function () {
+            console.log("Alvis Time: We are posting  time entry");
+            console.log(inputCLassificationObject);
+            chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject});
+        });
+    });
+}
+
+//Useful code for dealing with local storage
+// GET chrome.storage.local.get(function(result){console.log(result)})
+// DELETE chrome.storage.local.clear(function(result){console.log(result)})
+
+
 

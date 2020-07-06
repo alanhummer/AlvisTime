@@ -8,13 +8,19 @@
     "orgCloseLogo": "images/close_button.png",
     "orgGoLogo": "images/go_button.png",
     "orgPostTimeImage": "images/post_time.png",
-    "orgHelpPage": "help.html",   
+    "orgHelpPage": "help.html",
+    "orgLegacyTimeIntegration": {
+        "legacyPostTime": true,
+        "legacyIntegrationURI": "https://landsend.service-now.com/time_card.do?sys_id=-1&sys_is_list=true&sys_target=time_card&sysparm_checked_items=&sysparm_fixed_query=&sysparm_group_sort=&sysparm_list_css=&sysparm_query=user.u_timecard_team_lead%3djavascript%3ags.getUserID()%5eORuser.u_timecard_manager%3djavascript%3ags.getUserID()%5estate%3dSubmitted%5eGROUPBYuser&sysparm_referring_url=time_card_list.do%3fsysparm_query%3duser.u_timecard_team_lead%253Djavascript%253Ags.getUserID%2528%2529%255EORuser.u_timecard_manager%253Djavascript%253Ags.getUserID%2528%2529%255Estate%253DSubmitted%255EEQ%255EGROUPBYuser&sysparm_target=&sysparm_view=",
+        "legacyIngegrationScript": "content_injection.js"
+    },
     "workgroups": [
         {
             "name": "LE.com",
             "settings": {
                 "minHoursToSubmit": 40,
-                "maxHoursToSubmit": 40,
+                "maxHoursToSubmit": 999,
+                "daysToHangOntoPriorWeek": 1,
                 "dayHoursMax": 8,
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
                 "customFieldForClassification": "customfield_10901",
@@ -60,7 +66,7 @@
                     "minPercentage": 0,
                     "timePriority": 2,
                     "classSelect": true,
-                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))"
+                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Proj - General", 
@@ -78,7 +84,7 @@
                     "minPercentage": 0,
                     "timePriority": 4,
                     "classSelect": false,
-                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey"
+                    "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND (Type = 'Problem' OR 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Run The Business", 
@@ -87,7 +93,7 @@
                     "minPercentage": 0,
                     "timePriority": 5,
                     "classSelect": false,
-                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey"
+                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Administration", 
@@ -108,18 +114,21 @@
                 }           
             ],
              "users":  [
-                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com"},
+                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2},
                 {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com"},
                 {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
                 {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com"},
                 {"name": "Blaine Bestul", "userid": "bmbestu", "role": "developer", "email": "blaine.bestul@landsend.com"},
-                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "daysToHangOntoPriorWeek": 3},
                 {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com"},
-                {"name": "Sunitha Baker", "userid": "sbaker", "role": "developer", "email": "sunitha.baker@landsend.com"},
+                {"name": "Sunitha Baker", "userid": "sbaker", "role": "developer", "email": "sunitha.baker@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
                 {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
-                {"name": "Ron Schmitt", "userid": "jward", "role": "developer", "email": "ron.schmitt@landsend.com"},
+                {"name": "Ron Schmitt", "userid": "raschmi", "role": "developer", "email": "ron.schmitt@landsend.com"},
                 {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com"},
-                {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"}
+                {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
+                {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
               ]
         },
         {

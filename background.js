@@ -11,6 +11,12 @@ var workgroup;
 var user;
 var JIRA;
 var blnRemoteConfig = false;
+//For legacy integration
+var ltimeEntryIndex = 0;
+var ltimeEntryArray = [];
+var blnTabLoaded = false;
+var saveTab;
+var blnTabStatusComplete = false;
 
 console.log("Alvis Time: Is started and running");
 
@@ -489,3 +495,82 @@ function getConfig(url, callback) {
     
     xhr.send();
 };
+
+
+//Sleep function, like what every other language has
+function sleep(inputMS) {
+    let timeStart = new Date().getTime(); 
+    while (true) { 
+        let elapsedTime = new Date().getTime() - timeStart; 
+        if (elapsedTime > inputMS) { 
+        break; 
+        } 
+    } 
+}
+
+//************************************************
+//************************************************
+//************************************************
+//**** Here are the listeners/relays *************
+//**** For posting to tabs/legacy integraiton*****
+//************************************************
+//************************************************
+
+//Add listener for messages from popup - relay to do the legacy integration
+chrome.runtime.onMessage.addListener(function(requestMessage) {
+    //We have recieved a message: If it is for posting time, off we go 
+    if( requestMessage.action === "preparepost" ) {
+        if (requestMessage.timeEntry.legacyPostTime) {
+            console.log("Alvis Time: Prepare Post Message For Legacy Integration");
+            createTabAndPostLegacyIntegration (requestMessage.timeEntry);
+            console.log("Alvis Time: Done with Relaying Message");
+        }
+    }
+});
+
+//Function for opening tab/window to do legacy integration interaction
+function createTabAndPostLegacyIntegration (inputTimeEntry) {
+
+    if (saveTab) {
+        //Have existing tab - see if it is open
+        chrome.tabs.get(saveTab.id, function(tab) {
+            if (chrome.runtime.lastError) {
+                console.log(chrome.runtime.lastError.message);
+                //Not exists
+                console.log("Alvis Time: Cant find current tab, starting new one");
+                chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
+                    legacyTabPost (saveTab, inputTimeEntry);
+                });              
+            } else {
+                //Tab exists
+                console.log("Alvis Time: Reusing tab");
+                chrome.tabs.update(saveTab.id, {url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
+                    legacyTabPost (saveTab, inputTimeEntry);
+                });     
+            }
+        });
+    }
+    else {
+        //Not exists
+        console.log("Alvis Time: Creating tab");
+        chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
+            legacyTabPost (saveTab, inputTimeEntry);
+        });          
+    }
+
+}
+
+
+//Function for posting to the legacy tab
+function legacyTabPost (inputTab, inputTimeEntry) {
+
+    console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
+
+    console.log("Alvis Time: Executing Integration Script");
+    chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
+        //Success
+        console.log("Alvis Time: Script was susccessful");     
+        console.log(results);   
+    });
+}
+
