@@ -21,6 +21,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         getUser: getUser,
         getIssue : getIssue,
         getIssues: getIssues,
+        getTimeCardIssues: getTimeCardIssues,
         getIssueWorklogs : getIssueWorklogs,
         updateWorklog : updateWorklog,
         updateRemainingEstimate : updateRemainingEstimate,
@@ -54,6 +55,12 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         console.log("ISSUE GRUP IS: " + inputIssuesGroup.name);
         return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", inputIssuesGroup);
     }    
+
+    
+    function getTimeCardIssues (inputJQL) {
+        return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", {});
+    }    
+
 
     function getIssueWorklogs (id, startDateInUNIXTimeFormat, inputIssue, inputIssueGroup) {
         return ajaxWrapper('/issue/' + id + '/worklog?startedAfter=' + startDateInUNIXTimeFormat, {}, "getIssueWorklogs", inputIssue, inputIssueGroup);

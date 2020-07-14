@@ -66,7 +66,7 @@
                     "minPercentage": 0,
                     "timePriority": 2,
                     "classSelect": true,
-                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Proj - General", 
@@ -129,7 +129,8 @@
                 {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
                 {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
                 {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
-              ]
+            ],
+            "workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate <= '_ENDDATE_' and (_WORKLOGUSERQUERY_)" 
         },
         {
             "name": "LE.com QA",

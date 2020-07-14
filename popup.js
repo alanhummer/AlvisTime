@@ -38,6 +38,8 @@ var summaryTable;
 
 //A global way to track, good to validate with
 var totalTotal = 0;
+var tcIssueCount = 0;
+var tcIssueCountTracker = 0;
 
 //An individual issues to query
 var lookupIssueKeys = [];
@@ -52,6 +54,9 @@ var recentUserName = "";
 var recentOffset = "";
 var recentPage = "";
 var displayUser = "";
+
+//Show user summaries or not
+var blnDoUserTimecardSummaryView = false;
 
 //And so we begin....
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
@@ -79,7 +84,19 @@ function onDOMContentLoaded() {
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
     document.getElementById("close-image-orgkey").addEventListener ("click", function(){ closeit()}); 
     document.getElementById("help-image-orgkey").addEventListener ("click", function(){ openHelp()}); 
-    document.getElementById("close-image-help").addEventListener ("click", function(){ closeit()}); 
+    document.getElementById("close-image-help").addEventListener ("click", function(){ 
+        //Setup the view
+        document.getElementById('everything').style.display =  'block';
+        document.getElementById('orgkeyrequest').style.display =  'none';
+        document.getElementById('timecard-summary').style.display =  'none';
+        document.getElementById('help-text').style.display =  'none';
+        //Save our page laoded
+        if (blnAdmin) {
+            chrome.storage.local.set({"recentPage": "everything"}, function () {});  
+            recentPage = "everything";                
+        }
+    }); 
+    
     document.getElementById("help-image-help").addEventListener ("click", function(){ openHelp()}); 
 
     //Initialize - grab save user, week, page and load the key and or
@@ -540,8 +557,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Set up UI Element for Help Button
     document.getElementById('helpLink').href = "nowhere";
     document.getElementById('helpLink').onclick = openHelp;
-
-    
+  
     //Set up UI Element for Close Button on Org Key
     document.getElementById('closeLink-orgkey').href = "nowhere";
     document.getElementById('closeLink-orgkey').onclick = closeit;
@@ -558,7 +574,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById('nextWeek').onclick = nextWeek;  
 
     //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
-    document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses()}); 
+    document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses('submit')}); 
+    document.getElementById("reject-button").addEventListener ("click", function(){ updateWorklogStatuses('reject')}); 
 
     //Change org button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey, false)}); 
@@ -578,7 +595,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         }
     }); 
 
-         
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("close-image-help").addEventListener ("click", function(){ 
         //Setup the view
@@ -634,6 +650,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //This contains multipe workgroups, figure out which one the user is in
         for (var w=0;w<config.workgroups.length;w++) {
             for(var u=0;u<config.workgroups[w].users.length;u++) {
+                
+                //Set our internal valules
+                config.workgroups[w].users[u].timecardHours = 0;
+                config.workgroups[w].users[u].timecardStatusColor = 'black';
+
                 //See if we found our user account    
                 if (config.workgroups[w].users[u].userid == userId) {
                     //We have a user match - what to do if in multiple work groups?
@@ -671,9 +692,23 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
 
+
+        //Setup the view
+        document.getElementById('everything').style.display =  'block';
+        document.getElementById('orgkeyrequest').style.display =  'none';
+        document.getElementById('timecard-summary').style.display =  'none';
+        document.getElementById('help-text').style.display =  'none';
+        
+        // Set week date range header in html
+        range = document.getElementById('week-dates-description');
+
+
         //See if we are admin 
         if (user.role == "admin") {
             blnAdmin = true;
+
+            //Admins get recent week
+            getWeek(recentOffset);
 
             console.log("Alvis Time: You are admin");
         
@@ -713,15 +748,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     }
                 }
             }
-         
-            //Build users selection list
-            for (var u=0; u < workgroup.users.length; u++) {
-                if (workgroup.users[u].name == user.name) 
-                    userOptions = userOptions + "<option selected>" + workgroup.users[u].name + "</option>";
-                else
-                    userOptions = userOptions + "<option>" + workgroup.users[u].name + "</option>";
-            }
+
+            //Grab the time entered for each user in the workgroup
+            loadWorkgroupTimeCards();
+            
+
         }
+        else {
+            getWeek();
+        } 
+
 
         //Set our min hours - if user overirde of workgroup level
         if (typeof user.minHoursToSubmit === 'undefined') {
@@ -745,22 +781,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             userDaysToHangOntoPriorWeek = user.daysToHangOntoPriorWeek;
         }
 
-
-        //Setup the view
-        document.getElementById('everything').style.display =  'block';
-        document.getElementById('orgkeyrequest').style.display =  'none';
-        document.getElementById('timecard-summary').style.display =  'none';
-        document.getElementById('help-text').style.display =  'none';
-        
-        // Set week date range header in html
-        range = document.getElementById('week-dates-description');
-
-        //Get the week we arein
-        if (blnAdmin)
-            getWeek(recentOffset);
-        else
-            getWeek();
-
         //Put the dates in the columns        
         document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SAT_/gi, makeMMDD(firstDay));
         document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SUN_/gi, makeMMDD(addDays(firstDay, 1)));
@@ -773,16 +793,25 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //And logo
         document.getElementById('logoimage').src = config.orgLogo;        
 
-        //If admin, allow to change user
-        if (blnAdmin) {
-            document.getElementById("user-select").innerHTML = "<select id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + displayUser + " - " + workgroup.name + "</div>";
-            document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
-        }
-        else
-            document.getElementById("user-select").innerHTML = document.getElementById("user-select").innerHTML + "<div class='user-name-display'>&nbsp;" + workgroup.titles.welcome + " " + userName + "</div>";
-
         //Close link
         document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
+
+        //Our user timecard summary view       
+        if (blnAdmin) {
+            //Wire up the summary info button
+            document.getElementById("summary-info-image").addEventListener ("click", function(){ 
+
+                //Toggle the button an value
+                toggleSummaryButton();
+
+                //Reload the list of folks and times
+                loadWorkgroupTimeCards();
+
+            }); 
+        }
+        else {
+            document.getElementById("summary-info-image").remove();
+        }
 
         //Grab our stored classification posts, if we have them
         if (blnAdmin) {
@@ -829,6 +858,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 userId = workgroup.users[i].userid;
                 userEmail = workgroup.users[i].email;
                 userName = workgroup.users[i].name;
+
+                document.getElementById("user-selection").style.background = workgroup.users[i].timecardStatusColor;
 
                 //Set our min hours - if user overirde of workgroup level
                 if (typeof workgroup.users[i].minHoursToSubmit === 'undefined') {
@@ -950,6 +981,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             myJQL = myJQL.replace(/user.name/gi, userName);
             myJQL = myJQL.replace(/user.userid/gi, userId);
             myJQL = myJQL.replace(/user.email/gi, userEmail);
+
+            var dateToUseStart = new Date(firstDay);
+            dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
+            myJQL = myJQL.replace(/_TIMECARDSTART_/gi, ISODate(dateToUseStart));
+
+            var dateToUseEnd = new Date(lastDay);
+            dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
+            myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));          
 
             //If for specific issues, load them here
             if (myJQL.includes("_ISSUEKEYS_")) {
@@ -1179,6 +1218,190 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         genericResponseError(error);
     }
 
+
+    /****************
+    loadWorkgroupTimeCards
+    ****************/
+   function loadWorkgroupTimeCards() {
+
+        var myJQL = "";
+        var myUserQUery = "";
+
+        console.log("RALPH POS GOT ONE");
+
+        //Initialize our tracker to know when done
+        tcIssueCountTracker = 0;
+
+        // Create the query
+        myJQL = workgroup.workgroupTimeCardQuery;
+
+        //Build users selection list
+        for (var u=0; u < workgroup.users.length; u++) {
+            workgroup.users[u].timecardHours = 0;
+            workgroup.users[u].timecardStatusColor = "black";
+            if (myUserQUery.length > 0) {
+                myUserQUery = myUserQUery + " OR worklogComment ~ '" + workgroup.users[u].userid + "|'"
+            }
+            else {
+                myUserQUery = "worklogComment ~ '" + workgroup.users[u].userid + "|'"
+            }
+        }       
+
+        //Starting fresh
+        doUserSelect();
+
+        //Only do this break out of people and time card status if it is enabled
+        if (!blnDoUserTimecardSummaryView) {
+            return false;
+        }
+
+        myJQL = myJQL.replace(/_BEGINDATE_/gi, ISODate(firstDay));
+        myJQL = myJQL.replace(/_ENDDATE_/gi, ISODate(lastDay));
+        myJQL = myJQL.replace(/_WORKLOGUSERQUERY_/gi, myUserQUery);
+
+        //Log the query
+        console.log("Alvis Time: Doing a query for timecards - " + myJQL);
+
+        //Let run it and get the issues
+        JIRA.getTimeCardIssues(myJQL)
+            .then(onTimecardIssueFetchSuccess, function (error) {
+
+                console.log("Alvis Time: Issue fetch error - ", JSON.parse(JSON.stringify(error)));
+
+                //Show the error
+                genericResponseError(error);
+
+                //All done, some weird error
+                togglePageBusy(false);            
+        });
+    }
+
+
+    /****************
+    Fetch for timecard issues was Successful -
+    ****************/
+    function onTimecardIssueFetchSuccess(responseObject) {
+
+        console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+
+        //Document how many we have
+        console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
+
+        //Hang onto issue count so we know we are done
+        tcIssueCount = responseObject.issues.length;
+
+        //Let's process each issue
+        responseObject.issues.forEach(function(issue) {
+
+            //Log it as awe go
+            console.log("Alvis Time: Doing timecard issue: " + issue.key);
+
+            //Initialize our tracking elements
+            issue.worklogsProcessed = 0;
+            issue.worklogsLoaded = false;
+
+           
+
+            //Now get the worklogs and fill in the objects 
+            JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, {})
+            .then(onTimecardWorklogFetchSuccess, onTimecardWorklogFetchError);
+
+        });
+
+    }
+
+   /****************
+    Got Worklog Successfully -
+    ****************/    
+   function onTimecardWorklogFetchSuccess(responseObject) {
+
+        //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
+        responseObject.issue.worklogs = responseObject.worklogs;
+
+        console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
+
+        tcIssueCountTracker = tcIssueCountTracker + 1;
+
+        //Process each worklogs?  Or just store them to be used yet?
+        responseObject.issue.worklogs.forEach(function (worklog) {
+
+            //Now lets process our worklog - filter date range and user id from comments
+            var myTimeLogDateStarted = new Date(worklog.started);
+
+            if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
+
+                //Build users selection list
+                for (var u=0; u < workgroup.users.length; u++) {
+                    if (worklog.comment.includes(workgroup.users[u].userid + "|")) {
+                        //It is for this user and it si for this week, add it up
+                        workgroup.users[u].timecardHours = workgroup.users[u].timecardHours + (worklog.timeSpentSeconds / 3600);
+                        console.log("Alvis Time: Timecard entry added to user " + workgroup.users[u].userid + " = " + workgroup.users[u].timecardHours);
+
+                        //And do status
+                        if (worklog.comment.includes("|submitted")) {
+                            //Submitted = red
+                            workgroup.users[u].timecardStatusColor = "red";
+                        }
+                        if (worklog.comment.includes("|approved")) {
+                            //Approved = green
+                            workgroup.users[u].timecardStatusColor = "green";
+                        }
+                    }
+                }
+             }
+        })
+
+        if (tcIssueCountTracker == tcIssueCount) {
+            //Done - Build users selection list
+            doUserSelect();
+        }
+    }
+
+    /****************
+    Got Worklog Failed -
+    ****************/    
+    function onTimecardWorklogFetchError(error) {
+        // hide loading inspite the error
+        loader.style.display = 'none';
+        genericResponseError(error);
+    }
+
+    /****************
+    doUserSelect -
+    ****************/    
+    function doUserSelect() {
+
+        //userId = workgroup.users[i].userid;
+        //userEmail = workgroup.users[i].email;
+        //userName = workgroup.users[i].name;
+
+        var userOptions = "";
+        var saveColor = "black";
+        var hoursDisplay = "";
+        for (var u=0; u < workgroup.users.length; u++) {
+
+            if (workgroup.users[u].timecardHours > 0)
+                hoursDisplay = " (" + workgroup.users[u].timecardHours  + ")";
+            else 
+                hoursDisplay = "";
+
+            if (workgroup.users[u].name == userName) {
+                userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' selected value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
+                saveColor = workgroup.users[u].timecardStatusColor;
+            }
+            else {
+                userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
+
+            }
+         } // Black = Entry/Nothing, Red = Submitted, Green = Approved,            
+    
+    
+        document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + displayUser + " - " + workgroup.name + "</div>";
+        document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
+    }     
+
+
+
     /****************
     Time Card Page - laods up the page with all the data -
     ****************/    
@@ -1311,6 +1534,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             case "approved":
                 document.getElementById("submit-image").src = "images/approved.png";
                 document.getElementById("submit-image").className = "disabled-image";
+                document.getElementById('reject-button').style.display = 'none';
                 setWorklogEnabled(false);
                 break;
             case "submitted":
@@ -1318,10 +1542,15 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     document.getElementById("submit-image").src = "images/click-to-approve.png";
                     document.getElementById("submit-image").className = "enabled-image";
                     setWorklogEnabled(true);
+
+                    //And we weill need a reject - which reverst back to entry (pre-submitted)
+                    document.getElementById('reject-button').style.display = 'block';
+                    document.getElementById("reject-button").className = "enabled-image";
                 }
                 else {
                     document.getElementById("submit-image").src = "images/submitted-for-approval.png";
                     document.getElementById("submit-image").className = "disabled-image";
+                    document.getElementById('reject-button').style.display = 'none';
                     setWorklogEnabled(false);
                 }
                 break;
@@ -1329,12 +1558,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 if (totalTotal >= userMinHoursToSubmit) {
                     document.getElementById("submit-image").src = "images/submit-for-approval.png";
                     document.getElementById("submit-image").className = "enabled-image";
+                    document.getElementById('reject-button').style.display = 'none';
                     timecardStatus = "submit-for-approval";
                     setWorklogEnabled(true);
                 }
                 else {
                     document.getElementById("submit-image").src = "images/log-weekly-hours-to-submit.png";
                     document.getElementById("submit-image").className = "disabled-image";
+                    document.getElementById('reject-button').style.display = 'none';
                     timecardStatus = "entry";
                     setWorklogEnabled(true);
                 }
@@ -1569,7 +1800,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     /****************
     Pushing time card thru the process by updating all of the status on the worlogs
     ****************/   
-    function updateWorklogStatuses() {
+    function updateWorklogStatuses(inputAction) {
 
         //If we are already busy, get out to avoid multiple clicks
         if (!blnInteractive)
@@ -1583,8 +1814,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 break;
             case "submitted":
                 if (blnAdmin) {
-                    //Here is where we updates status to approved
-                    updateTimecardStatus("submitted", "approved");
+
+                    if (inputAction == "reject") {
+                        //Here is where we updates status to entry (rejected/revert)
+                        updateTimecardStatus("submitted", "entry");
+                    }
+                    else {
+                        //Here is where we updates status to approved
+                        updateTimecardStatus("submitted", "approved");
+                    }
+
                     //Changed status, so reset everything
                     processIssueGroups("worklogsubmitted");
                 }
@@ -1648,6 +1887,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
                         workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
                          
+                        console.log("Alvis Time: Status update " + workLogObject.worklogIssueId + " FROM " + fromStatus + " TO " + toStatus);
+
                         JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
                         .then(function(data) {
                             //Success
@@ -2319,8 +2560,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         getWeek(offset);
         
         //Store our week for resuse and continue
-        if (blnAdmin)
+        if (blnAdmin) {
             chrome.storage.local.set({"recentOffset": offset}, function () {});
+            console.log("RALPH POS 2");
+            loadWorkgroupTimeCards();
+            console.log("RALPH POS 2b");           
+        }
         
         //Changed the week, so reset everything
         processIssueGroups("previousweek");
@@ -2336,8 +2581,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         getWeek(offset);
 
         //Store our week for resuse and continue
-        if (blnAdmin)
+        if (blnAdmin) {
             chrome.storage.local.set({"recentOffset": offset}, function () {});
+            console.log("RALPH POS 3");
+            loadWorkgroupTimeCards();
+            console.log("RALPH POS 3b");
+        }
 
         //Changed the week, so reset everything
         processIssueGroups("nextweek");
@@ -2698,6 +2947,22 @@ function openHelp(){
     //window.open(config.orgHelpPage, "_help", "scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,width=800px,height=600px,left=0,top=0");
     //return false; //This causes the href to not get invoked
 }
+
+//Toggle the summary botton
+function toggleSummaryButton() {
+
+    if (blnDoUserTimecardSummaryView) {
+        blnDoUserTimecardSummaryView = false;
+        document.getElementById('summary-info-image').src = "images/summary_button_off.png";
+    }
+    else {
+        blnDoUserTimecardSummaryView = true;
+        document.getElementById('summary-info-image').src = "images/summary_button_on.png";
+    }
+
+    return false;
+}
+
 
 
 // Show WOrklog Object
