@@ -128,17 +128,37 @@
                 {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
                 {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
                 {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
-                {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
+                {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Vitaly Yarets", "userid": "vyarets", "role": "developer", "email": "vitaly.yarets@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
             ],
             "workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate <= '_ENDDATE_' and (_WORKLOGUSERQUERY_)" 
         },
         {
-            "name": "LE.com QA",
+            "name": "DevOps",
             "settings": {
-                "hoursToSubmit": 40,
-                "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
+                "minHoursToSubmit": 40,
+                "maxHoursToSubmit": 999,
+                "daysToHangOntoPriorWeek": 1,
+                "dayHoursMax": 8,
+                "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?projectKey=DEVOPS&rapidView=159",
                 "customFieldForClassification": "customfield_10901",
-                "remainingEstimateField": "aggregatetimeestimate"
+                "remainingEstimateField": "aggregatetimeestimate",
+                "timecardNotification":  {
+                    "active": true,
+                    "frequency": 1,
+                    "dayRangeLow": 12,
+                    "dayRangeHigh": 5,
+                    "hourRangeLow": 12,
+                    "hourRangeHigh": 5
+                },
+                "approvalNotification":  {
+                    "active": true,
+                    "frequency": 1,
+                    "dayRangeLow": 12,
+                    "dayRangeHigh": 5,
+                    "hourRangeLow": 12,
+                    "hourRangeHigh": 5
+                }
             },
             "titles": {
                 "welcome": "Greetings",
@@ -146,7 +166,7 @@
                 "close": "(close)"
             },
             "messages": { 
-                "intro": "Enter time in 1/4 hour increments. Do not see an issue you need? <a href='http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54' target='_blank'>Find it and view it</a> and it will show up.",
+                "intro": "Enter time in 1/4 hour increments. If you do not see an issue you, enter it in the prompt at the end.",
                 "waiting": "Posting....",
                 "hoursNumeric": "Sorry, must be numeric hours",
                 "hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
@@ -155,17 +175,70 @@
                 "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
                 "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
                 "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
-           },
+            },
             "issueGroups": [
-                {"name": "Projects", "key": "proj", "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND (('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) AND (project != LE-Internal))) OR (project = LE-Internal AND 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY 'Project - Subproject'"},
-                {"name": "Support", "key": "sup", "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support')"},
-                {"name": "Run The Business", "key": "rtb", "query": "project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business'"},
-                {"name": "Administration", "key": "admin", "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration'"}
-             ],
-            "users":  [
-                {"name": "Dawn Judd", "userid": "drjudd", "role": "admin", "email": "dawn.judd@landsend.com"},
-                {"name": "Roni Biefer", "userid": "rebiefe", "role": "quality-analyst", "email": "roni.biefer@landsend.com"}
-            ]
-       }
+                {
+                    "name": "Proj - Tasks", 
+                    "key": "proj-task",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0,
+                    "timePriority": 2,
+                    "classSelect": true,
+                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Proj - General", 
+                    "key": "proj-gen",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0,
+                    "timePriority": 3,
+                    "classSelect": false,
+                    "query": "project = LE-Internal AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Support", 
+                    "key": "sup",
+                    "JiraProjectKey": "LECOM",
+                    "minPercentage": 0,
+                    "timePriority": 4,
+                    "classSelect": false,
+                    "query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND (Type = 'Problem' OR 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Run The Business", 
+                    "key": "rtb", 
+                    "JiraProjectKey": "LEIN",
+                    "minPercentage": 0,
+                    "timePriority": 5,
+                    "classSelect": false,
+                    "query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "Administration", 
+                    "key": "admin",
+                    "JiraProjectKey": "LEIN",
+                    "minPercentage": 0,
+                    "timePriority": 1,
+                    "classSelect": false,
+                    "query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration' ORDER BY Project, 'Project - Subproject', issueKey"
+                },
+                {
+                    "name": "<div style='vertical-align:middle;color:red;display:inline-block;'>Don't see an issue you need? Enter it here:  _JIRAPROJECTKEY_-<input id='issue-id' type='text' style='width: 40px;'>_GOIMAGE_&nbsp;&nbsp;&nbsp;</div>", 
+                    "key": "lookup",
+                    "JiraProjectKey": "DEVOPS",
+                    "minPercentage": 0,
+                    "classSelect": false,
+                    "query": "issueKey in (_ISSUEKEYS_) ORDER BY issueKey"
+                }           
+            ],
+             "users":  [
+                {"name": "Anton Cagle", "userid": "acagle", "role": "admin", "email": "anton.cagle@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2},
+                {"name": "Sathya Nagaraj", "userid": "snagara", "role": "developer", "email": "sathya.nagaraj@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Ishan Reddy", "userid": "ireddy", "role": "developer", "email": "ishan.reddy@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Manisha Namburi", "userid": "mnambur", "role": "developer", "email": "manisha.namburi@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Rahul Sahotay", "userid": "rsahota", "role": "developer", "email": "raul.sahotay@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
+            ],
+            "workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate <= '_ENDDATE_' and (_WORKLOGUSERQUERY_)" 
+        }
     ]
 }
