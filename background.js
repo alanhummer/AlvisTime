@@ -533,27 +533,18 @@ function createTabAndPostLegacyIntegration (inputTimeEntry) {
 
     if (saveTab) {
         //Have existing tab - see if it is open
-        chrome.tabs.get(saveTab.id, function(tab) {
-            if (chrome.runtime.lastError) {
-                console.log(chrome.runtime.lastError.message);
-                //Not exists
-                console.log("Alvis Time: Cant find current tab, starting new one");
-                chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
-                    legacyTabPost (saveTab, inputTimeEntry);
-                });              
-            } else {
-                //Tab exists
-                console.log("Alvis Time: Reusing tab");
-                chrome.tabs.update(saveTab.id, {url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
-                    legacyTabPost (saveTab, inputTimeEntry);
-                });     
-            }
+        chrome.tabs.remove(saveTab.id, function() {
+            chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(newTab) {
+                saveTab = newTab;
+                legacyTabPost (saveTab, inputTimeEntry);
+            });    
         });
     }
     else {
         //Not exists
         console.log("Alvis Time: Creating tab");
-        chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(saveTab) {
+        chrome.tabs.create({ url: config.orgLegacyTimeIntegration.legacyIntegrationURI}, function(newTab) {
+            saveTab = newTab;
             legacyTabPost (saveTab, inputTimeEntry);
         });          
     }
@@ -565,12 +556,80 @@ function createTabAndPostLegacyIntegration (inputTimeEntry) {
 function legacyTabPost (inputTab, inputTimeEntry) {
 
     console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
-
-    console.log("Alvis Time: Executing Integration Script");
     chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
         //Success
         console.log("Alvis Time: Script was susccessful");     
-        console.log(results);   
     });
 }
+
+//************************************************
+//************************************************
+//************************************************
+//**** Here are the listeners/relays *************
+//**** For SCREEN SHOT functionallity        *****
+//************************************************
+//************************************************
+
+//Add listener for messages from popup - relay to do the screenshot integration
+chrome.runtime.onMessage.addListener(function(requestMessage) {
+    //We have recieved a message: If it is for screenshot, off we go 
+    if( requestMessage.action === "screenshot" ) {
+        loadWindowForScreenshot (requestMessage.screenshot);
+    }
+    return true;
+});
+
+//Add listener for call from content to take a screenshot
+chrome.runtime.onMessage.addListener(function(requestMessage, sender, sendResponse) {
+    console.log("Alvis Time: Got a message");
+    console.log(requestMessage);
+    if (requestMessage.action === "takescreenshot") {
+        console.log("Alvis Time: Tells me to take screenshot");
+
+        //Take screenshot of acive tabe and return it
+        chrome.tabs.captureVisibleTab(null, {}, function(dataUrl) {
+            console.log("Alvis Time: Took image");
+            sendResponse({imgSrc:dataUrl});
+            console.log("Alvis Time: Sent Image back");
+
+        });
+    }
+    return true;
+});
+
+
+//Function for opening tab/window to do screenshot
+function loadWindowForScreenshot (inputScreenshot) {
+
+    if (saveTab) {
+        //Have existing tab - see if it is open
+        chrome.tabs.remove(saveTab.id, function() {
+            chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
+                saveTab = newTab;
+                loadPageForScreenshot (saveTab, inputScreenshot);
+            });  
+        });
+    }
+    else {
+        //Not exists
+        chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
+            saveTab = newTab;
+            loadPageForScreenshot (newTab, inputScreenshot);
+        });          
+    }
+
+}
+
+//Function for posting to the legacy tab
+function loadPageForScreenshot (inputTab, inputScreenshot) {
+    //Take screenshot, execute script on page, then message w/image to use in creating eml file
+    chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyScreenshotScript}, function(results) {
+        //Script executed
+        console.log("Alvis Time: Script passed and exected");
+    });
+}
+
+
+
+
 

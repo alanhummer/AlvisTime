@@ -3,6 +3,7 @@ This Script will take a time entry frm local storate and post into SN via the we
 ****************/ 
 console.log("Alvis Time: Content Injection Script is loaded");
 
+//Now get our data to poast
 chrome.storage.local.get("timeEntry", function(data) {
     console.log("Alvis Time: Got Time Entry Object from local storage");
     console.log(data);
@@ -246,3 +247,6 @@ function sleep(inputMS) {
         } 
     } 
 }
+
+
+

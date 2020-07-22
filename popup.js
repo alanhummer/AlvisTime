@@ -4,6 +4,7 @@ This JS is the main processing set - when DOM loaded, code is fired to get, disp
 var config;  //object that will hold all configuration options
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
+var userToRun; //easy refence for who we are running this for
 
 //Setup for the date selection
 var range;
@@ -15,12 +16,6 @@ var dayOfWeekOffset = today.getDay() + 1;
 
 //User account stuff from self lookup
 var orgKey = "";
-var userId;
-var userEmail;
-var userName = "";
-var userMinHoursToSubmit = 0;
-var userMaxHoursToSubmit = 999;
-var userDaysToHangOntoPriorWeek = 1;
 var blnAdmin = false; //Easy access to admin boolean
 var blnRemoteConfig = false;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
@@ -53,7 +48,7 @@ var postedClassficationArray = [];
 var recentUserName = "";
 var recentOffset = "";
 var recentPage = "";
-var displayUser = "";
+
 
 //Show user summaries or not
 var blnDoUserTimecardSummaryView = false;
@@ -288,7 +283,7 @@ function showTimeCardSummary() {
     document.getElementById('help-text').style.display =  'none';
 
     //Load our name
-    document.getElementById('timecard-summary-name').innerHTML = userName;
+    document.getElementById('timecard-summary-name').innerHTML = userToRun.name;
 
     //Load our date header
     document.getElementById('timecard-summary-range').innerHTML = range.innerHTML;
@@ -330,7 +325,7 @@ function showTimeCardSummary() {
 
                     classificationObject = {
                         "id": classificationID,
-                        "userId": userId,
+                        "userId": userToRun.userid,
                         "legacyPostTime": false, //What is this?
                         "weekOf": ISODate(firstDay),
                         "description": issue.classification,
@@ -396,11 +391,11 @@ function showTimeCardSummary() {
     classificationArray = classificationArray.sort(timePriorityCompare);
 
     //Set our hours to offset
-    //if (classificationTotalsObject.totalTotal > userMaxHoursToSubmit) {
-        hoursToOffset = classificationTotalsObject.totalTotal - userMaxHoursToSubmit;
+    //if (classificationTotalsObject.totalTotal > userToRun.maxHoursToSubmit) {
+        hoursToOffset = classificationTotalsObject.totalTotal - userToRun.maxHoursToSubmit;
         //Fill in our time to the "posted time" by priority untill we run out (ie: 40)
         //do time priority 1 first, dish out posted time to those items, then 2, then 3...keep going til reach max hours mark
-        hoursToDrawDown = userMaxHoursToSubmit;
+        hoursToDrawDown = userToRun.maxHoursToSubmit;
         classificationArray.forEach(function(classificationObject) {
             for (var dayIndex=0; dayIndex < 7; dayIndex++) {
                 if (hoursToDrawDown >=  classificationObject.dayTotal[dayIndex]) {
@@ -457,7 +452,7 @@ function showTimeCardSummary() {
             document.getElementById("timecard-summary-details").appendChild(row);   
 
             //If admin, dd listener to checkbox
-            if (blnAdmin) {
+            if (user.legacyPostTime) {
                 document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
             }
 
@@ -612,7 +607,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
     document.getElementById('helpLink-summary').onclick = openHelp;
-    
+
+    //Set up UI Element for Screenshot Button
+    document.getElementById('screenshotlink-summary').href = "nowhere";
+    document.getElementById('screenshotlink-summary').onclick = takeScreenshot;    
+
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
     document.getElementById('all-issue-groups-container').innerHTML = "";
@@ -630,17 +629,19 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     ****************/
     function onUserSuccess(response) {
 
+        var retrievedUserId = "";
+
         //Report out we have a user
         if (response.accountId) {
-            userId = response.accountId;
+            retrievedUserId = response.accountId;
         }
         else {
             if (response.name) {
-                userId = response.name;
+                retrievedUserId = response.name;
             }
             else {
                 if (response.key) {
-                    userId = response.key;  
+                    retrievedUserId = response.key;  
                 }
             }
         }
@@ -656,13 +657,20 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 config.workgroups[w].users[u].timecardStatusColor = 'black';
 
                 //See if we found our user account    
-                if (config.workgroups[w].users[u].userid == userId) {
+                if (config.workgroups[w].users[u].userid == retrievedUserId) {
                     //We have a user match - what to do if in multiple work groups?
                     if (typeof workgroup === 'undefined') {
                         workgroup = config.workgroups[w];
                         //What to do if user exist more than once?
                         if (typeof user === 'undefined') {
+
+                            //Found our user, initialize any defaults
                             user = workgroup.users[u];
+                            userDefaults(user);
+
+                            //Now save what user running this for, in case we switch
+                            userToRun = user;
+
                         }
                         else {
                             //Poblem - user is duplicated in config
@@ -686,12 +694,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             //closeit();
         }        
 
-        userEmail = user.email;
-        userName = user.name
-        displayUser = userName;
-
-        console.log("Alvis Time: User:" + userName + " - " + userId + " - " + userEmail);
-
+        console.log("Alvis Time: User:" + user.name + " - " + user.userid + " - " + user.email);
 
         //Setup the view
         document.getElementById('everything').style.display =  'block';
@@ -701,7 +704,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         
         // Set week date range header in html
         range = document.getElementById('week-dates-description');
-
 
         //See if we are admin 
         if (user.role == "admin") {
@@ -713,73 +715,24 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             console.log("Alvis Time: You are admin");
         
             if (recentUserName.length > 0) {
-
+                console.log("Alvis Time: Looking for recent user " + recentUserName);
                 //Change user if we saved one
                 for (var i=0;i<workgroup.users.length;i++) {
                     if (workgroup.users[i].name == recentUserName) {
-                        userId = workgroup.users[i].userid;
-                        userEmail = workgroup.users[i].email;
-                        userName = workgroup.users[i].name;
-                        user = workgroup.users[i];
-        
-                        //Set our min hours - if user overirde of workgroup level
-                        if (typeof workgroup.users[i].minHoursToSubmit === 'undefined') {
-                            userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
-                        }
-                        else {
-                            userMinHoursToSubmit = workgroup.users[i].minHoursToSubmit;
-                        }
-                        
-                        //Set our max hours - if user overirde of workgroup level
-                        if (typeof workgroup.users[i].maxHoursToSubmit === 'undefined') {
-                            userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
-                        }
-                        else {
-                            userMaxHoursToSubmit = workgroup.users[i].maxHoursToSubmit;
-                        }
-                         
-                        //Set our days to wait to see next weeks time
-                        if (typeof workgroup.users[i].daysToHangOntoPriorWeek === 'undefined') {
-                            userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
-                        }
-                        else {
-                            userDaysToHangOntoPriorWeek = workgroup.users[i].daysToHangOntoPriorWeek;
-                        }
-                    }
+                        console.log("Alvis Time: Loaded recent user " + recentUserName);
+                        userToRun = workgroup.users[i];
+                        userDefaults(userToRun);
+                     }
                 }
             }
 
             //Grab the time entered for each user in the workgroup
             loadWorkgroupTimeCards();
             
-
         }
         else {
             getWeek();
         } 
-
-
-        //Set our min hours - if user overirde of workgroup level
-        if (typeof user.minHoursToSubmit === 'undefined') {
-            userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
-        }
-        else {
-            userMinHoursToSubmit = user.minHoursToSubmit;
-        }
-        //Set our max hours - if user overirde of workgroup level
-        if (typeof user.maxHoursToSubmit === 'undefined') {
-            userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
-        }
-        else {
-            userMaxHoursToSubmit = user.maxHoursToSubmit;
-        }
-        //Set our days to wait to see next weeks time
-        if (typeof user.daysToHangOntoPriorWeek === 'undefined') {
-            userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
-        }
-        else {
-            userDaysToHangOntoPriorWeek = user.daysToHangOntoPriorWeek;
-        }
 
         //Put the dates in the columns        
         document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SAT_/gi, makeMMDD(firstDay));
@@ -831,6 +784,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             processIssueGroups("intro");
         }
 
+
+
     }
 
     /****************
@@ -855,39 +810,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         
         for (var i=0;i<workgroup.users.length;i++) {
             if (workgroup.users[i].name == inputUsername) {
-                userId = workgroup.users[i].userid;
-                userEmail = workgroup.users[i].email;
-                userName = workgroup.users[i].name;
+                userToRun = workgroup.users[i];
+                userDefaults(userToRun);
 
-                document.getElementById("user-selection").style.background = workgroup.users[i].timecardStatusColor;
-
-                //Set our min hours - if user overirde of workgroup level
-                if (typeof workgroup.users[i].minHoursToSubmit === 'undefined') {
-                    userMinHoursToSubmit = workgroup.settings.minHoursToSubmit;
-                }
-                else {
-                    userMinHoursToSubmit = workgroup.users[i].minHoursToSubmit;
-                }
-                 //Set our max hours - if user overirde of workgroup level
-                 if (typeof workgroup.users[i].maxHoursToSubmit === 'undefined') {
-                    userMaxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
-                }
-                else {
-                    userMaxHoursToSubmit = workgroup.users[i].maxHoursToSubmit;
-                } 
-                //Set our days to wait to see next weeks time
-                if (typeof workgroup.users[i].daysToHangOntoPriorWeek === 'undefined') {
-                    userDaysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
-                }
-                else {
-                    userDaysToHangOntoPriorWeek = workgroup.users[i].daysToHangOntoPriorWeek;
-                }
+                document.getElementById("user-selection").style.background = userToRun.timecardStatusColor;
             }
         }
-        console.log("Alvis Time: Changed to " + userName + " + " + userId + " + " + userEmail);
+        console.log("Alvis Time: Changed to " + userToRun.name + " + " + userToRun.userid + " + " + userToRun.email);
 
         //Set our storage for user and continue on
-        chrome.storage.local.set({"recentUserName": userName}, function () {});
+        chrome.storage.local.set({"recentUserName": userToRun.name}, function () {});
 
         //Grab our stored classification posts, if we have them
         if (blnAdmin) {
@@ -978,9 +910,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
             // Create the query
             myJQL = issueGroup.query;
-            myJQL = myJQL.replace(/user.name/gi, userName);
-            myJQL = myJQL.replace(/user.userid/gi, userId);
-            myJQL = myJQL.replace(/user.email/gi, userEmail);
+            myJQL = myJQL.replace(/user.name/gi, userToRun.name);
+            myJQL = myJQL.replace(/user.userid/gi, userToRun.userid);
+            myJQL = myJQL.replace(/user.email/gi, userToRun.email);
 
             var dateToUseStart = new Date(firstDay);
             dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
@@ -1060,7 +992,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         responseObject.issueGroup.issues.forEach(function(issue) {
 
             //Log it as awe go
-            console.log("Alvis Time: Doing issue: " + issue.key);
+            //console.log("Alvis Time: Doing issue: " + issue.key);
 
             //Initialize our worklogs we will be showing
             initializeWorkLogArray(issue);
@@ -1090,6 +1022,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         var dayIndex;
         var blnDone = true;
+        var blnShowit = false;
 
         //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
         responseObject.issue.worklogs = responseObject.worklogs;
@@ -1097,8 +1030,26 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Process each worklogs?  Or just store them to be used yet?
         responseObject.issue.worklogs.forEach(function (worklog) {
 
+            if (typeof worklog.comment != "undefined") {
+                if (worklog.comment.includes(userToRun.userid + "|")) {
+                    blnShowit = true;
+                }
+            }
+
             //Now lets process our worklog - filter date range and user id from comments
             var myTimeLogDateStarted = new Date(worklog.started);
+
+            //Now convert to CT for compare
+            if (blnShowit) {
+                if (myTimeLogDateStarted.getTimezoneOffset() == 300) {
+                    //Central time - leave it
+                }
+                else {
+                    //Diff time zone - convert for comparison
+                    myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
+                }
+                console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
+            }
 
             ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
             if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
@@ -1106,7 +1057,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 //We only want the worklogs with a comment wnd it is tagged for this user
                 if (typeof worklog.comment != "undefined") {
 
-                    if (worklog.comment.includes(userId + "|")) {
+                    if (worklog.comment.includes(userToRun.userid + "|")) {
 
                         //OK, we have match user and date - do something with it
                         //Determined what bucket it goes in SAT-FRI
@@ -1209,6 +1160,21 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         }
     }
 
+
+    /****************
+    convertToCentralTime -
+    ****************/ 
+    function convertToCentralTime(inputTimeStarted) {
+
+        var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000);
+        var offset = inputTimeStarted.getTimezoneOffset() / 60;
+        var newTime = new Date(utc + (3600000*offset));
+
+        return newTime;
+
+    }
+
+
     /****************
     Got Worklog Failed -
     ****************/    
@@ -1255,9 +1221,13 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             return false;
         }
 
+        var dateToUseEnd = new Date(lastDay);
+        dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);    
+
         myJQL = myJQL.replace(/_BEGINDATE_/gi, ISODate(firstDay));
-        myJQL = myJQL.replace(/_ENDDATE_/gi, ISODate(lastDay));
+        myJQL = myJQL.replace(/_ENDDATE_/gi, ISODate(dateToUseEnd)); //Anythign before the day after end date
         myJQL = myJQL.replace(/_WORKLOGUSERQUERY_/gi, myUserQUery);
+        myJQL = myJQL + "&maxResults=500"
 
         //Log the query
         console.log("Alvis Time: Doing a query for timecards - " + myJQL);
@@ -1371,10 +1341,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     ****************/    
     function doUserSelect() {
 
-        //userId = workgroup.users[i].userid;
-        //userEmail = workgroup.users[i].email;
-        //userName = workgroup.users[i].name;
-
         var userOptions = "";
         var saveColor = "black";
         var hoursDisplay = "";
@@ -1385,7 +1351,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             else 
                 hoursDisplay = "";
 
-            if (workgroup.users[u].name == userName) {
+            if (workgroup.users[u].name == userToRun.name) {
                 userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' selected value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
                 saveColor = workgroup.users[u].timecardStatusColor;
             }
@@ -1396,7 +1362,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
          } // Black = Entry/Nothing, Red = Submitted, Green = Approved,            
     
     
-        document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + displayUser + " - " + workgroup.name + "</div>";
+        document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
         document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
     }     
 
@@ -1555,7 +1521,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 }
                 break;
             default: //same as "entry" and "submit-for-approval"
-                if (totalTotal >= userMinHoursToSubmit) {
+                if (totalTotal >= userToRun.minHoursToSubmit) {
                     document.getElementById("submit-image").src = "images/submit-for-approval.png";
                     document.getElementById("submit-image").className = "enabled-image";
                     document.getElementById('reject-button').style.display = 'none';
@@ -1598,7 +1564,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 "worklogId": 0,
                 "worklogTimeStarted": startOfTheDay,
                 "worklogTimeSpent": 0,
-                "worklogComment": userId + "|" + userEmail + "|entry",  //We are using comment to hold person's users ID + email address who logged for + entry/submitted/approved status - new entries are "entry' status
+                "worklogComment": userToRun.userid + "|" + userToRun.email + "|entry",  //We are using comment to hold person's users ID + email address who logged for + entry/submitted/approved status - new entries are "entry' status
                 "worklogDayOfWeek": ""
             }
 
@@ -1738,7 +1704,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
                  //Total-Total - Turn green/red if nwe changed over/under 40
                 document.getElementById("total+total+total").innerText = totalTotal;
-                if (totalTotal >= userMinHoursToSubmit)
+                if (totalTotal >= userToRun.minHoursToSubmit)
                     document.getElementById("total+total+total").style.backgroundColor = "green";
                 else
                     document.getElementById("total+total+total").style.backgroundColor = "red"; 
@@ -2349,7 +2315,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //Set the total element to red/green if > 40 yet.
         timeInputTotal.style.color = "white";
-        if (rowTotalTotal >= userMinHoursToSubmit)
+        if (rowTotalTotal >= userToRun.minHoursToSubmit)
             timeInputTotal.style.backgroundColor = "green";
         else
             timeInputTotal.style.backgroundColor = "red";        
@@ -2483,14 +2449,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     function getWeek(inputOffset) {
 
         //Log what we have
-        console.log("DAY TO HANG:" + userDaysToHangOntoPriorWeek);
+        console.log("DAY TO HANG:" + userToRun.daysToHangOntoPriorWeek);
 
         //Get our date objects
         today = new Date();
 
         if (inputOffset == null || typeof inputOffset === 'undefined' || inputOffset.length <= 0) {
             //If just loaded and today is sun/mon/tues - so default week to LAST week
-            if (today.getDay() < userDaysToHangOntoPriorWeek)
+            if (today.getDay() < userToRun.daysToHangOntoPriorWeek)
                 offset = -1;
             else
                 offset = 0; 
@@ -2517,7 +2483,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
 
         //If Monday or Tuesday AND week selected is current week Then DO WARNING - make it read
-        if (today.getDay() < userDaysToHangOntoPriorWeek && offset == 0) {
+        if (today.getDay() < userToRun.daysToHangOntoPriorWeek && offset == 0) {
             range.innerHTML = "<div style='color:red'>" + workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay) + "</div>";
             notificationMessage('WARNING: You may be entering time for the WRONG week.  You may want PRIOR week', "error");
         }
@@ -3235,6 +3201,80 @@ function postTime(inputCLassificationObject) {
         });
     });
 }
+
+/***************
+Screen Shot utility
+***************/
+function takeScreenshot() {
+
+    //Make sure we have legacy ID, else we done
+    if (!userToRun.legacyTimeID) {
+        alert("No Legacy Time ID - Cant laod this report");
+        return false;
+    }
+
+    console.log("Alvis Time: Taking screenshot For Legacy ID: " + userToRun.legacyTimeID);
+
+    //Build URL to laod from our pieces
+    var URLtoLoad = config.orgLegacyTimeIntegration.legacyTimeReportURI;
+    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+
+    //Create screenshot object to pass along
+    var screenshotObject = {
+        pageToLoad: URLtoLoad,
+        emailAddress: userToRun.email,
+        name: userToRun.name,
+        date: ISODate(firstDay),
+        subject: "Time card for " + ISODate(firstDay),
+        body: "Here is time card screenshot for " + userToRun.name + " for week of " + ISODate(firstDay) + "\n\n\n" 
+    };
+
+    console.log("Alvis Time: Taking screenshot: " + screenshotObject.pageToLoad);
+
+    //Hold our data on local storage
+    chrome.storage.local.set({"screenshotData": screenshotObject}, function () {
+        console.log("Alvis Time: We are doing screenshot");
+        console.log(screenshotObject);
+        chrome.runtime.sendMessage({action: "screenshot", screenshot: screenshotObject});
+        console.log("Alvis Time: Sent Screenshot Message");
+    });
+
+    return false;
+
+}
+
+//Set UserField defaults
+function userDefaults(inputUser) {
+
+    //Set our min hours - if user overirde of workgroup level
+    if (typeof inputUser.minHoursToSubmit === 'undefined') {
+        inputUser.minHoursToSubmit = workgroup.settings.minHoursToSubmit;
+    }
+    //Set our max hours - if user overirde of workgroup level
+    if (typeof inputUser.maxHoursToSubmit === 'undefined') {
+        inputUser.maxHoursToSubmit = workgroup.settings.maxHoursToSubmit;
+    }
+    //Set our days to wait to see next weeks time
+    if (typeof inputUser.daysToHangOntoPriorWeek === 'undefined') {
+        inputUser.daysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
+    }
+
+    //If user has priveldge (not input user)
+    if (user.legacyScreenShot) {
+        if (typeof inputUser.legacyTimeID  === 'undefined') {
+            document.getElementById('screenshotlink-summary').style.display =  'none';
+            console.log("LEGACY TESTING OFF: " + inputUser.legacyTimeID);
+        }
+        else {
+            document.getElementById('screenshotlink-summary').style.display =  '';
+            console.log("LEGACY TESTING ON: " + inputUser.legacyTimeID);
+        }
+    }
+
+}
+
+
 
 //Useful code for dealing with local storage
 // GET chrome.storage.local.get(function(result){console.log(result)})

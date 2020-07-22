@@ -11,6 +11,7 @@
     "http://*.landsend.com/",
     "https://landsend.service-now.com/",
     "activeTab",
+    "<all_urls>",
     "storage"
   ],
   "icons": { 

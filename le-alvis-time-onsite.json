@@ -12,7 +12,9 @@
     "orgLegacyTimeIntegration": {
         "legacyPostTime": true,
         "legacyIntegrationURI": "https://landsend.service-now.com/time_card.do?sys_id=-1&sys_is_list=true&sys_target=time_card&sysparm_checked_items=&sysparm_fixed_query=&sysparm_group_sort=&sysparm_list_css=&sysparm_query=user.u_timecard_team_lead%3djavascript%3ags.getUserID()%5eORuser.u_timecard_manager%3djavascript%3ags.getUserID()%5estate%3dSubmitted%5eGROUPBYuser&sysparm_referring_url=time_card_list.do%3fsysparm_query%3duser.u_timecard_team_lead%253Djavascript%253Ags.getUserID%2528%2529%255EORuser.u_timecard_manager%253Djavascript%253Ags.getUserID%2528%2529%255Estate%253DSubmitted%255EEQ%255EGROUPBYuser&sysparm_target=&sysparm_view=",
-        "legacyIngegrationScript": "content_injection.js"
+        "legacyIngegrationScript": "content_injection.js",
+        "legacyTimeReportURI": "https://landsend.service-now.com/u_weekly_user_time_cards_list.do?sysparm_query=tc_user=_LEGACYUSERID_^w_u_week=_STARTDAY_",
+        "legacyScreenshotScript": "screenshot_injection.js"
     },
     "workgroups": [
         {
@@ -22,6 +24,7 @@
                 "maxHoursToSubmit": 999,
                 "daysToHangOntoPriorWeek": 1,
                 "dayHoursMax": 8,
+                "empType": "FTE",
                 "jiralink": "http://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
                 "customFieldForClassification": "customfield_10901",
                 "remainingEstimateField": "aggregatetimeestimate",
@@ -114,24 +117,24 @@
                 }           
             ],
              "users":  [
-                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2},
+                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2, "blnLegacyPost": true, "legacyTimeID": "56d286914f414b0043b6fd511310c7a6", "legacyScreenShot": true},
                 {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com"},
-                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
-                {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com"},
+                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor"},
+                {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com", "legacyTimeID": "0d383669dbdaa3005108d2cb4b96190e"},
                 {"name": "Blaine Bestul", "userid": "bmbestu", "role": "developer", "email": "blaine.bestul@landsend.com"},
-                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "daysToHangOntoPriorWeek": 3},
-                {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com"},
-                {"name": "Sunitha Baker", "userid": "sbaker", "role": "developer", "email": "sunitha.baker@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
+                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "daysToHangOntoPriorWeek": 3,  "empType": "Contractor"},
+                {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com", "legacyTimeID": "9994541c4ff9ba00d837af7d0210c78a"},
+                {"name": "Sunitha Baker", "userid": "sbaker", "role": "developer", "email": "sunitha.baker@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "dcdc7deb130662004cecbd322244b0e0"},
                 {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
                 {"name": "Ron Schmitt", "userid": "raschmi", "role": "developer", "email": "ron.schmitt@landsend.com"},
                 {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com"},
                 {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
-                {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
-                {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
-                {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999},
-                {"name": "Vitaly Yarets", "userid": "vyarets", "role": "developer", "email": "vitaly.yarets@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999}
+                {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor", "legacyTimeID": "051983114d7eb5802ad9b411f5c9381f"},
+                {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "520059f72bef51002d18053ee8da15e1"},
+                {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "fd431ff2dbf07f08ef15a6e51b9619d3"},
+                {"name": "Vitaly Yarets", "userid": "vyarets", "role": "developer", "email": "vitaly.yarets@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor"}
             ],
-            "workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate <= '_ENDDATE_' and (_WORKLOGUSERQUERY_)" 
+            "workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate < '_ENDDATE_' and (_WORKLOGUSERQUERY_)" 
         },
         {
             "name": "DevOps",
