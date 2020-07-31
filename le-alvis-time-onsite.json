@@ -59,7 +59,7 @@
                 "hoursPositive": "Must be positive number",
                 "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
                 "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
-                "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
+                "mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_"    
             },
             "issueGroups": [
                 {
@@ -117,19 +117,19 @@
                 }           
             ],
              "users":  [
-                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2, "blnLegacyPost": true, "legacyTimeID": "56d286914f414b0043b6fd511310c7a6", "legacyScreenShot": true},
-                {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com"},
-                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor"},
+                {"name": "Al Hummer", "userid": "ajhumme", "role": "admin", "email": "alan.hummer@landsend.com", "maxHoursToSubmit": 40, "daysToHangOntoPriorWeek": 2, "legacyPostTime": true, "legacyScreenShot": true, "legacyViewCard": true, "legacyTimeID": "56d286914f414b0043b6fd511310c7a6"},
+                {"name": "Russell Steen", "userid": "rsteen", "role": "developer", "email": "russell.steen@landsend.com", "legacyTimeID": "93705a0edb76401411111cb51b9619b6"},
+                {"name": "Jordan Ward", "userid": "jward", "role": "developer", "email": "jordan.ward@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor", "legacyTimeID": "6aff0e47db05ff40ef15a6e51b9619f7"},
                 {"name": "Andre Kuzmicheff", "userid": "akuzmic", "role": "developer", "email": "Andre.Kuzmicheff@landsend.com", "legacyTimeID": "0d383669dbdaa3005108d2cb4b96190e"},
-                {"name": "Blaine Bestul", "userid": "bmbestu", "role": "developer", "email": "blaine.bestul@landsend.com"},
-                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "daysToHangOntoPriorWeek": 3,  "empType": "Contractor"},
+                {"name": "Blaine Bestul", "userid": "bmbestu", "role": "developer", "email": "blaine.bestul@landsend.com", "legacyTimeID": "a798fabb58c511002ad9054c0315536a"},
+                {"name": "Santanu Mojumder", "userid": "smojumd", "role": "developer", "email": "santanu.mojumder@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "daysToHangOntoPriorWeek": 3,  "empType": "Contractor", "legacyTimeID": "286c5e44dbf1370011111cb51b961933"},
                 {"name": "Krishna Boregowda", "userid": "kborego", "role": "developer", "email": "krishna.boregowda@landsend.com", "legacyTimeID": "9994541c4ff9ba00d837af7d0210c78a"},
                 {"name": "Sunitha Baker", "userid": "sbaker", "role": "developer", "email": "sunitha.baker@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "dcdc7deb130662004cecbd322244b0e0"},
-                {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com"},
-                {"name": "Ron Schmitt", "userid": "raschmi", "role": "developer", "email": "ron.schmitt@landsend.com"},
-                {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com"},
-                {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com"},
-                {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor", "legacyTimeID": "051983114d7eb5802ad9b411f5c9381f"},
+                {"name": "Taylor Christy", "userid": "tcchris", "role": "developer", "email": "taylor.christy@landsend.com", "legacyTimeID": "650e9c63dbf6c41495c944261b96193e"},
+                {"name": "Ron Schmitt", "userid": "raschmi", "role": "developer", "email": "ron.schmitt@landsend.com", "legacyTimeID": "2d4315ec44ccd00048a5ddf4d6105366"},
+                {"name": "Jeremy Fredrich", "userid": "jdfredr", "role": "developer", "email": "jeremy.fredrich@landsend.com", "legacyTimeID": "3c43d1204400140048a5ddf4d61053be"},
+                {"name": "John Betz", "userid": "jbetz", "role": "developer", "email": "john.betz@landsend.com", "legacyTimeID": "9e43d5204400140048a5ddf4d610537e"},
+                {"name": "Dimitry Vakulchik", "userid": "dvakulc", "role": "developer", "email": "dmitry.vakulchik@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999, "empType": "Contractor", "legacyPostTime": true, "legacyViewCard": true, "legacyTimeID": "051983114d7eb5802ad9b411f5c9381f"},
                 {"name": "Sergey Bobchenok", "userid": "sbobche", "role": "developer", "email": "sergey.bobchenok@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "520059f72bef51002d18053ee8da15e1"},
                 {"name": "Yury Zmachinsky", "userid": "yzmachi", "role": "developer", "email": "yury.zmachinsky@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor", "legacyTimeID": "fd431ff2dbf07f08ef15a6e51b9619d3"},
                 {"name": "Vitaly Yarets", "userid": "vyarets", "role": "developer", "email": "vitaly.yarets@landsend.com", "minHoursToSubmit": 0, "maxHoursToSubmit": 999,  "empType": "Contractor"}
@@ -177,7 +177,7 @@
                 "hoursPositive": "Must be positive number",
                 "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
                 "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
-                "mixedStatuses": "This time card has mixed statuses - _WORKLOG_ = _STATUS_"                 
+                "mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_"                 
             },
             "issueGroups": [
                 {

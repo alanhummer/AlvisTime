@@ -272,6 +272,31 @@ function showTimeCardSummary() {
         recentPage = "timecard-summary";      
     }
 
+    //If user has priveldge (not input user)
+    if (user.legacyScreenShot) {
+        if (typeof userToRun.legacyTimeID  === 'undefined') {
+            document.getElementById('screenshotlink-summary').style.display =  'none';
+            console.log("LEGACY TESTING OFF: " + userToRun.legacyTimeID);
+        }
+        else {
+            document.getElementById('screenshotlink-summary').style.display =  '';
+            console.log("LEGACY TESTING ON: " + userToRun.legacyTimeID);
+        }
+    }
+
+    //If user has priveldge (not input user)
+    if (user.legacyViewCard) {
+        if (typeof userToRun.legacyTimeID  === 'undefined') {
+            document.getElementById('viewcard-summary').style.display =  'none';
+            console.log("LEGACY CARD OFF: " + userToRun.legacyTimeID);
+        }
+        else {
+            document.getElementById('viewcard-summary').style.display =  '';
+            console.log("LEGACY CARD ON: " + userToRun.legacyTimeID);
+        }
+    }
+
+
 
     console.log("Alvis Time: Posted array is ");
     console.log(postedClassficationArray);
@@ -455,7 +480,10 @@ function showTimeCardSummary() {
             if (user.legacyPostTime) {
                 document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
             }
-
+            else {
+                document.getElementById("postheader").style.display = 'none';
+            }    
+        
             //Here is where the adjustment row goes
             //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
             if (classificationObject.postedTotal < classificationObject.totalTotal) {
@@ -607,10 +635,18 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Set up UI Element for Help Button
     document.getElementById('helpLink-summary').href = "nowhere";
     document.getElementById('helpLink-summary').onclick = openHelp;
+    
 
     //Set up UI Element for Screenshot Button
-    document.getElementById('screenshotlink-summary').href = "nowhere";
-    document.getElementById('screenshotlink-summary').onclick = takeScreenshot;    
+    //document.getElementById('screenshotlink-summary').href = "nowhere";
+    //document.getElementById('screenshotlink-summary').onclick = legacyView;    
+    document.getElementById("screenshot-image-summary").addEventListener ("click", function(){ legacyView(true)}); 
+
+
+    //Set up UI Element for timecard view Button
+    //document.getElementById('viewcard-summary').href = "nowhere";
+    //document.getElementById('viewcard-summary').onclick = legacyView;    
+    document.getElementById("viewcard-image-summary").addEventListener ("click", function(){ legacyView(false)}); 
 
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
@@ -784,23 +820,39 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             processIssueGroups("intro");
         }
 
-
-
+        if (!blnAdmin) 
+            document.getElementById("user-select").innerHTML = "<div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
+ 
     }
 
     /****************
     Fetch for user failed -
     ****************/    
     function onUserError(error) {
-        console.log("Alvis Time: Failed to get user:" + error);
+        console.log("Alvis Time: Failed to get user:");
+        console.log(error);
         
         //Enable the page
         togglePageBusy(false);
         
         //Put it to you window instead
-        alert("could not connect: " + error);
-        //orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
-        genericResponseError(error);
+        if (error.status == 401) {
+            alert("You are not logged into Jira.  Please login to resolve");
+            notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
+            //openLink(config.orgJiraBaseURI);
+            //closeit();
+            //Load JIR URL!
+        }
+        else if (error.statusText == 'Unknown Error') {
+            alert("You are not on the network.  Please connect to the network and try again.");
+            notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
+        }
+        else {
+            //orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
+            genericResponseError(error);
+        }
+            
+
     }
 
     /****************
@@ -1048,7 +1100,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     //Diff time zone - convert for comparison
                     myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
                 }
-                console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
+                //console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
             }
 
             ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
@@ -1364,6 +1416,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     
         document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
         document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
+ 
     }     
 
 
@@ -1971,6 +2024,17 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             //And add it to our issue group table
             document.getElementById(issueGroup.key + "-issue-group-table").appendChild(row);
 
+            //Override classification, if we have one
+            if (workgroup.settings.projectOverrides) {
+                if (workgroup.settings.projectOverrides.length > 0) {
+                    workgroup.settings.projectOverrides.forEach(function (override) {
+                        if (override.fromProject.toUpperCase() == issue.classification.toUpperCase()) {
+                            issue.classification = override.toProject;                            
+                        }
+                    });
+                }    
+            }
+ 
             //Add classifcation to list, if not already there
             if (classifications.indexOf(issue.classification) >= 0) {
                 //skip it
@@ -2391,7 +2455,11 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     }
                     else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
                         //We have worklogs with mixed statuses..mmmm
-                        notificationMessage(workgroup.messages.mixedStatuses.replace(/_WORKLOG_/gi, inputWorklogObject.worklogId).replace(/_STATUS_/gi, worklogStatus), "error");
+                        var messageText = workgroup.messages.mixedStatuses;
+                        messageText = messageText.replace(/_ISSUE_/gi, issue.key);
+                        messageText = messageText.replace(/_WORKLOG_/gi, inputWorklogObject.worklogId);
+                        messageText = messageText.replace(/_STATUS_/gi, worklogStatus);
+                        notificationMessage(messageText, "error");
                     }
                 }
             }
@@ -2828,7 +2896,8 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         class: inputClass
     });        
 
-    if (inputType == "detail" && blnAdmin) {
+    console.log("TESTING FOR TYPE: " + inputType + " LEGACY POSTION: " + user.legacyPostTime);
+    if (inputType == "detail" && user.legacyPostTime) {
 
         if (findClassificationInPostedArray(issueClassification)) {
             var classificationPostTime = buildHTML('img', "", {
@@ -2850,6 +2919,8 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         }
         //Add checkbox to the cell
         postTimeCell.appendChild(classificationPostTime);
+
+        console.log("AJH WE ARE POSTING TIME");
     }
 
     //Add the column
@@ -3188,6 +3259,20 @@ function initializeApp() {
 /***************
 Posting functions 
 ***************/
+function openLink(inputLink) {
+
+    //Pass to backround for laoding
+    chrome.runtime.sendMessage({action: "loadURI", URI: inputLink});
+    console.log("LOADING LINK: " + inputLink);
+    return false;
+
+}
+
+
+//Here is the code for doing the post to Service Now
+/***************
+Posting functions 
+***************/
 function postTime(inputCLassificationObject) {
 
     postedClassficationArray.push(inputCLassificationObject);
@@ -3202,10 +3287,11 @@ function postTime(inputCLassificationObject) {
     });
 }
 
+
 /***************
 Screen Shot utility
 ***************/
-function takeScreenshot() {
+function legacyView(blnTakeScreenshot) {
 
     //Make sure we have legacy ID, else we done
     if (!userToRun.legacyTimeID) {
@@ -3224,6 +3310,7 @@ function takeScreenshot() {
     var screenshotObject = {
         pageToLoad: URLtoLoad,
         emailAddress: userToRun.email,
+        takeScreenshot: blnTakeScreenshot,
         name: userToRun.name,
         date: ISODate(firstDay),
         subject: "Time card for " + ISODate(firstDay),
@@ -3258,18 +3345,6 @@ function userDefaults(inputUser) {
     //Set our days to wait to see next weeks time
     if (typeof inputUser.daysToHangOntoPriorWeek === 'undefined') {
         inputUser.daysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
-    }
-
-    //If user has priveldge (not input user)
-    if (user.legacyScreenShot) {
-        if (typeof inputUser.legacyTimeID  === 'undefined') {
-            document.getElementById('screenshotlink-summary').style.display =  'none';
-            console.log("LEGACY TESTING OFF: " + inputUser.legacyTimeID);
-        }
-        else {
-            document.getElementById('screenshotlink-summary').style.display =  '';
-            console.log("LEGACY TESTING ON: " + inputUser.legacyTimeID);
-        }
     }
 
 }

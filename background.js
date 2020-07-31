@@ -516,6 +516,26 @@ function sleep(inputMS) {
 //************************************************
 //************************************************
 
+//Add listener for messages from popup to laod URI to browser
+chrome.runtime.onMessage.addListener(function(requestMessage) {
+    //We have recieved a message: If it is for posting time, off we go 
+    if( requestMessage.action === "loadURI" ) {
+        console.log("Loading URL: " + requestMessage.URI);
+        chrome.tabs.create({ url: requestMessage.URI}, function(newTab) {
+        });    
+    };
+});
+
+
+
+//************************************************
+//************************************************
+//************************************************
+//**** Here are the listeners/relays *************
+//**** For posting to tabs/legacy integraiton*****
+//************************************************
+//************************************************
+
 //Add listener for messages from popup - relay to do the legacy integration
 chrome.runtime.onMessage.addListener(function(requestMessage) {
     //We have recieved a message: If it is for posting time, off we go 
@@ -606,7 +626,9 @@ function loadWindowForScreenshot (inputScreenshot) {
         chrome.tabs.remove(saveTab.id, function() {
             chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
                 saveTab = newTab;
-                loadPageForScreenshot (saveTab, inputScreenshot);
+                if (inputScreenshot.takeScreenshot) {
+                    loadPageForScreenshot (saveTab, inputScreenshot);
+                }
             });  
         });
     }
@@ -614,7 +636,9 @@ function loadWindowForScreenshot (inputScreenshot) {
         //Not exists
         chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
             saveTab = newTab;
-            loadPageForScreenshot (newTab, inputScreenshot);
+            if (inputScreenshot.takeScreenshot) {
+                loadPageForScreenshot (newTab, inputScreenshot);
+            }
         });          
     }
 
