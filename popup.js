@@ -41,8 +41,9 @@ var lookupIssueKeys = [];
 var lookupIssueGroup;
 var lookupIssueGroupIndex;
 
-//Hold onto items there were posted
+//Hold onto items there were posted or ones we need to clean up
 var postedClassficationArray = [];
+var worklogCleanupArray = [];
 
 //Hold recent settings
 var recentUserName = "";
@@ -996,6 +997,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             issueGroup.issuesProcessed = 0;
             issueGroup.issuesLoaded = false;
         
+            //Put in a limit
+            myJQL = myJQL + "&maxResults=500"
+
             //Log the query
             console.log("Alvis Time: Doing a query - " + issueGroup.key + " JQL:" + myJQL);
 
@@ -1032,13 +1036,13 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     ****************/
     function onIssueFetchSuccess(responseObject) {
 
-        console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+        //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
 
         //ResponseObject conatains "response" and "issuesGroup" objects - assign our retreived issues ot the issueGroup
         responseObject.issueGroup.issues = responseObject.issues;
 
         //Document how many we have
-        console.log("Alvis Time: We are processing a # of issues: " + responseObject.issueGroup.issues.length);
+        //console.log("Alvis Time: We are processing a # of issues: " + responseObject.issueGroup.issues.length);
 
         //Let's process each issue
         responseObject.issueGroup.issues.forEach(function(issue) {
@@ -1074,7 +1078,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         var dayIndex;
         var blnDone = true;
-        var blnShowit = false;
+        var blnShowIt = false;
+        var cleanupWorklog;
 
         //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
         responseObject.issue.worklogs = responseObject.worklogs;
@@ -1082,17 +1087,36 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Process each worklogs?  Or just store them to be used yet?
         responseObject.issue.worklogs.forEach(function (worklog) {
 
-            if (typeof worklog.comment != "undefined") {
+            //We only want the worklogs with a comment wnd it is tagged for this user
+            blnShowIt = false;
+
+             if (typeof worklog.comment != "undefined") {
                 if (worklog.comment.includes(userToRun.userid + "|")) {
-                    blnShowit = true;
+                    blnShowIt = true;
+                } else if (worklog.comment.includes("|entry") || worklog.comment.includes("|submitted") || worklog.comment.includes("|approved")) {
+                    blnShowIt = false; //Includes somoeone elsess mark
+                } else if (worklog.author.name == userToRun.userid) {
+                    console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
+                    //Entered manually, so add entry comment
+                    updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
+                    blnShowIt = true;
+                } 
+                else {
+                    //onsole.log("AJH TEST: " + worklog.author.key + " VS " + userToRun.userid);
                 }
+            } else if (worklog.author.name == userToRun.userid) {
+                console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
+                //Entered manually, so add entry comment
+                updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
+                blnShowIt = true;
             }
 
-            //Now lets process our worklog - filter date range and user id from comments
-            var myTimeLogDateStarted = new Date(worklog.started);
+            if (blnShowIt) {
 
-            //Now convert to CT for compare
-            if (blnShowit) {
+                //Now lets process our worklog - filter date range and user id from comments
+                var myTimeLogDateStarted = new Date(worklog.started);
+
+                //Now convert to CT for compare
                 if (myTimeLogDateStarted.getTimezoneOffset() == 300) {
                     //Central time - leave it
                 }
@@ -1101,62 +1125,70 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
                 }
                 //console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
-            }
 
-            ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
-            if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
+                ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
+                if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
 
-                //We only want the worklogs with a comment wnd it is tagged for this user
-                if (typeof worklog.comment != "undefined") {
+                    //OK, we have match user and date - do something with it
+                    //Determined what bucket it goes in SAT-FRI
+                    //Translate the day of the week starting Monday vs Saturday
+                    switch(myTimeLogDateStarted.getDay()) {
+                        case 6: //Saturday
+                            dayIndex = 0
+                            break;
+                        case 0: //Sunday
+                            dayIndex = 1;
+                            break;
+                        case 1: //Monday
+                            dayIndex = 2;
+                            break;
+                        case 2: //Tuesday
+                            dayIndex = 3;
+                            break;
+                        case 3: //Wednesday
+                            dayIndex = 4;
+                            break;
+                        case 4: //Thursday
+                            dayIndex = 5;
+                            break;
+                        case 5: //Friday
+                            dayIndex = 6;
+                            break;
+                        default:
+                    }
+                    
+                    //IF we have MULTIPLE entires for same person, same, ticket, same date...clean them up.  Let's have one
+                    if (responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent > 0) {
 
-                    if (worklog.comment.includes(userToRun.userid + "|")) {
-
-                        //OK, we have match user and date - do something with it
-                        //Determined what bucket it goes in SAT-FRI
-                        //Translate the day of the week starting Monday vs Saturday
-                        switch(myTimeLogDateStarted.getDay()) {
-                            case 6: //Saturday
-                                dayIndex = 0
-                                break;
-                            case 0: //Sunday
-                                dayIndex = 1;
-                                break;
-                            case 1: //Monday
-                                dayIndex = 2;
-                                break;
-                            case 2: //Tuesday
-                                dayIndex = 3;
-                                break;
-                            case 3: //Wednesday
-                                dayIndex = 4;
-                                break;
-                            case 4: //Thursday
-                                dayIndex = 5;
-                                break;
-                            case 5: //Friday
-                                dayIndex = 6;
-                                break;
-                            default:
-                        }
+                        //We have multipel per day, so add hours and update latest tix
+                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + (worklog.timeSpentSeconds / 3600);
                         
+                        //Add to our cleanup array - will hold these and clean up at the end
+                        addToCleanup(responseObject.issue.id, responseObject.issue.worklogDisplayObjects[dayIndex].worklogId, responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
+                        addToCleanup(responseObject.issue.id, worklog.id, worklog.comment, 0, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
+
+                    }
+                     else {
                         //OK, lets load it into our display objects for this issue -what to do if dups?
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogId = worklog.id;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted = worklog.started;
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment = worklog.comment;
+                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600;
                         responseObject.issue.worklogDisplayObjects[dayIndex].worklogDayOfWeek = dayIndex;
-
-                        //Add to our issue, issue group, day and total totals
-                        responseObject.issue.issueTotalTime = responseObject.issue.issueTotalTime + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
-                        responseObject.issueGroup.dayTotals[dayIndex] = responseObject.issueGroup.dayTotals[dayIndex] +  responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
-                        responseObject.issueGroup.timeTotal = responseObject.issueGroup.timeTotal + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
-                        totalTotal = totalTotal + responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent
-
                     }
+
+
+
+                    //Add to our issue, issue group, day and total totals
+                    responseObject.issue.issueTotalTime = responseObject.issue.issueTotalTime + (worklog.timeSpentSeconds / 3600);
+                    responseObject.issueGroup.dayTotals[dayIndex] = responseObject.issueGroup.dayTotals[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                    responseObject.issueGroup.timeTotal = responseObject.issueGroup.timeTotal + (worklog.timeSpentSeconds / 3600);
+                    totalTotal = totalTotal + (worklog.timeSpentSeconds / 3600);
+
                 }
-            }
-            
-             //Increment out tracker
+            }              
+             
+            //Increment out tracker
             responseObject.issue.worklogsProcessed++;
 
         })
@@ -1201,6 +1233,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         //See if we are done
         if (blnDone) {
+            //All done loading stuff.  Now let's do any cleanup
+            doTimecardCleanup();
             //We are done gathering all of our data. Now lets build out our UI.
             if (!blnPageLoaded) {
                 //Keeping track 
@@ -1211,6 +1245,77 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             } 
         }
     }
+
+    /****************
+    convertToCentralTime -
+    ****************/ 
+    function addToCleanup(worklogIssueId, worklogId, worklogComment, worklogTimeSpent, worklogTimeStarted) {
+      
+        var blnFound = false;
+
+        //First, see if we already have this worklogId in the array
+        worklogCleanupArray.forEach(function(cleanupWorklog) {
+
+            if (cleanupWorklog.id == worklogId) {
+                if (!cleanupWorklog.processed) {
+                    //Got one
+                    cleanupWorklog.timeSpent = worklogTimeSpent;
+                    console.log("AJH CLEANUP LOG ALREADY EXISTS - DOING UPDATE FOR " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
+                }
+                blnFound = true;
+            }
+        });      
+
+        //If not found, add it to the array
+        if (!blnFound) {
+            //Add to our cleanup array
+            var cleanupWorklog = {
+                issueId: worklogIssueId,
+                id: worklogId,
+                comment: worklogComment,
+                timeSpent: worklogTimeSpent,
+                started: worklogTimeStarted, 
+                processed: false                      
+            }
+            worklogCleanupArray.push(cleanupWorklog);
+            console.log("AJH ADDED ENTRY TO CLEANUP " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
+        }
+
+    }
+
+    /****************
+    Time Card cleanup -
+    ****************/ 
+    function doTimecardCleanup() {
+
+        //Let's process each issue
+        worklogCleanupArray.forEach(function(cleanupLog, index, object) {
+
+            if (!cleanupLog.processed) {
+
+                //Now we will clean out the entry from the array       
+                cleanupLog.processed = true;
+                console.log("Alvis Time: Processed cleanup for a worklog", JSON.parse(JSON.stringify(cleanupLog)));
+
+                //Call JIRA to update the comment
+                if (true) {
+                    JIRA.updateWorklog(cleanupLog.issueId, cleanupLog.id, cleanupLog.comment, cleanupLog.timeSpent, cleanupLog.started)
+                    .then(function(data) {
+                        //Success
+                        notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, cleanupLog.issueId).replace(/_WORKLOG_/gi, cleanupLog.id), "notification");
+        
+                    }, function(error) {
+                        //Failure
+                        genericResponseError(error);
+                    });
+                }
+
+            }
+
+        });
+
+    }
+
 
 
     /****************
@@ -1226,7 +1331,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     }
 
-
     /****************
     Got Worklog Failed -
     ****************/    
@@ -1236,6 +1340,31 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         genericResponseError(error);
     }
 
+    /****************
+    Update the WorkLog Comment
+    ****************/    
+    function updateWorklogComment(worklog, inputComment) {
+        console.log("Alvis Time: Updating comment to " + inputComment, JSON.parse(JSON.stringify(worklog)));
+
+        if (worklog.comment.length > 0) {
+            worklog.comment = worklog.comment + "\r\n" + inputComment;
+        }
+        else {
+            worklog.comment = inputComment;
+        }
+
+        //Call JIRA to update the comment
+        JIRA.updateWorklog(worklog.issueId, worklog.id, worklog.comment, worklog.timeSpent, worklog.started)
+        .then(function(data) {
+            //Success
+            notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, worklog.issueId).replace(/_WORKLOG_/gi, worklog.id), "notification");
+        }, function(error) {
+            //Failure
+            genericResponseError(error);
+        });
+        console.log("Alvis Time: Updated it! ");
+
+    }
 
     /****************
     loadWorkgroupTimeCards
@@ -1244,8 +1373,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
         var myJQL = "";
         var myUserQUery = "";
-
-        console.log("RALPH POS GOT ONE");
 
         //Initialize our tracker to know when done
         tcIssueCountTracker = 0;
@@ -1304,10 +1431,10 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     ****************/
     function onTimecardIssueFetchSuccess(responseObject) {
 
-        console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+        //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
 
         //Document how many we have
-        console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
+        //console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
 
         //Hang onto issue count so we know we are done
         tcIssueCount = responseObject.issues.length;
@@ -1340,7 +1467,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
         responseObject.issue.worklogs = responseObject.worklogs;
 
-        console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
+        //console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
 
         tcIssueCountTracker = tcIssueCountTracker + 1;
 
@@ -2516,9 +2643,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Get the range of dates for the week, based on offset
     function getWeek(inputOffset) {
 
-        //Log what we have
-        console.log("DAY TO HANG:" + userToRun.daysToHangOntoPriorWeek);
-
         //Get our date objects
         today = new Date();
 
@@ -2596,9 +2720,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Store our week for resuse and continue
         if (blnAdmin) {
             chrome.storage.local.set({"recentOffset": offset}, function () {});
-            console.log("RALPH POS 2");
             loadWorkgroupTimeCards();
-            console.log("RALPH POS 2b");           
         }
         
         //Changed the week, so reset everything
@@ -2617,9 +2739,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         //Store our week for resuse and continue
         if (blnAdmin) {
             chrome.storage.local.set({"recentOffset": offset}, function () {});
-            console.log("RALPH POS 3");
             loadWorkgroupTimeCards();
-            console.log("RALPH POS 3b");
         }
 
         //Changed the week, so reset everything
@@ -3121,6 +3241,7 @@ function getStartedTime(dateString) {
     + '.' + pad(time.getMilliseconds())
     + dif + pad(tzo / 60) 
     + pad(tzo % 60);
+    + "h";
     
     return dateConverted;
 }

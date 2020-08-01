@@ -52,7 +52,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
     }
 
     function getIssues (inputJQL, inputIssuesGroup) {
-        console.log("ISSUE GRUP IS: " + inputIssuesGroup.name);
+        //console.log("ISSUE GRUP IS: " + inputIssuesGroup.name);
         return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", inputIssuesGroup);
     }    
 
@@ -89,7 +89,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
                     type: "PUT",
                     data: JSON.stringify({
                         "started": started,
-                        "timeSpent": timeSpent + "h",
+                        "timeSpent": timeSpent,
                         "comment": worklogComment
                     })
                 }
@@ -104,7 +104,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
                 type: 'POST',
                 data: JSON.stringify({
                     "started": started,
-                    "timeSpent": timeSpent + "h",
+                    "timeSpent": timeSpent,
                     "comment": worklogComment
                 })
             }
@@ -147,17 +147,14 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
 
             // set response type (json)
             req.responseType = options.responseType;
-
+            
+            if (reqType == "updateWorklog") {
+                console.log("Alvis Time: Updating worklog: ", JSON.parse(JSON.stringify(req)));
+            }
             // on load logic
             req.onload = function() {
-
                 // consider all statuses between 200 and 400 successful
                 if (req.status >= 200 && req.status < 400) {
-                    //console.log("Alvis Time: API call successfull for " + reqType + " " + req.responseURL);
-                    if (reqType == "updateWorklog") {
-                        console.log("WORKLOG RESPONSE: ");
-                        console.log(req);
-                    }
                     //Based on the request, send back a stowaway object
                     switch (reqType) {
                         case "getIssues":

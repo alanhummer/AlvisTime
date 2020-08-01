@@ -59,6 +59,7 @@
                 "hoursPositive": "Must be positive number",
                 "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
                 "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+                "workLogConverted": "Manual worklog entry converted to Alvis time format. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_",
                 "mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_"    
             },
             "issueGroups": [
@@ -69,7 +70,7 @@
                     "minPercentage": 0,
                     "timePriority": 2,
                     "classSelect": true,
-                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey"
+                    "query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_') or (worklogAuthor = 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_') AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business'))) ORDER BY Project, 'Project - Subproject', issueKey"
                 },
                 {
                     "name": "Proj - General", 
@@ -177,6 +178,7 @@
                 "hoursPositive": "Must be positive number",
                 "hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
                 "statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+                "workLogConverted": "Manual worklog entry converted to Alvis time format. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_",
                 "mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_"                 
             },
             "issueGroups": [
