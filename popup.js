@@ -2156,7 +2156,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                 if (workgroup.settings.projectOverrides.length > 0) {
                     workgroup.settings.projectOverrides.forEach(function (override) {
                         if (override.fromProject.toUpperCase() == issue.classification.toUpperCase()) {
-                            issue.classification = override.toProject;                            
+                            issue.classification = override.toProject;
+                            if (override.toSubProject) 
+                                issue.classificationChild = override.toSubProject;
                         }
                     });
                 }    
@@ -2811,7 +2813,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         });       
     }
     else if (inputType == "detail" || inputType == "offset-total") {
-        if (issueClassification.descriptionChild.length > 0)
+        if (issueClassification.descriptionChild.length > 0) //AJH I do not know?
             descToDisplay = issueClassification.descriptionChild;
         else
             descToDisplay = "(no sub-project)"
@@ -2821,7 +2823,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         });
     }
     else { //Offset
-        if (issueClassification.descriptionChild.length > 0)
+        if (issueClassification.descriptionChild.length > 0) //AJH I do not know?
             descToDisplay = issueClassification.descriptionChild;
         else
             descToDisplay = "(no sub-project)"
