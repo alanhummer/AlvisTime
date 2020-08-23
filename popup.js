@@ -6,6 +6,10 @@ var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
+//Going to manage version, just by putting into code
+var version = "2020.08.23.1";
+var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
+
 //Setup for the date selection
 var range;
 var firstDay; //This will hold the first day of our date range - the full date / time of the day
@@ -17,7 +21,7 @@ var dayOfWeekOffset = today.getDay() + 1;
 //User account stuff from self lookup
 var orgKey = "";
 var blnAdmin = false; //Easy access to admin boolean
-var blnRemoteConfig = false;
+var blnRemoteConfig = true;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
 
 //Is the screen interactive, used for toggle
@@ -49,10 +53,13 @@ var worklogCleanupArray = [];
 var recentUserName = "";
 var recentOffset = "";
 var recentPage = "";
-
+var dateTitleHeaderSave = "";
 
 //Show user summaries or not
 var blnDoUserTimecardSummaryView = false;
+
+//Setup for our JIRA Object
+var JIRA;
 
 //And so we begin....
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
@@ -74,7 +81,7 @@ function onDOMContentLoaded() {
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'none';
     document.getElementById('help-text').style.display =  'none';
-
+    
     //And the buttons
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
@@ -86,6 +93,8 @@ function onDOMContentLoaded() {
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
+        document.getElementById('welcome-intro').style.display =  'none';
+        document.getElementById('version-intro').style.display =  'none';
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -126,31 +135,94 @@ function loadKeyAndOrg() {
                         //Get the JSON file and make sure it exists - need to figure out how to laod/host this
                         if (blnRemoteConfig) {
 
-                            switch(data.orgKeya) {
-                                case "le-alvis-time":
-                                    configURL = "https://api.media.atlassian.com/file/d25f5228-ad3f-4a00-b715-9ce4c53390d6/binary?client=111ec498-20bb-4555-937c-7e6fd65838b8&collection=&dl=true&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMTFlYzQ5OC0yMGJiLTQ1NTUtOTM3Yy03ZTZmZDY1ODM4YjgiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjg1OWRhNWU5LTNhZjUtNDY4MS05ZjNhLWFlOTUzNzFjMWU2NiI6WyJyZWFkIl0sInVybjpmaWxlc3RvcmU6ZmlsZTpkMjVmNTIyOC1hZDNmLTRhMDAtYjcxNS05Y2U0YzUzMzkwZDYiOlsicmVhZCJdfSwiZXhwIjoxNTg4Mjk4MTMzLCJuYmYiOjE1ODgyOTcxNzN9.rwPZx7eT26fT2JVs1UrjxhsxR8JcaXaVmVvdw4Ysw24";
-                                    break;
-                                default:
-                                    configURL = "";
-                                    break;
-                            }
+                            var configURL = orgKeyLocation + data.orgKeya + ".json";
 
-                            getConfig(configURL,  function(err, response) {
+                            getConfig("keyLocation", "get", configURL,  function(err, response) {
                 
                                 if (err != null) {
-                                    console.log("Alvis Time: Get config error - " + issue.classification, JSON.parse(JSON.stringify(err)));
-                                    //Bogus
+                                    console.log("Alvis Time: Get config error - ", JSON.parse(JSON.stringify(err)));
+
                                     //We do not have an org key, get one
+
+                                    switch(err) {
+                                        case 503: //Saturday
+                                            orgKeyMessage("Could not retrieve organization key at this time. Please check your key and try again or try back later.", "error")
+                                            break;
+                                        case 404: //Sunday
+                                            orgKeyMessage("Could not find this organization key. Please try again.", "error")
+                                            break;
+                                        case 401: //Monday
+                                            orgKeyMessage("You are not authorized to access this key.  Please try again.", "error")
+                                            break;
+                                        default:
+                                    }
                                     getNewOrgKey(data.orgKeya, "true");
                                 } 
                                 else {
-                                    //Get all of our config parameters
-                                    //config = JSON.parse(response); 
-                                    orgKey = data.orgKeya;
-                                    config = response;
-            
-                                    //Get it, so put listner on DOM loaded event
-                                    mainControlThread();
+                                    //We ahve successfully gotten the orgkey pointer
+                                    if (response.orgKeyURI) {
+                                        console.log("Alvis Time: We have an org key location at:" + response.orgKeyURI);
+                                        //OK, lets get the Org Key configuraiton from its location
+                                        getConfig("keyStorage", "get", response.orgKeyURI,  function(keyErr, keyResponse) {
+                                            //See if it worked
+                                            if (keyErr != null) {
+                                                //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
+                                                console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
+                                                orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and acces, and try again. Or try a different organization key or contact your administrator.", "error")
+                                                getNewOrgKey(data.orgKeya, "true");
+                                            }
+                                            else {
+                                                //All good, lets do this
+                                                orgKey = data.orgKeya;
+                                                config = keyResponse;
+
+                                                console.log("Alvis Time: Config is: ", JSON.parse(JSON.stringify(config)));
+
+                                                //Compare versions
+                                                if (version && config.AlvisTime && config.AlvisTime.version) {
+
+                                                    if (version < config.AlvisTime.version) {
+
+                                                        //Show our version upgrade emssage
+                                                        document.getElementById('everything').style.display =  'none';
+                                                        document.getElementById('orgkeyrequest').style.display =  'none';
+                                                        document.getElementById('timecard-summary').style.display =  'none';
+                                                        document.getElementById('help-text').style.display =  'none';
+                                                        document.getElementById('welcome-intro').style.display =  'none';
+                                                        document.getElementById('version-intro').style.display =  'block';
+
+                                                        document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
+                                                        document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
+                                                        document.getElementById('version-message').innerHTML = document.getElementById('version-message').innerHTML.replace("_VERSION_MESSAGE_", config.AlvisTime.message);
+                                                       
+                                                        document.getElementById('version-link').addEventListener ("click", function(){ doVersionLink(this)}); 
+ 
+                                                        //Different versions, hwere we go
+                                                        if (config.AlvisTime.upgradeRequired) {
+                                                            document.getElementById("version-close").addEventListener ("click", function(){ closeit(this)});
+                                                        }
+                                                        else {
+                                                            document.getElementById("version-close").addEventListener ("click", function(){ mainControlThread()});
+                                                        }
+                                                    }
+                                                    else {
+                                                        //Get it, so put listner on DOM loaded event
+                                                        mainControlThread();                                                    
+                                                    }
+                                                }
+                                                else {
+                                                    //Get it, so put listner on DOM loaded event
+                                                    mainControlThread();                                                    
+                                                }
+                                            }                                            
+                                        });
+                                    }
+                                    else {
+                                        console.log("Alvis Time: We have gotten an org key location but it FAILS to have orgKeyURI:", JSON.parse(JSON.stringify(response)));
+                                        orgKeyMessage("Could not retrieve organization key at this time. Please check your key and try again or try back later.", "error")
+                                        getNewOrgKey(data.orgKeya, "true");
+
+                                   }
                                 }
                             });
                         }
@@ -204,6 +276,8 @@ function getNewOrgKey(inputValue, inputErr) {
     document.getElementById('orgkeyrequest').style.display =  'block';
     document.getElementById('timecard-summary').style.display =  'none';
     document.getElementById('help-text').style.display =  'none';
+    document.getElementById('welcome-intro').style.display =  'none';
+    document.getElementById('version-intro').style.display =  'none';
 
     document.getElementById('orgkey').value = inputValue;
 
@@ -219,19 +293,43 @@ function getNewOrgKey(inputValue, inputErr) {
 function updateOrgKey() {
     //Let's make sure it is valid
     if (document.getElementById("orgkey").value.length > 0) {
-        loadConfig(document.getElementById("orgkey").value + ".json", function(response) { 
-            //See if it was bogus
-            if (response == null || typeof response === 'undefined' || response.length <= 0) {
-                //BogusM
-                orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
-            }
-            else {
-                //All good
-                chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
-                window.location.reload(false); 
-                //loadKeyAndOrg();
-            }
-        });
+        if (blnRemoteConfig)  {
+            var configURL = orgKeyLocation + document.getElementById("orgkey").value + ".json";
+            getConfig("keyLocation", "update", configURL,  function(err, response) {
+                if (err != null) {
+                    //BogusM
+                    orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
+                }
+                else {
+                    if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                        //BogusM
+                        orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
+                    }
+                    else {
+                        //All good
+                        chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
+                        window.location.reload(false); 
+                        //loadKeyAndOrg();             
+                    }
+                }
+            });
+        }
+        else {
+            loadConfig(document.getElementById("orgkey").value + ".json", function(response) { 
+                //See if it was bogus
+                if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                    //BogusM
+                    orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
+                }
+                else {
+                    //All good
+                    chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
+                    window.location.reload(false); 
+                    //loadKeyAndOrg();
+                }
+            });
+        }
+
     }
     else {
         //org key cannot be empty
@@ -307,6 +405,8 @@ function showTimeCardSummary() {
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'block';
     document.getElementById('help-text').style.display =  'none';
+    document.getElementById('welcome-intro').style.display =  'none';
+    document.getElementById('version-intro').style.display =  'none';
 
     //Load our name
     document.getElementById('timecard-summary-name').innerHTML = userToRun.name;
@@ -566,14 +666,12 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //And make the page inactive
     togglePageBusy(true);
 
-    //initialize our Jira API object
-    var JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
-
     //Log where we are at
     console.log("Alvis Time: API Endpoint: " + config.orgJiraBaseURI + config.orgJiraAPIExtension);
 
-    //Clear out our array/display in case this is a re-post
-    
+    //Setup our JIRA object
+    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
+
     //Set up UI Element for Close Button
     document.getElementById('closeLink').href = "nowhere";
     document.getElementById('closeLink').onclick = closeit;
@@ -612,6 +710,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
+        document.getElementById('welcome-intro').style.display =  'none';
+        document.getElementById('version-intro').style.display =  'none';
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -626,6 +726,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         document.getElementById('orgkeyrequest').style.display =  'none';
         document.getElementById('timecard-summary').style.display =  'none';
         document.getElementById('help-text').style.display =  'none';
+        document.getElementById('welcome-intro').style.display =  'none';
+        document.getElementById('version-intro').style.display =  'none';
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -661,1497 +763,1500 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     JIRA.getUser()
         .then(onUserSuccess, onUserError);
 
-    /****************
-    Fetch for user was Successful -
-    ****************/
-    function onUserSuccess(response) {
+}
 
-        var retrievedUserId = "";
+/****************
+Fetch for user was Successful -
+****************/
+function onUserSuccess(response) {
 
-        //Report out we have a user
-        if (response.accountId) {
-            retrievedUserId = response.accountId;
+    var retrievedUserId = "";
+
+    //Report out we have a user
+    if (response.accountId) {
+        retrievedUserId = response.accountId;
+    }
+    else {
+        if (response.name) {
+            retrievedUserId = response.name;
         }
         else {
-            if (response.name) {
-                retrievedUserId = response.name;
-            }
-            else {
-                if (response.key) {
-                    retrievedUserId = response.key;  
-                }
+            if (response.key) {
+                retrievedUserId = response.key;  
             }
         }
+    }
 
-        var userOptions;  //This will hold the selection list of users to chane between, if we are an admin
+    var userOptions;  //This will hold the selection list of users to chane between, if we are an admin
 
-        //This contains multipe workgroups, figure out which one the user is in
-        for (var w=0;w<config.workgroups.length;w++) {
-            for(var u=0;u<config.workgroups[w].users.length;u++) {
-                
-                //Set our internal valules
-                config.workgroups[w].users[u].timecardHours = 0;
-                config.workgroups[w].users[u].timecardStatusColor = 'black';
+    //This contains multipe workgroups, figure out which one the user is in
+    for (var w=0;w<config.workgroups.length;w++) {
+        for(var u=0;u<config.workgroups[w].users.length;u++) {
+            
+            //Set our internal valules
+            config.workgroups[w].users[u].timecardHours = 0;
+            config.workgroups[w].users[u].timecardStatusColor = 'black';
 
-                //See if we found our user account    
-                if (config.workgroups[w].users[u].userid == retrievedUserId) {
-                    //We have a user match - what to do if in multiple work groups?
-                    if (typeof workgroup === 'undefined') {
-                        workgroup = config.workgroups[w];
-                        //What to do if user exist more than once?
-                        if (typeof user === 'undefined') {
+            //See if we found our user account    
+            if (config.workgroups[w].users[u].userid == retrievedUserId) {
+                //We have a user match - what to do if in multiple work groups?
+                if (typeof workgroup === 'undefined') {
+                    workgroup = config.workgroups[w];
+                    //What to do if user exist more than once?
+                    if (typeof user === 'undefined') {
 
-                            //Found our user, initialize any defaults
-                            user = workgroup.users[u];
-                            userDefaults(user);
+                        //Found our user, initialize any defaults
+                        user = workgroup.users[u];
+                        userDefaults(user);
 
-                            //Now save what user running this for, in case we switch
-                            userToRun = user;
+                        //Now save what user running this for, in case we switch
+                        userToRun = user;
 
-                        }
-                        else {
-                            //Poblem - user is duplicated in config
-                            console.log("Alvis Time: What to do? You are as multiple accounts: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + ":" + config.workgroups[w].users[u].name + " Keeping: " + workgroup.name + ":" + user.name);
-                        }
                     }
                     else {
-                        //Poblem - user in more than 1 workgroup
-                        console.log("Alvis Time: What to do? You are in multiple work groups: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + "." + config.workgroups[w].users[u].name + " Keeping: " + workgroup.name + ":" + user.name);
+                        //Poblem - user is duplicated in config
+                        console.log("Alvis Time: What to do? You are as multiple accounts: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + ":" + config.workgroups[w].users[u].name + " Keeping: " + workgroup.name + ":" + user.name);
                     }
+                }
+                else {
+                    //Poblem - user in more than 1 workgroup
+                    console.log("Alvis Time: What to do? You are in multiple work groups: " + workgroup.name + ":" + user.name + " and " + config.workgroups[w].name + "." + config.workgroups[w].users[u].name + " Keeping: " + workgroup.name + ":" + user.name);
                 }
             }
         }
- 
-        //If user does not have access, let them off EZ
-        if (typeof workgroup === 'undefined' || typeof user === 'undefined') {
-            //sorry charlie
-            alert("Sorry, you aren't set up for this app");
-            getNewOrgKey("", false);
-            return;
-            //closeit();
-        }        
+    }
 
-        console.log("Alvis Time: User:" + user.name + " - " + user.userid + " - " + user.email);
+    //If user does not have access, let them off EZ
+    if (typeof workgroup === 'undefined' || typeof user === 'undefined') {
+        //sorry charlie
+        alert("Sorry, you aren't set up for this app");
+        getNewOrgKey("", false);
+        return;
+        //closeit();
+    }        
 
-        //Setup the view
-        document.getElementById('everything').style.display =  'block';
-        document.getElementById('orgkeyrequest').style.display =  'none';
-        document.getElementById('timecard-summary').style.display =  'none';
-        document.getElementById('help-text').style.display =  'none';
-        
-        // Set week date range header in html
-        range = document.getElementById('week-dates-description');
+    console.log("Alvis Time: User:" + user.name + " - " + user.userid + " - " + user.email);
 
-        //See if we are admin 
-        if (user.role == "admin") {
-            blnAdmin = true;
+    //Setup the view
+    document.getElementById('everything').style.display =  'block';
+    document.getElementById('orgkeyrequest').style.display =  'none';
+    document.getElementById('timecard-summary').style.display =  'none';
+    document.getElementById('help-text').style.display =  'none';
+    document.getElementById('welcome-intro').style.display =  'none';
+    document.getElementById('version-intro').style.display =  'none';
+    
+    // Set week date range header in html
+    range = document.getElementById('week-dates-description');
 
-            //Admins get recent week
-            getWeek(recentOffset);
+    //See if we are admin 
+    if (user.role == "admin") {
+        blnAdmin = true;
 
-            console.log("Alvis Time: You are admin");
-        
-            if (recentUserName.length > 0) {
-                console.log("Alvis Time: Looking for recent user " + recentUserName);
-                //Change user if we saved one
-                for (var i=0;i<workgroup.users.length;i++) {
-                    if (workgroup.users[i].name == recentUserName) {
-                        console.log("Alvis Time: Loaded recent user " + recentUserName);
-                        userToRun = workgroup.users[i];
-                        userDefaults(userToRun);
-                     }
-                }
+        //Admins get recent week
+        getWeek(recentOffset);
+
+        console.log("Alvis Time: You are admin");
+    
+        if (recentUserName.length > 0) {
+            console.log("Alvis Time: Looking for recent user " + recentUserName);
+            //Change user if we saved one
+            for (var i=0;i<workgroup.users.length;i++) {
+                if (workgroup.users[i].name == recentUserName) {
+                    console.log("Alvis Time: Loaded recent user " + recentUserName);
+                    userToRun = workgroup.users[i];
+                    userDefaults(userToRun);
+                    }
             }
+        }
 
-            //Grab the time entered for each user in the workgroup
+        //Grab the time entered for each user in the workgroup
+        loadWorkgroupTimeCards();
+        
+    }
+    else {
+        getWeek();
+    } 
+
+    //Save our date title header stuff for future use
+    dateTitleHeaderSave = document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML;
+
+    //Put the dates in the columns
+    updateDateHeaders();
+
+    //And logo
+    document.getElementById('logoimage').src = config.orgLogo;        
+
+    //Close link
+    document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
+
+    //Our user timecard summary view       
+    if (blnAdmin) {
+        //Wire up the summary info button
+        document.getElementById("summary-info-image").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            toggleSummaryButton();
+
+            //Reload the list of folks and times
             loadWorkgroupTimeCards();
-            
-        }
-        else {
-            getWeek();
-        } 
 
-        //Put the dates in the columns        
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SAT_/gi, makeMMDD(firstDay));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SUN_/gi, makeMMDD(addDays(firstDay, 1)));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_MON_/gi, makeMMDD(addDays(firstDay, 2)));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_TUE_/gi, makeMMDD(addDays(firstDay, 3)));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_WED_/gi, makeMMDD(addDays(firstDay, 4)));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_THR_/gi, makeMMDD(addDays(firstDay, 5)));
-        document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_FRI_/gi, makeMMDD(lastDay));
-
-        //And logo
-        document.getElementById('logoimage').src = config.orgLogo;        
-
-        //Close link
-        document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
-
-        //Our user timecard summary view       
-        if (blnAdmin) {
-            //Wire up the summary info button
-            document.getElementById("summary-info-image").addEventListener ("click", function(){ 
-
-                //Toggle the button an value
-                toggleSummaryButton();
-
-                //Reload the list of folks and times
-                loadWorkgroupTimeCards();
-
-            }); 
-        }
-        else {
-            document.getElementById("summary-info-image").remove();
-        }
-
-        //Grab our stored classification posts, if we have them
-        if (blnAdmin) {
-            chrome.storage.local.get("postedArray", function(data) {
-                if (data) {
-                    if (data["postedArray"]) {
-                        postedClassficationArray = data["postedArray"];
-                    }
-                }
-                //Get the issues and show them off
-                processIssueGroups("intro");
-
-            });
-        }
-        else {
-            //Get the issues and show them off
-            processIssueGroups("intro");
-        }
-
-        if (!blnAdmin) 
-            document.getElementById("user-select").innerHTML = "<div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
- 
-    }
-
-    /****************
-    Fetch for user failed -
-    ****************/    
-    function onUserError(error) {
-        console.log("Alvis Time: Failed to get user:");
-        console.log(error);
-        
-        //Enable the page
-        togglePageBusy(false);
-        
-        //Put it to you window instead
-        if (error.status == 401) {
-            alert("You are not logged into Jira.  Please login to resolve");
-            notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
-            //openLink(config.orgJiraBaseURI);
-            //closeit();
-            //Load JIR URL!
-        }
-        else if (error.statusText == 'Unknown Error') {
-            alert("You are not on the network.  Please connect to the network and try again.");
-            notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
-        }
-        else {
-            //orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
-            genericResponseError(error);
-        }
-            
-
-    }
-
-    /****************
-    Change which user we are -
-    ****************/    
-    function changeuser(inputUsername) {
-        
-        for (var i=0;i<workgroup.users.length;i++) {
-            if (workgroup.users[i].name == inputUsername) {
-                userToRun = workgroup.users[i];
-                userDefaults(userToRun);
-
-                document.getElementById("user-selection").style.background = userToRun.timecardStatusColor;
-            }
-        }
-        console.log("Alvis Time: Changed to " + userToRun.name + " + " + userToRun.userid + " + " + userToRun.email);
-
-        //Set our storage for user and continue on
-        chrome.storage.local.set({"recentUserName": userToRun.name}, function () {});
-
-        //Grab our stored classification posts, if we have them
-        if (blnAdmin) {
-            postedClassficationArray = [];
-            chrome.storage.local.remove("postedArray", function() {
-                //Get the issues - need to reset everything since we changed user
-                processIssueGroups("userchange");
-            });
-        }
-        else {
-            //Get the issues - need to reset everything since we changed user
-            processIssueGroups("userchange");
-        }
-        
-
-    }
-
-    /****************
-    This does all the calling - restarts everything up
-    ****************/       
-    function processIssueGroups(inputMessageType) {
-
-        //Disable the page
-        togglePageBusy(true);
-
-        //Setup intro message
-        if (inputMessageType != "addedissue" && inputMessageType != "previousweek" && inputMessageType != "nextweek") {
-            notificationMessage(workgroup.messages.intro, "notification");
-        }
-
-        //Before we get any issues, let's start fresh and initalize everything
-        blnTimeCardStatusInitialized = false;
-        blnPageLoaded = false;
-        totalTotal = 0;
-
-        //Disable the submit button as starting point
-        //document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
-        document.getElementById("submit-image").src = "images/log-weekly-hours-to-submit.png";
-        timecardStatus = "entry";
-
-        //Clear out all of our issue grouops
-        document.getElementById('all-issue-groups-container').innerHTML = "";
-
-        //And clear the totals row      
-        if (document.getElementById("totals-issue-id"))
-           document.getElementById("totals-issue-id").parentNode.removeChild(document.getElementById("totals-issue-id"));
- 
-        //Now run each issue group query from the workgroup
-        workgroup.issueGroups.forEach(function(issueGroup) {
-
-            //Run Isssue Group quer and load the issues.
-            loadGroupIssues(issueGroup);
-
-        })
-    }
-
-    /****************
-    loadGroupIssues
-    ****************/
-    function loadGroupIssues(issueGroup) {
-
-        var myJQL = "";
-        var lookupString = "";
-
-        //See what we have for saved collspase setting for this issue group
-        var expandKeyName = issueGroup.key + "-expand";
-        chrome.storage.local.get(expandKeyName, function(data) {
-            if (data) {
-                if (data[expandKeyName]) {
-                    issueGroup.expandGroup = true;
-                }
-                else {
-                    if (data == null || typeof data === 'undefined' || data.length <= 0) {
-                        issueGroup.expandGroup = false;
-                    }
-                    else {
-                        issueGroup.expandGroup = false;
-                    }
-                }
-            }
-            else {
-                issueGroup.expandGroup = true;
-            }
-            
-            //Initialize our issue group counters
-            issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
-            issueGroup.timeTotal = 0;
-
-            // Create the query
-            myJQL = issueGroup.query;
-            myJQL = myJQL.replace(/user.name/gi, userToRun.name);
-            myJQL = myJQL.replace(/user.userid/gi, userToRun.userid);
-            myJQL = myJQL.replace(/user.email/gi, userToRun.email);
-
-            var dateToUseStart = new Date(firstDay);
-            dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
-            myJQL = myJQL.replace(/_TIMECARDSTART_/gi, ISODate(dateToUseStart));
-
-            var dateToUseEnd = new Date(lastDay);
-            dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
-            myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));          
-
-            //If for specific issues, load them here
-            if (myJQL.includes("_ISSUEKEYS_")) {
-                if (lookupIssueKeys.length > 0) {
-                    for (var i=0;i<lookupIssueKeys.length;i++) {
-                        if (lookupString.length > 0)
-                        lookupString = lookupString + ", " + lookupIssueKeys[i];
-                        else
-                        lookupString = lookupIssueKeys[i];
-                    };
-                    myJQL = myJQL.replace(/_ISSUEKEYS_/gi, lookupIssueKeys);   
-        
-                }
-                else {
-                    //No issue ids to lookup
-                    myJQL = "summary ~ alvis-time-dude";
-                }  
-            }
-
-            //Initialize our tracking elements
-            issueGroup.issuesProcessed = 0;
-            issueGroup.issuesLoaded = false;
-        
-            //Put in a limit
-            myJQL = myJQL + "&maxResults=500"
-
-            //Log the query
-            console.log("Alvis Time: Doing a query - " + issueGroup.key + " JQL:" + myJQL);
-
-            //Let run it and get the issues
-            JIRA.getIssues(myJQL, issueGroup)
-                .then(onIssueFetchSuccess, function (error) {
-     
-                    console.log("Alvis Time: Issue fetch error - ", JSON.parse(JSON.stringify(error)));
-
-                    //Show the error
-                    genericResponseError(error);
-
-                    if (error.response.errorMessages.length > 0 && error.response.errorMessages[0].includes("for field 'issueKey' is invalid.")) {
-                        //Took error, so remove most recently added issue id
-                        let popped = lookupIssueKeys.pop();
-
-                        console.log("Alvis Time: Removed - ", JSON.parse(JSON.stringify(popped)));
-
-                        //Relaod with new set
-                        loadGroupIssues(issueGroup);
-                    }
-                    else {
-                        //All done, some weird error
-                        togglePageBusy(false);
-
-                        console.log("Alvis Time: Wierd Error - ", JSON.parse(JSON.stringify(error)));
-                    }
-                });
         }); 
     }
+    else {
+        document.getElementById("summary-info-image").remove();
+    }
 
-    /****************
-    Fetch for issues was Successful -
-    ****************/
-    function onIssueFetchSuccess(responseObject) {
+    //Grab our stored classification posts, if we have them
+    if (blnAdmin) {
+        chrome.storage.local.get("postedArray", function(data) {
+            if (data) {
+                if (data["postedArray"]) {
+                    postedClassficationArray = data["postedArray"];
+                }
+            }
+            //Get the issues and show them off
+            processIssueGroups("intro");
 
-        //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+        });
+    }
+    else {
+        //Get the issues and show them off
+        processIssueGroups("intro");
+    }
 
-        //ResponseObject conatains "response" and "issuesGroup" objects - assign our retreived issues ot the issueGroup
-        responseObject.issueGroup.issues = responseObject.issues;
+    if (!blnAdmin) 
+        document.getElementById("user-select").innerHTML = "<div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
 
-        //Document how many we have
-        //console.log("Alvis Time: We are processing a # of issues: " + responseObject.issueGroup.issues.length);
+}
 
-        //Let's process each issue
-        responseObject.issueGroup.issues.forEach(function(issue) {
-
-            //Log it as awe go
-            //console.log("Alvis Time: Doing issue: " + issue.key);
-
-            //Initialize our worklogs we will be showing
-            initializeWorkLogArray(issue);
-            
-            //Initialize our tracking elements
-            issue.worklogsProcessed = 0;
-            issue.worklogsLoaded = false;
+/****************
+Fetch for user failed -
+****************/    
+function onUserError(error) {
+    console.log("Alvis Time: Failed to get user:");
+    console.log(error);
     
-            //Now get the worklogs and fill in the objects 
-            JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, responseObject.issueGroup)
-            .then(onWorklogFetchSuccess, onWorklogFetchError);
-
-            //Increment the issue done count 
-            responseObject.issueGroup.issuesProcessed++; 
-
-        });
-
-        //Set the flag saying we did this one
-        responseObject.issueGroup.issuesLoaded = true;
-
+    //Enable the page
+    togglePageBusy(false);
+    
+    //Put it to you window instead
+    if (error.status == 401) {
+        alert("You are not logged into Jira.  Please login to resolve");
+        notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
+        openLink(config.orgJiraBaseURI);
+        closeit();
+        //Load JIR URL!
     }
-
-    /****************
-    Got Worklog Successfully -
-    ****************/    
-    function onWorklogFetchSuccess(responseObject) {
-
-        var dayIndex;
-        var blnDone = true;
-        var blnShowIt = false;
-        var cleanupWorklog;
-
-        //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
-        responseObject.issue.worklogs = responseObject.worklogs;
-
-        //Process each worklogs?  Or just store them to be used yet?
-        responseObject.issue.worklogs.forEach(function (worklog) {
-
-            //We only want the worklogs with a comment wnd it is tagged for this user
-            blnShowIt = false;
-
-             if (typeof worklog.comment != "undefined") {
-                if (worklog.comment.includes(userToRun.userid + "|")) {
-                    blnShowIt = true;
-                } else if (worklog.comment.includes("|entry") || worklog.comment.includes("|submitted") || worklog.comment.includes("|approved")) {
-                    blnShowIt = false; //Includes somoeone elsess mark
-                } else if (worklog.author.name == userToRun.userid) {
-                    console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
-                    //Entered manually, so add entry comment
-                    updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
-                    blnShowIt = true;
-                } 
-                else {
-                    //onsole.log("AJH TEST: " + worklog.author.key + " VS " + userToRun.userid);
-                }
-            } else if (worklog.author.name == userToRun.userid) {
-                console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
-                //Entered manually, so add entry comment
-                updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
-                blnShowIt = true;
-            }
-
-            if (blnShowIt) {
-
-                //Now lets process our worklog - filter date range and user id from comments
-                var myTimeLogDateStarted = new Date(worklog.started);
-
-                //Now convert to CT for compare
-                if (myTimeLogDateStarted.getTimezoneOffset() == 300) {
-                    //Central time - leave it
-                }
-                else {
-                    //Diff time zone - convert for comparison
-                    myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
-                }
-                //console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
-
-                ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
-                if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
-
-                    //OK, we have match user and date - do something with it
-                    //Determined what bucket it goes in SAT-FRI
-                    //Translate the day of the week starting Monday vs Saturday
-                    switch(myTimeLogDateStarted.getDay()) {
-                        case 6: //Saturday
-                            dayIndex = 0
-                            break;
-                        case 0: //Sunday
-                            dayIndex = 1;
-                            break;
-                        case 1: //Monday
-                            dayIndex = 2;
-                            break;
-                        case 2: //Tuesday
-                            dayIndex = 3;
-                            break;
-                        case 3: //Wednesday
-                            dayIndex = 4;
-                            break;
-                        case 4: //Thursday
-                            dayIndex = 5;
-                            break;
-                        case 5: //Friday
-                            dayIndex = 6;
-                            break;
-                        default:
-                    }
-                    
-                    //IF we have MULTIPLE entires for same person, same, ticket, same date...clean them up.  Let's have one
-                    if (responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent > 0) {
-
-                        //We have multipel per day, so add hours and update latest tix
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + (worklog.timeSpentSeconds / 3600);
-                        
-                        //Add to our cleanup array - will hold these and clean up at the end
-                        addToCleanup(responseObject.issue.id, responseObject.issue.worklogDisplayObjects[dayIndex].worklogId, responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
-                        addToCleanup(responseObject.issue.id, worklog.id, worklog.comment, 0, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
-
-                    }
-                     else {
-                        //OK, lets load it into our display objects for this issue -what to do if dups?
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogId = worklog.id;
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted = worklog.started;
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment = worklog.comment;
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600;
-                        responseObject.issue.worklogDisplayObjects[dayIndex].worklogDayOfWeek = dayIndex;
-                    }
-
-
-
-                    //Add to our issue, issue group, day and total totals
-                    responseObject.issue.issueTotalTime = responseObject.issue.issueTotalTime + (worklog.timeSpentSeconds / 3600);
-                    responseObject.issueGroup.dayTotals[dayIndex] = responseObject.issueGroup.dayTotals[dayIndex] +  (worklog.timeSpentSeconds / 3600);
-                    responseObject.issueGroup.timeTotal = responseObject.issueGroup.timeTotal + (worklog.timeSpentSeconds / 3600);
-                    totalTotal = totalTotal + (worklog.timeSpentSeconds / 3600);
-
-                }
-            }              
-             
-            //Increment out tracker
-            responseObject.issue.worklogsProcessed++;
-
-        })
-
-        //Keep track that we loaded em
-        responseObject.issue.worklogsLoaded = true;
-
-        //Now lets see if we are done - go thru all issues groups and issues, issues processed = total for the issue group and worklogs processeed = total for each issue
-        workgroup.issueGroups.forEach(function(issueGroup) {
-            //For each work group, did we process the issues?
-            if (issueGroup.issuesLoaded) {
-                if (issueGroup.issuesProcessed == issueGroup.issues.length) {
-                    //We have processed all the issues - lets check worklogs
-                    issueGroup.issues.forEach(function(issue) {
-                        //For each issue, did we process it and get the worklogs?
-                        if (issue.worklogsLoaded) {
-                            if (issue.worklogsProcessed == issue.worklogs.length) {
-                                //This one all done
-                            }
-                            else {
-                                //Not done yet - not done with worklogs
-                                blnDone = false;
-                            }
-                        }
-                        else {
-                            //Not done yet - not started with worklogs
-                            blnDone = false;
-                        }
-                    })
-                }
-                else {
-                    //Not done yet - not done with issues
-                    blnDone = false;    
-                }
-            }
-            else {
-                //blnDone done yet - not started with issues
-                blnDone = false;
-            }
-
-        })
-
-        //See if we are done
-        if (blnDone) {
-            //All done loading stuff.  Now let's do any cleanup
-            doTimecardCleanup();
-            //We are done gathering all of our data. Now lets build out our UI.
-            if (!blnPageLoaded) {
-                //Keeping track 
-                blnPageLoaded = true;
-                
-                //Show the page
-                timecardPageLoad(); //This will load all of the data to the page
-            } 
-        }
+    else if (error.statusText == 'Unknown Error') {
+        alert("You are not on the network.  Please connect to the network and try again.");
+        notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
+        closeit();
     }
-
-    /****************
-    convertToCentralTime -
-    ****************/ 
-    function addToCleanup(worklogIssueId, worklogId, worklogComment, worklogTimeSpent, worklogTimeStarted) {
-      
-        var blnFound = false;
-
-        //First, see if we already have this worklogId in the array
-        worklogCleanupArray.forEach(function(cleanupWorklog) {
-
-            if (cleanupWorklog.id == worklogId) {
-                if (!cleanupWorklog.processed) {
-                    //Got one
-                    cleanupWorklog.timeSpent = worklogTimeSpent;
-                    console.log("AJH CLEANUP LOG ALREADY EXISTS - DOING UPDATE FOR " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
-                }
-                blnFound = true;
-            }
-        });      
-
-        //If not found, add it to the array
-        if (!blnFound) {
-            //Add to our cleanup array
-            var cleanupWorklog = {
-                issueId: worklogIssueId,
-                id: worklogId,
-                comment: worklogComment,
-                timeSpent: worklogTimeSpent,
-                started: worklogTimeStarted, 
-                processed: false                      
-            }
-            worklogCleanupArray.push(cleanupWorklog);
-            console.log("AJH ADDED ENTRY TO CLEANUP " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
-        }
-
-    }
-
-    /****************
-    Time Card cleanup -
-    ****************/ 
-    function doTimecardCleanup() {
-
-        //Let's process each issue
-        worklogCleanupArray.forEach(function(cleanupLog, index, object) {
-
-            if (!cleanupLog.processed) {
-
-                //Now we will clean out the entry from the array       
-                cleanupLog.processed = true;
-                console.log("Alvis Time: Processed cleanup for a worklog", JSON.parse(JSON.stringify(cleanupLog)));
-
-                //Call JIRA to update the comment
-                if (true) {
-                    JIRA.updateWorklog(cleanupLog.issueId, cleanupLog.id, cleanupLog.comment, cleanupLog.timeSpent, cleanupLog.started)
-                    .then(function(data) {
-                        //Success
-                        notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, cleanupLog.issueId).replace(/_WORKLOG_/gi, cleanupLog.id), "notification");
-        
-                    }, function(error) {
-                        //Failure
-                        genericResponseError(error);
-                    });
-                }
-
-            }
-
-        });
-
-    }
-
-
-
-    /****************
-    convertToCentralTime -
-    ****************/ 
-    function convertToCentralTime(inputTimeStarted) {
-
-        var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000);
-        var offset = inputTimeStarted.getTimezoneOffset() / 60;
-        var newTime = new Date(utc + (3600000*offset));
-
-        return newTime;
-
-    }
-
-    /****************
-    Got Worklog Failed -
-    ****************/    
-    function onWorklogFetchError(error) {
-        // hide loading inspite the error
-        loader.style.display = 'none';
+    else {
+        //orgKeyMessage("Enter a valid organization key. " + inputValue + " is not valid", "error")
         genericResponseError(error);
     }
+        
 
-    /****************
-    Update the WorkLog Comment
-    ****************/    
-    function updateWorklogComment(worklog, inputComment) {
-        console.log("Alvis Time: Updating comment to " + inputComment, JSON.parse(JSON.stringify(worklog)));
+}
 
-        if (worklog.comment.length > 0) {
-            worklog.comment = worklog.comment + "\r\n" + inputComment;
+/****************
+Change which user we are -
+****************/    
+function changeuser(inputUsername) {
+    
+    for (var i=0;i<workgroup.users.length;i++) {
+        if (workgroup.users[i].name == inputUsername) {
+            userToRun = workgroup.users[i];
+            userDefaults(userToRun);
+
+            document.getElementById("user-selection").style.background = userToRun.timecardStatusColor;
         }
-        else {
-            worklog.comment = inputComment;
-        }
+    }
+    console.log("Alvis Time: Changed to " + userToRun.name + " + " + userToRun.userid + " + " + userToRun.email);
 
-        //Call JIRA to update the comment
-        JIRA.updateWorklog(worklog.issueId, worklog.id, worklog.comment, worklog.timeSpent, worklog.started)
-        .then(function(data) {
-            //Success
-            notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, worklog.issueId).replace(/_WORKLOG_/gi, worklog.id), "notification");
-        }, function(error) {
-            //Failure
-            genericResponseError(error);
+    //Set our storage for user and continue on
+    chrome.storage.local.set({"recentUserName": userToRun.name}, function () {});
+
+    //Grab our stored classification posts, if we have them
+    if (blnAdmin) {
+        postedClassficationArray = [];
+        chrome.storage.local.remove("postedArray", function() {
+            //Get the issues - need to reset everything since we changed user
+            processIssueGroups("userchange");
         });
-        console.log("Alvis Time: Updated it! ");
+    }
+    else {
+        //Get the issues - need to reset everything since we changed user
+        processIssueGroups("userchange");
+    }
+    
 
+}
+
+/****************
+This does all the calling - restarts everything up
+****************/       
+function processIssueGroups(inputMessageType) {
+
+    //Disable the page
+    togglePageBusy(true);
+
+    //Setup intro message
+    if (inputMessageType != "addedissue" && inputMessageType != "previousweek" && inputMessageType != "nextweek") {
+        notificationMessage(workgroup.messages.intro, "notification");
     }
 
-    /****************
-    loadWorkgroupTimeCards
-    ****************/
-   function loadWorkgroupTimeCards() {
+    //Before we get any issues, let's start fresh and initalize everything
+    blnTimeCardStatusInitialized = false;
+    blnPageLoaded = false;
+    totalTotal = 0;
 
-        var myJQL = "";
-        var myUserQUery = "";
+    //Disable the submit button as starting point
+    //document.getElementById("submit-button").innerHTML = '<img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" />';
+    document.getElementById("submit-image").src = "images/log-weekly-hours-to-submit.png";
+    timecardStatus = "entry";
 
-        //Initialize our tracker to know when done
-        tcIssueCountTracker = 0;
+    //Clear out all of our issue grouops
+    document.getElementById('all-issue-groups-container').innerHTML = "";
 
-        // Create the query
-        myJQL = workgroup.workgroupTimeCardQuery;
+    //And clear the totals row      
+    if (document.getElementById("totals-issue-id"))
+        document.getElementById("totals-issue-id").parentNode.removeChild(document.getElementById("totals-issue-id"));
 
-        //Build users selection list
-        for (var u=0; u < workgroup.users.length; u++) {
-            workgroup.users[u].timecardHours = 0;
-            workgroup.users[u].timecardStatusColor = "black";
-            if (myUserQUery.length > 0) {
-                myUserQUery = myUserQUery + " OR worklogComment ~ '" + workgroup.users[u].userid + "|'"
+    //Now run each issue group query from the workgroup
+    workgroup.issueGroups.forEach(function(issueGroup) {
+
+        //Run Isssue Group quer and load the issues.
+        loadGroupIssues(issueGroup);
+
+    })
+}
+
+/****************
+loadGroupIssues
+****************/
+function loadGroupIssues(issueGroup) {
+
+    var myJQL = "";
+    var lookupString = "";
+
+    //See what we have for saved collspase setting for this issue group
+    var expandKeyName = issueGroup.key + "-expand";
+    chrome.storage.local.get(expandKeyName, function(data) {
+        if (data) {
+            if (data[expandKeyName]) {
+                issueGroup.expandGroup = true;
             }
             else {
-                myUserQUery = "worklogComment ~ '" + workgroup.users[u].userid + "|'"
+                if (data == null || typeof data === 'undefined' || data.length <= 0) {
+                    issueGroup.expandGroup = false;
+                }
+                else {
+                    issueGroup.expandGroup = false;
+                }
             }
-        }       
-
-        //Starting fresh
-        doUserSelect();
-
-        //Only do this break out of people and time card status if it is enabled
-        if (!blnDoUserTimecardSummaryView) {
-            return false;
         }
+        else {
+            issueGroup.expandGroup = true;
+        }
+        
+        //Initialize our issue group counters
+        issueGroup.dayTotals = [0, 0, 0, 0, 0, 0, 0];
+        issueGroup.timeTotal = 0;
+
+        // Create the query
+        myJQL = issueGroup.query;
+        myJQL = myJQL.replace(/user.name/gi, userToRun.name);
+        myJQL = myJQL.replace(/user.userid/gi, userToRun.userid);
+        myJQL = myJQL.replace(/user.email/gi, userToRun.email);
+
+        var dateToUseStart = new Date(firstDay);
+        dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
+        myJQL = myJQL.replace(/_TIMECARDSTART_/gi, ISODate(dateToUseStart));
 
         var dateToUseEnd = new Date(lastDay);
-        dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);    
+        dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
+        myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));          
 
-        myJQL = myJQL.replace(/_BEGINDATE_/gi, ISODate(firstDay));
-        myJQL = myJQL.replace(/_ENDDATE_/gi, ISODate(dateToUseEnd)); //Anythign before the day after end date
-        myJQL = myJQL.replace(/_WORKLOGUSERQUERY_/gi, myUserQUery);
+        //If for specific issues, load them here
+        if (myJQL.includes("_ISSUEKEYS_")) {
+            if (lookupIssueKeys.length > 0) {
+                for (var i=0;i<lookupIssueKeys.length;i++) {
+                    if (lookupString.length > 0)
+                    lookupString = lookupString + ", " + lookupIssueKeys[i];
+                    else
+                    lookupString = lookupIssueKeys[i];
+                };
+                myJQL = myJQL.replace(/_ISSUEKEYS_/gi, lookupIssueKeys);   
+    
+            }
+            else {
+                //No issue ids to lookup
+                myJQL = "summary ~ alvis-time-dude";
+            }  
+        }
+
+        //Initialize our tracking elements
+        issueGroup.issuesProcessed = 0;
+        issueGroup.issuesLoaded = false;
+    
+        //Put in a limit
         myJQL = myJQL + "&maxResults=500"
 
         //Log the query
-        console.log("Alvis Time: Doing a query for timecards - " + myJQL);
+        console.log("Alvis Time: Doing a query - " + issueGroup.key + " JQL:" + myJQL);
 
         //Let run it and get the issues
-        JIRA.getTimeCardIssues(myJQL)
-            .then(onTimecardIssueFetchSuccess, function (error) {
-
+        JIRA.getIssues(myJQL, issueGroup)
+            .then(onIssueFetchSuccess, function (error) {
+    
                 console.log("Alvis Time: Issue fetch error - ", JSON.parse(JSON.stringify(error)));
 
                 //Show the error
                 genericResponseError(error);
 
-                //All done, some weird error
-                togglePageBusy(false);            
-        });
-    }
+                if (error.response.errorMessages.length > 0 && error.response.errorMessages[0].includes("for field 'issueKey' is invalid.")) {
+                    //Took error, so remove most recently added issue id
+                    let popped = lookupIssueKeys.pop();
 
+                    console.log("Alvis Time: Removed - ", JSON.parse(JSON.stringify(popped)));
 
-    /****************
-    Fetch for timecard issues was Successful -
-    ****************/
-    function onTimecardIssueFetchSuccess(responseObject) {
+                    //Relaod with new set
+                    loadGroupIssues(issueGroup);
+                }
+                else {
+                    //All done, some weird error
+                    togglePageBusy(false);
 
-        //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+                    console.log("Alvis Time: Wierd Error - ", JSON.parse(JSON.stringify(error)));
+                }
+            });
+    }); 
+}
 
-        //Document how many we have
-        //console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
+/****************
+Fetch for issues was Successful -
+****************/
+function onIssueFetchSuccess(responseObject) {
 
-        //Hang onto issue count so we know we are done
-        tcIssueCount = responseObject.issues.length;
+    //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
 
-        //Let's process each issue
-        responseObject.issues.forEach(function(issue) {
+    //ResponseObject conatains "response" and "issuesGroup" objects - assign our retreived issues ot the issueGroup
+    responseObject.issueGroup.issues = responseObject.issues;
 
-            //Log it as awe go
-            console.log("Alvis Time: Doing timecard issue: " + issue.key);
+    //Document how many we have
+    //console.log("Alvis Time: We are processing a # of issues: " + responseObject.issueGroup.issues.length);
 
-            //Initialize our tracking elements
-            issue.worklogsProcessed = 0;
-            issue.worklogsLoaded = false;
+    //Let's process each issue
+    responseObject.issueGroup.issues.forEach(function(issue) {
 
-           
+        //Log it as awe go
+        //console.log("Alvis Time: Doing issue: " + issue.key);
 
-            //Now get the worklogs and fill in the objects 
-            JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, {})
-            .then(onTimecardWorklogFetchSuccess, onTimecardWorklogFetchError);
+        //Initialize our worklogs we will be showing
+        initializeWorkLogArray(issue);
+        
+        //Initialize our tracking elements
+        issue.worklogsProcessed = 0;
+        issue.worklogsLoaded = false;
 
-        });
+        //Now get the worklogs and fill in the objects 
+        JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, responseObject.issueGroup)
+        .then(onWorklogFetchSuccess, onWorklogFetchError);
 
-    }
+        //Increment the issue done count 
+        responseObject.issueGroup.issuesProcessed++; 
 
-   /****************
-    Got Worklog Successfully -
-    ****************/    
-   function onTimecardWorklogFetchSuccess(responseObject) {
+    });
 
-        //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
-        responseObject.issue.worklogs = responseObject.worklogs;
+    //Set the flag saying we did this one
+    responseObject.issueGroup.issuesLoaded = true;
 
-        //console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
+}
 
-        tcIssueCountTracker = tcIssueCountTracker + 1;
+/****************
+Got Worklog Successfully -
+****************/    
+function onWorklogFetchSuccess(responseObject) {
 
-        //Process each worklogs?  Or just store them to be used yet?
-        responseObject.issue.worklogs.forEach(function (worklog) {
+    var dayIndex;
+    var blnDone = true;
+    var blnShowIt = false;
+    var cleanupWorklog;
+
+    //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
+    responseObject.issue.worklogs = responseObject.worklogs;
+
+    //Process each worklogs?  Or just store them to be used yet?
+    responseObject.issue.worklogs.forEach(function (worklog) {
+
+        //We only want the worklogs with a comment wnd it is tagged for this user
+        blnShowIt = false;
+
+            if (typeof worklog.comment != "undefined") {
+            if (worklog.comment.includes(userToRun.userid + "|")) {
+                blnShowIt = true;
+            } else if (worklog.comment.includes("|entry") || worklog.comment.includes("|submitted") || worklog.comment.includes("|approved")) {
+                blnShowIt = false; //Includes somoeone elsess mark
+            } else if (worklog.author.name == userToRun.userid) {
+                console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
+                //Entered manually, so add entry comment
+                updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
+                blnShowIt = true;
+            } 
+            else {
+                //onsole.log("AJH TEST: " + worklog.author.key + " VS " + userToRun.userid);
+            }
+        } else if (worklog.author.name == userToRun.userid) {
+            console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
+            //Entered manually, so add entry comment
+            updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
+            blnShowIt = true;
+        }
+
+        if (blnShowIt) {
 
             //Now lets process our worklog - filter date range and user id from comments
             var myTimeLogDateStarted = new Date(worklog.started);
 
+            //Now convert to CT for compare
+            if (myTimeLogDateStarted.getTimezoneOffset() == 300) {
+                //Central time - leave it
+            }
+            else {
+                //Diff time zone - convert for comparison
+                myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
+            }
+            //console.log("AJH COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
+
+            ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
             if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
 
-                //Build users selection list
-                for (var u=0; u < workgroup.users.length; u++) {
-                    if (worklog.comment.includes(workgroup.users[u].userid + "|")) {
-                        //It is for this user and it si for this week, add it up
-                        workgroup.users[u].timecardHours = workgroup.users[u].timecardHours + (worklog.timeSpentSeconds / 3600);
-                        console.log("Alvis Time: Timecard entry added to user " + workgroup.users[u].userid + " = " + workgroup.users[u].timecardHours);
-
-                        //And do status
-                        if (worklog.comment.includes("|submitted")) {
-                            //Submitted = red
-                            workgroup.users[u].timecardStatusColor = "red";
-                        }
-                        if (worklog.comment.includes("|approved")) {
-                            //Approved = green
-                            workgroup.users[u].timecardStatusColor = "green";
-                        }
-                    }
+                //OK, we have match user and date - do something with it
+                //Determined what bucket it goes in SAT-FRI
+                //Translate the day of the week starting Monday vs Saturday
+                switch(myTimeLogDateStarted.getDay()) {
+                    case 6: //Saturday
+                        dayIndex = 0
+                        break;
+                    case 0: //Sunday
+                        dayIndex = 1;
+                        break;
+                    case 1: //Monday
+                        dayIndex = 2;
+                        break;
+                    case 2: //Tuesday
+                        dayIndex = 3;
+                        break;
+                    case 3: //Wednesday
+                        dayIndex = 4;
+                        break;
+                    case 4: //Thursday
+                        dayIndex = 5;
+                        break;
+                    case 5: //Friday
+                        dayIndex = 6;
+                        break;
+                    default:
                 }
-             }
-        })
-
-        if (tcIssueCountTracker == tcIssueCount) {
-            //Done - Build users selection list
-            doUserSelect();
-        }
-    }
-
-    /****************
-    Got Worklog Failed -
-    ****************/    
-    function onTimecardWorklogFetchError(error) {
-        // hide loading inspite the error
-        loader.style.display = 'none';
-        genericResponseError(error);
-    }
-
-    /****************
-    doUserSelect -
-    ****************/    
-    function doUserSelect() {
-
-        var userOptions = "";
-        var saveColor = "black";
-        var hoursDisplay = "";
-        for (var u=0; u < workgroup.users.length; u++) {
-
-            if (workgroup.users[u].timecardHours > 0)
-                hoursDisplay = " (" + workgroup.users[u].timecardHours  + ")";
-            else 
-                hoursDisplay = "";
-
-            if (workgroup.users[u].name == userToRun.name) {
-                userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' selected value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
-                saveColor = workgroup.users[u].timecardStatusColor;
-            }
-            else {
-                userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
-
-            }
-         } // Black = Entry/Nothing, Red = Submitted, Green = Approved,            
-    
-    
-        document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
-        document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
- 
-    }     
-
-
-
-    /****************
-    Time Card Page - laods up the page with all the data -
-    ****************/    
-    function timecardPageLoad() {
-
-        //Just in case we haven't done this yet
-        togglePageBusy(true);
-
-        //For each issue group, for each issue, for each work log
-        workgroup.issueGroups.forEach(function(issueGroup, issueGroupIndex) {
-
-            //Draw the issue group - it is the dropdown sub-grouping
-            drawIssueGroupTable(issueGroup, issueGroupIndex);
-
-            //If our lookup group, save it
-            if (issueGroup.key == "lookup") {
-                lookupIssueGroup = issueGroup;
-                lookupIssueGroupIndex = issueGroupIndex;
-            }
-
-        })
-        
-        //Now have to do the total row
-        var row = generateTotalsRow(workgroup.issueGroups);
-
-        //And add it to our issue group table
-        document.getElementById("total-issue-group-table").appendChild(row);   
-
-        //Wire up the issue search button
-        document.getElementById("issue-search").addEventListener ("click", event => {
-   
-            //Expand group, if not already expanded
-            if (!lookupIssueGroup.expandGroup) {
-                lookupIssueGroup.expandGroup = true;
-                document.getElementById(lookupIssueGroup.key + "-details").open = lookupIssueGroup.expandGroup;
-            }
-
-            //Setup our storage keys to save the collapse setting for this group
-            var expandKeyName = lookupIssueGroup.key + "-expand";
-            var expandKeyObj = {};
-            expandKeyObj[expandKeyName] = document.getElementById(lookupIssueGroup.key + "-details").open;
-            chrome.storage.local.set(expandKeyObj, function () {
-                lookupIssueGroup.expandGroup = document.getElementById(lookupIssueGroup.key + "-details").open;
-            });
-
-
-            //Stop event from propogating up
-            event.stopPropagation();
-            event.preventDefault();
-
-            //See if we already have it
-            if (issueExists(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value)) {
-                //already have it           
-                notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " already exists", "error"); 
-                //Clear out input field
-                document.getElementById("issue-id").value = "";
-            }
-            else {
-                //Do not have it, so add it to our list
-                lookupIssueKeys.push(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value);
-
-                //Already have it message     
-                notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " added to list", "alert"); 
-
-                //Added an issue to our set, so reset everything
-                processIssueGroups("addedissue");
-
-            }
-
-            return false;
-
-        });
-
-
-        //Setup our button
-        setButtonStatus();
-     
-        //Enable the page
-        togglePageBusy(false);
-
-        //If we recent page is summary, go to it
-        if (recentPage == "timecard-summary")
-            showTimeCardSummary();
-
-    }
-
-    /****************
-    Find issue in our issue Groups - and put focus there
-    ****************/
-    function issueExists(inputIssueKey) {
-
-        var blnResponse = false;
-        var locationKey;
-
-        //Go thru each issue group, each issue and find it
-        for (var g=0;g<workgroup.issueGroups.length;g++) {
-            for (var i=0;i<workgroup.issueGroups[g].issues.length;i++) {
-                //See if this issue matches
-                if (workgroup.issueGroups[g].issues[i].key == inputIssueKey) {
-                    //we have a match
-                    locationKey = workgroup.issueGroups[g].key + "+" + g + "+" + workgroup.issueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
-                    //alert("LOCATION KEY IS: " + locationKey);
-                   
-                    //Expand if not already expanded
-                    if (!workgroup.issueGroups[g].expandGroup) {
-                        workgroup.issueGroups[g].expandGroup = true;
-                        document.getElementById(workgroup.issueGroups[g].key + "-details").open = workgroup.issueGroups[g].expandGroup;
-                    }
-                    document.getElementById(locationKey).focus(); 
-                    document.getElementById(locationKey).select();
-
-                    blnResponse = true;
-                    return blnResponse;
-                }
-            }
-        };
-
-        return blnResponse;
-
-    }
-
-
-    /****************
-    Set Button Status based on our data
-    ****************/    
-    function setButtonStatus() {
-
-        //And set our button as well as enabling input - log hours, submit, submitted, approved. Need 1) Total hours 2) Status of all issues
-        switch (timecardStatus) {
-            case "approved":
-                document.getElementById("submit-image").src = "images/approved.png";
-                document.getElementById("submit-image").className = "disabled-image";
-                document.getElementById('reject-button').style.display = 'none';
-                setWorklogEnabled(false);
-                break;
-            case "submitted":
-                if (blnAdmin) {
-                    document.getElementById("submit-image").src = "images/click-to-approve.png";
-                    document.getElementById("submit-image").className = "enabled-image";
-                    setWorklogEnabled(true);
-
-                    //And we weill need a reject - which reverst back to entry (pre-submitted)
-                    document.getElementById('reject-button').style.display = 'block';
-                    document.getElementById("reject-button").className = "enabled-image";
-                }
-                else {
-                    document.getElementById("submit-image").src = "images/submitted-for-approval.png";
-                    document.getElementById("submit-image").className = "disabled-image";
-                    document.getElementById('reject-button').style.display = 'none';
-                    setWorklogEnabled(false);
-                }
-                break;
-            default: //same as "entry" and "submit-for-approval"
-                if (totalTotal >= userToRun.minHoursToSubmit) {
-                    document.getElementById("submit-image").src = "images/submit-for-approval.png";
-                    document.getElementById("submit-image").className = "enabled-image";
-                    document.getElementById('reject-button').style.display = 'none';
-                    timecardStatus = "submit-for-approval";
-                    setWorklogEnabled(true);
-                }
-                else {
-                    document.getElementById("submit-image").src = "images/log-weekly-hours-to-submit.png";
-                    document.getElementById("submit-image").className = "disabled-image";
-                    document.getElementById('reject-button').style.display = 'none';
-                    timecardStatus = "entry";
-                    setWorklogEnabled(true);
-                }
-                break;
-        }
-    }
-
-
-    /****************
-    Initialize the Work Log array wew will be showing for a given issue
-    ****************/    
-    function initializeWorkLogArray(issue) {
-
-        //Reset our worklog display objects array
-
-        issue.worklogDisplayObjects = [];
-        issue.issueTotalTime = 0;
-
-        //Load and initialize the worklog objects, one for each day of the week for this issue
-        for (var j = 0; j < 7; j++) {
-        
-            //We want to do this for the days of the week, so dayDay + j
-            var nextDay = new Date(firstDay); //This should be the selected weeks view Saturday - shwihc is FirstDay 
-            nextDay.setDate(nextDay.getDate() + j);
-            var startOfTheDay = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), 0, 0, 0, 0);
-
-            //This is our worklogDisplayObject
-            var worklogDisplayObect = {
-                "worklogIssueId": issue.id,
-                "worklogId": 0,
-                "worklogTimeStarted": startOfTheDay,
-                "worklogTimeSpent": 0,
-                "worklogComment": userToRun.userid + "|" + userToRun.email + "|entry",  //We are using comment to hold person's users ID + email address who logged for + entry/submitted/approved status - new entries are "entry' status
-                "worklogDayOfWeek": ""
-            }
-
-            //Now add the entry to the issue object
-            issue.worklogDisplayObjects.push(worklogDisplayObect);
-
-        }
-    }         
-
-
-    /****************
-    Value change handler - when update happens, post it back to Jira
-    ****************/   
-    function postWorklogTimeChange(worklogChangeItem) {
-
-        var blnValid = true;  //Boolean to hold validity flag for the entry
-  
-        //Reset if any error message was set
-        notificationMessage(workgroup.messages.waiting, "notification");
-
-        //Lets disable the page
-        togglePageBusy(true);
-
-        //Info stored in the id for group, issue, etc.
-        var idParts = worklogChangeItem.id.split("+");
-        var issueGroupKey = idParts[0];
-        var issueGroupIndex = idParts[1];
-        var issueId = idParts[2];
-        var issueIndex = idParts[3];
-        var workLogIndex = idParts[4];
-
-        var issueGroupObject = workgroup.issueGroups[issueGroupIndex];
-        var issueObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex];
-        var workLogObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex];
-
-        var worklogDisplayObject = {
-            "worklogIssueId": issueObject.id,
-            "worklogId": 0,
-            "worklogTimeStarted": workLogObject.worklogTimeStarted,
-            "worklogTimeSpent": 0,
-            "worklogComment": workLogObject.worklogComment, 
-            "worklogDayOfWeek": workLogIndex
-        }       
-
-        //Validate it first
-        if (worklogChangeItem.value.length <= 0) {
-            worklogChangeItem.value = 0;
-        }
-        
-        if (isNaN(worklogChangeItem.value)) {
-            blnValid = false; //Not a number
-            notificationMessage(workgroup.messages.hoursNumeric, "error");
-        }
-        else if (!Number.isInteger(worklogChangeItem.value * 4)) {
-            blnValid = false; //Not a 15 minute increment .25,.5.75
-            notificationMessage(workgroup.messages.hoursIncrements, "error");
-        }
-        else if (worklogChangeItem.value > 16) {
-            blnValid = false; //Really? 16 hours a day should be enough
-            notificationMessage(workgroup.messages.hoursTooMany, "error");
-        }
-        else if (worklogChangeItem.value < 0) {
-            blnValid = false; //Sorry Charlie - no negatives
-            notificationMessage(workgroup.messages.hoursPositive, "error");
-        }
-       else if (workLogObject.worklogTimeSpent == worklogChangeItem.value) {
-            blnValid = false; //No change so skip it
-            togglePageBusy(false);
-           return;
-        }
-
-        if (blnValid) {
-
-            //turn it blue as we are updating it...
-            worklogChangeItem.style.color = "#0000ff";
-
-            //Here we post the update
-            JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, worklogChangeItem.value, getStartedTime(workLogObject.worklogTimeStarted))
-                .then(function(responseWorklogObject) {
-                //Success
-                notificationMessage(workgroup.messages.hoursChangeSuccess.replace(/_TIMEBEGIN_/gi, workLogObject.worklogTimeStarted).replace(/_TIMEENTRY_/gi, worklogChangeItem.value), "notification");
-
-                //If we have 0 hours, this worklog was deleted
-                if (worklogChangeItem.value == 0) {
-                    if (responseWorklogObject == null) {
-                        //Empty as we deleted it
-                        worklogDisplayObject.worklogIssueId = issueObject.id;
-                        worklogDisplayObject.worklogId = 0;
-                        worklogDisplayObject.worklogTimeStarted = workLogObject.worklogTimeStarted;
-                        worklogDisplayObject.worklogTimeSpent = 0;
-                        worklogDisplayObject.worklogComment = workLogObject.worklogComment;
-                        worklogDisplayObject.worklogDayOfWeek = workLogIndex;
-                    }
-                    else {
-                        worklogDisplayObject.worklogIssueId = issueObject.id;
-                        worklogDisplayObject.worklogId = responseWorklogObject.id;
-                        worklogDisplayObject.worklogTimeStarted = responseWorklogObject.started;
-                        worklogDisplayObject.worklogTimeSpent = responseWorklogObject.timeSpentSeconds / 3600;
-                        worklogDisplayObject.worklogComment = responseWorklogObject.comment;
-                        worklogDisplayObject.worklogDayOfWeek = workLogIndex;
-                    }
-                }
-                else {
-                    if (responseWorklogObject == null) {
-                        worklogDisplayObject.worklogIssueId = issueObject.id;
-                        worklogDisplayObject.worklogId = 0;
-                        worklogDisplayObject.worklogTimeStarted = workLogObject.worklogTimeStarted;
-                        worklogDisplayObject.worklogTimeSpent = 0;
-                        worklogDisplayObject.worklogComment = workLogObject.worklogComment;
-                        worklogDisplayObject.worklogDayOfWeek = workLogIndex;
-                    }
-                    else {
-                        worklogDisplayObject.worklogIssueId = issueObject.id;
-                        worklogDisplayObject.worklogId = responseWorklogObject.id;
-                        worklogDisplayObject.worklogTimeStarted = responseWorklogObject.started;
-                        worklogDisplayObject.worklogTimeSpent = responseWorklogObject.timeSpentSeconds / 3600;
-                        worklogDisplayObject.worklogComment = responseWorklogObject.comment;
-                        worklogDisplayObject.worklogDayOfWeek = workLogIndex;
-                    }    
-                }
-
-                //Update our objects collection with the new worklog entry
-                workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex] = worklogDisplayObject;
-
-                //Update our totals by how much we changed = timespent/seconds
-                var deltaTimeSpent = worklogDisplayObject.worklogTimeSpent - workLogObject.worklogTimeSpent;
-                issueObject.issueTotalTime = issueObject.issueTotalTime + deltaTimeSpent;
-                issueGroupObject.dayTotals[workLogIndex] = issueGroupObject.dayTotals[workLogIndex] + deltaTimeSpent;
-                issueGroupObject.timeTotal = issueGroupObject.timeTotal + deltaTimeSpent;
-                totalTotal = totalTotal + deltaTimeSpent;
-
-                 //And the display values issue Total
-                document.getElementById(issueGroupKey + "+" + issueId + "+total").innerText = issueObject.issueTotalTime; 
                 
-                //Day totals
-                document.getElementById("total-total+" + workLogIndex).value = Number(document.getElementById("total-total+" + workLogIndex).value) + deltaTimeSpent;
+                //IF we have MULTIPLE entires for same person, same, ticket, same date...clean them up.  Let's have one
+                if (responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent > 0) {
 
-                 //Total-Total - Turn green/red if nwe changed over/under 40
-                document.getElementById("total+total+total").innerText = totalTotal;
-                if (totalTotal >= userToRun.minHoursToSubmit)
-                    document.getElementById("total+total+total").style.backgroundColor = "green";
-                else
-                    document.getElementById("total+total+total").style.backgroundColor = "red"; 
- 
-                //Gotta update issue group messages
-                workgroup.issueGroups.forEach(function(issueGroup) {
-                    //Issue Group totals
-                    if (issueGroup.timeTotal > 0) {
-                        var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
-                        if (issueGroupPercentage >= issueGroup.minPercentage) {
-                            //Hit threshhold, leave it grean
-                            document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
+                    //We have multipel per day, so add hours and update latest tix
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + (worklog.timeSpentSeconds / 3600);
+                    
+                    //Add to our cleanup array - will hold these and clean up at the end
+                    addToCleanup(responseObject.issue.id, responseObject.issue.worklogDisplayObjects[dayIndex].worklogId, responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
+                    addToCleanup(responseObject.issue.id, worklog.id, worklog.comment, 0, responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted);
+
+                }
+                    else {
+                    //OK, lets load it into our display objects for this issue -what to do if dups?
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogId = worklog.id;
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeStarted = worklog.started;
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogComment = worklog.comment;
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogTimeSpent = worklog.timeSpentSeconds / 3600;
+                    responseObject.issue.worklogDisplayObjects[dayIndex].worklogDayOfWeek = dayIndex;
+                }
+
+
+
+                //Add to our issue, issue group, day and total totals
+                responseObject.issue.issueTotalTime = responseObject.issue.issueTotalTime + (worklog.timeSpentSeconds / 3600);
+                responseObject.issueGroup.dayTotals[dayIndex] = responseObject.issueGroup.dayTotals[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                responseObject.issueGroup.timeTotal = responseObject.issueGroup.timeTotal + (worklog.timeSpentSeconds / 3600);
+                totalTotal = totalTotal + (worklog.timeSpentSeconds / 3600);
+
+            }
+        }              
+            
+        //Increment out tracker
+        responseObject.issue.worklogsProcessed++;
+
+    })
+
+    //Keep track that we loaded em
+    responseObject.issue.worklogsLoaded = true;
+
+    //Now lets see if we are done - go thru all issues groups and issues, issues processed = total for the issue group and worklogs processeed = total for each issue
+    workgroup.issueGroups.forEach(function(issueGroup) {
+        //For each work group, did we process the issues?
+        if (issueGroup.issuesLoaded) {
+            if (issueGroup.issuesProcessed == issueGroup.issues.length) {
+                //We have processed all the issues - lets check worklogs
+                issueGroup.issues.forEach(function(issue) {
+                    //For each issue, did we process it and get the worklogs?
+                    if (issue.worklogsLoaded) {
+                        if (issue.worklogsProcessed == issue.worklogs.length) {
+                            //This one all done
                         }
                         else {
-                            //Did not hit threshhold, make it red
-                            document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
-                            document.getElementById(issueGroup.key + "-issue-group-message").style.color="red";
+                            //Not done yet - not done with worklogs
+                            blnDone = false;
                         }
                     }
-                    else
-                        document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + 0 + "%";
+                    else {
+                        //Not done yet - not started with worklogs
+                        blnDone = false;
+                    }
                 })
+            }
+            else {
+                //Not done yet - not done with issues
+                blnDone = false;    
+            }
+        }
+        else {
+            //blnDone done yet - not started with issues
+            blnDone = false;
+        }
 
-                //Get latest remaining estimate
-                JIRA.getRemainingEstimate(issueId)
-                .then(function(responseObject) {
-                    //Success, update remaining estimate value
-                    var remainingEstimate = responseObject.fields.timetracking.remainingEstimate;
-                    remainingEstimate = remainingEstimate.replace("h", "");
-                    document.getElementById(issueGroupKey + "+" + issueGroupIndex + "+" + issueId + "+" + issueIndex + "+remest").value = remainingEstimate;
+    })
+
+    //See if we are done
+    if (blnDone) {
+        //All done loading stuff.  Now let's do any cleanup
+        doTimecardCleanup();
+        //We are done gathering all of our data. Now lets build out our UI.
+        if (!blnPageLoaded) {
+            //Keeping track 
+            blnPageLoaded = true;
+            
+            //Show the page
+            timecardPageLoad(); //This will load all of the data to the page
+        } 
+    }
+}
+
+/****************
+convertToCentralTime -
+****************/ 
+function addToCleanup(worklogIssueId, worklogId, worklogComment, worklogTimeSpent, worklogTimeStarted) {
+    
+    var blnFound = false;
+
+    //First, see if we already have this worklogId in the array
+    worklogCleanupArray.forEach(function(cleanupWorklog) {
+
+        if (cleanupWorklog.id == worklogId) {
+            if (!cleanupWorklog.processed) {
+                //Got one
+                cleanupWorklog.timeSpent = worklogTimeSpent;
+                console.log("AJH CLEANUP LOG ALREADY EXISTS - DOING UPDATE FOR " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
+            }
+            blnFound = true;
+        }
+    });      
+
+    //If not found, add it to the array
+    if (!blnFound) {
+        //Add to our cleanup array
+        var cleanupWorklog = {
+            issueId: worklogIssueId,
+            id: worklogId,
+            comment: worklogComment,
+            timeSpent: worklogTimeSpent,
+            started: worklogTimeStarted, 
+            processed: false                      
+        }
+        worklogCleanupArray.push(cleanupWorklog);
+        console.log("AJH ADDED ENTRY TO CLEANUP " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
+    }
+
+}
+
+/****************
+Time Card cleanup -
+****************/ 
+function doTimecardCleanup() {
+
+    //Let's process each issue
+    worklogCleanupArray.forEach(function(cleanupLog, index, object) {
+
+        if (!cleanupLog.processed) {
+
+            //Now we will clean out the entry from the array       
+            cleanupLog.processed = true;
+            console.log("Alvis Time: Processed cleanup for a worklog", JSON.parse(JSON.stringify(cleanupLog)));
+
+            //Call JIRA to update the comment
+            if (true) {
+                JIRA.updateWorklog(cleanupLog.issueId, cleanupLog.id, cleanupLog.comment, cleanupLog.timeSpent, cleanupLog.started)
+                .then(function(data) {
+                    //Success
+                    notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, cleanupLog.issueId).replace(/_WORKLOG_/gi, cleanupLog.id), "notification");
+    
                 }, function(error) {
                     //Failure
                     genericResponseError(error);
                 });
+            }
 
-                //And set our button status
-                setButtonStatus();    
+        }
 
-                //When posted successfully, turn to blue
-                worklogChangeItem.style.color = "#0000ff";
+    });
 
-             }, function(error) {
+}
+
+
+
+/****************
+convertToCentralTime -
+****************/ 
+function convertToCentralTime(inputTimeStarted) {
+
+    var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000);
+    var offset = inputTimeStarted.getTimezoneOffset() / 60;
+    var newTime = new Date(utc + (3600000*offset));
+
+    return newTime;
+
+}
+
+/****************
+Got Worklog Failed -
+****************/    
+function onWorklogFetchError(error) {
+    // hide loading inspite the error
+    loader.style.display = 'none';
+    genericResponseError(error);
+}
+
+/****************
+Update the WorkLog Comment
+****************/    
+function updateWorklogComment(worklog, inputComment) {
+    console.log("Alvis Time: Updating comment to " + inputComment, JSON.parse(JSON.stringify(worklog)));
+
+    if (worklog.comment.length > 0) {
+        worklog.comment = worklog.comment + "\r\n" + inputComment;
+    }
+    else {
+        worklog.comment = inputComment;
+    }
+
+    //Call JIRA to update the comment
+    JIRA.updateWorklog(worklog.issueId, worklog.id, worklog.comment, worklog.timeSpent, worklog.started)
+    .then(function(data) {
+        //Success
+        notificationMessage(workgroup.messages.workLogConverted.replace(/_ISSUE_/gi, worklog.issueId).replace(/_WORKLOG_/gi, worklog.id), "notification");
+    }, function(error) {
+        //Failure
+        genericResponseError(error);
+    });
+    console.log("Alvis Time: Updated it! ");
+
+}
+
+/****************
+loadWorkgroupTimeCards
+****************/
+function loadWorkgroupTimeCards() {
+
+    var myJQL = "";
+    var myUserQUery = "";
+
+    //Initialize our tracker to know when done
+    tcIssueCountTracker = 0;
+
+    // Create the query
+    myJQL = workgroup.workgroupTimeCardQuery;
+
+    //Build users selection list
+    for (var u=0; u < workgroup.users.length; u++) {
+        workgroup.users[u].timecardHours = 0;
+        workgroup.users[u].timecardStatusColor = "black";
+        if (myUserQUery.length > 0) {
+            myUserQUery = myUserQUery + " OR worklogComment ~ '" + workgroup.users[u].userid + "|'"
+        }
+        else {
+            myUserQUery = "worklogComment ~ '" + workgroup.users[u].userid + "|'"
+        }
+    }       
+
+    //Starting fresh
+    doUserSelect();
+
+    //Only do this break out of people and time card status if it is enabled
+    if (!blnDoUserTimecardSummaryView) {
+        return false;
+    }
+
+    var dateToUseEnd = new Date(lastDay);
+    dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);    
+
+    myJQL = myJQL.replace(/_BEGINDATE_/gi, ISODate(firstDay));
+    myJQL = myJQL.replace(/_ENDDATE_/gi, ISODate(dateToUseEnd)); //Anythign before the day after end date
+    myJQL = myJQL.replace(/_WORKLOGUSERQUERY_/gi, myUserQUery);
+    myJQL = myJQL + "&maxResults=500"
+
+    //Log the query
+    console.log("Alvis Time: Doing a query for timecards - " + myJQL);
+
+    //Let run it and get the issues
+    JIRA.getTimeCardIssues(myJQL)
+        .then(onTimecardIssueFetchSuccess, function (error) {
+
+            console.log("Alvis Time: Issue fetch error - ", JSON.parse(JSON.stringify(error)));
+
+            //Show the error
+            genericResponseError(error);
+
+            //All done, some weird error
+            togglePageBusy(false);            
+    });
+}
+
+
+/****************
+Fetch for timecard issues was Successful -
+****************/
+function onTimecardIssueFetchSuccess(responseObject) {
+
+    //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
+
+    //Document how many we have
+    //console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
+
+    //Hang onto issue count so we know we are done
+    tcIssueCount = responseObject.issues.length;
+
+    //Let's process each issue
+    responseObject.issues.forEach(function(issue) {
+
+        //Log it as awe go
+        console.log("Alvis Time: Doing timecard issue: " + issue.key);
+
+        //Initialize our tracking elements
+        issue.worklogsProcessed = 0;
+        issue.worklogsLoaded = false;
+
+        
+
+        //Now get the worklogs and fill in the objects 
+        JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, {})
+        .then(onTimecardWorklogFetchSuccess, onTimecardWorklogFetchError);
+
+    });
+
+}
+
+/****************
+Got Worklog Successfully -
+****************/    
+function onTimecardWorklogFetchSuccess(responseObject) {
+
+    //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
+    responseObject.issue.worklogs = responseObject.worklogs;
+
+    //console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
+
+    tcIssueCountTracker = tcIssueCountTracker + 1;
+
+    //Process each worklogs?  Or just store them to be used yet?
+    responseObject.issue.worklogs.forEach(function (worklog) {
+
+        //Now lets process our worklog - filter date range and user id from comments
+        var myTimeLogDateStarted = new Date(worklog.started);
+
+        if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
+
+            //Build users selection list
+            for (var u=0; u < workgroup.users.length; u++) {
+                if (worklog.comment.includes(workgroup.users[u].userid + "|")) {
+                    //It is for this user and it si for this week, add it up
+                    workgroup.users[u].timecardHours = workgroup.users[u].timecardHours + (worklog.timeSpentSeconds / 3600);
+                    console.log("Alvis Time: Timecard entry added to user " + workgroup.users[u].userid + " = " + workgroup.users[u].timecardHours);
+
+                    //And do status
+                    if (worklog.comment.includes("|submitted")) {
+                        //Submitted = red
+                        workgroup.users[u].timecardStatusColor = "red";
+                    }
+                    if (worklog.comment.includes("|approved")) {
+                        //Approved = green
+                        workgroup.users[u].timecardStatusColor = "green";
+                    }
+                }
+            }
+            }
+    })
+
+    if (tcIssueCountTracker == tcIssueCount) {
+        //Done - Build users selection list
+        doUserSelect();
+    }
+}
+
+/****************
+Got Worklog Failed -
+****************/    
+function onTimecardWorklogFetchError(error) {
+    // hide loading inspite the error
+    loader.style.display = 'none';
+    genericResponseError(error);
+}
+
+/****************
+doUserSelect -
+****************/    
+function doUserSelect() {
+
+    var userOptions = "";
+    var saveColor = "black";
+    var hoursDisplay = "";
+    for (var u=0; u < workgroup.users.length; u++) {
+
+        if (workgroup.users[u].timecardHours > 0)
+            hoursDisplay = " (" + workgroup.users[u].timecardHours  + ")";
+        else 
+            hoursDisplay = "";
+
+        if (workgroup.users[u].name == userToRun.name) {
+            userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' selected value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
+            saveColor = workgroup.users[u].timecardStatusColor;
+        }
+        else {
+            userOptions = userOptions + "<option style='background:" + workgroup.users[u].timecardStatusColor + ";color:white;font-weight: bold;font-size:16px' value='" + workgroup.users[u].name + "'>" + workgroup.users[u].name + hoursDisplay + "</option>";
+
+        }
+        } // Black = Entry/Nothing, Red = Submitted, Green = Approved,            
+
+
+    document.getElementById("user-select").innerHTML = "<select style='background:" + saveColor + ";color:white;font-weight: bold;font-size:16px' id='user-selection'>" + userOptions + "</select><div class='user-name-display'>&nbsp; " + workgroup.titles.welcome + " " + user.name + " - " + workgroup.name + "</div>";
+    document.getElementById("user-selection").addEventListener ("change", function(){ changeuser(this.value)});
+
+}     
+
+
+
+/****************
+Time Card Page - laods up the page with all the data -
+****************/    
+function timecardPageLoad() {
+
+    //Just in case we haven't done this yet
+    togglePageBusy(true);
+
+    //For each issue group, for each issue, for each work log
+    workgroup.issueGroups.forEach(function(issueGroup, issueGroupIndex) {
+
+        //Draw the issue group - it is the dropdown sub-grouping
+        drawIssueGroupTable(issueGroup, issueGroupIndex);
+
+        //If our lookup group, save it
+        if (issueGroup.key == "lookup") {
+            lookupIssueGroup = issueGroup;
+            lookupIssueGroupIndex = issueGroupIndex;
+        }
+
+    })
+    
+    //Now have to do the total row
+    var row = generateTotalsRow(workgroup.issueGroups);
+
+    //And add it to our issue group table
+    document.getElementById("total-issue-group-table").appendChild(row);   
+
+    //Wire up the issue search button
+    document.getElementById("issue-search").addEventListener ("click", event => {
+
+        //Expand group, if not already expanded
+        if (!lookupIssueGroup.expandGroup) {
+            lookupIssueGroup.expandGroup = true;
+            document.getElementById(lookupIssueGroup.key + "-details").open = lookupIssueGroup.expandGroup;
+        }
+
+        //Setup our storage keys to save the collapse setting for this group
+        var expandKeyName = lookupIssueGroup.key + "-expand";
+        var expandKeyObj = {};
+        expandKeyObj[expandKeyName] = document.getElementById(lookupIssueGroup.key + "-details").open;
+        chrome.storage.local.set(expandKeyObj, function () {
+            lookupIssueGroup.expandGroup = document.getElementById(lookupIssueGroup.key + "-details").open;
+        });
+
+
+        //Stop event from propogating up
+        event.stopPropagation();
+        event.preventDefault();
+
+        //See if we already have it
+        if (issueExists(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value)) {
+            //already have it           
+            notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " already exists", "error"); 
+            //Clear out input field
+            document.getElementById("issue-id").value = "";
+        }
+        else {
+            //Do not have it, so add it to our list
+            lookupIssueKeys.push(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value);
+
+            //Already have it message     
+            notificationMessage(lookupIssueGroup.JiraProjectKey + "-" + document.getElementById("issue-id").value + " added to list", "alert"); 
+
+            //Added an issue to our set, so reset everything
+            processIssueGroups("addedissue");
+
+        }
+
+        return false;
+
+    });
+
+
+    //Setup our button
+    setButtonStatus();
+    
+    //Enable the page
+    togglePageBusy(false);
+
+    //If we recent page is summary, go to it
+    if (recentPage == "timecard-summary")
+        showTimeCardSummary();
+
+}
+
+/****************
+Find issue in our issue Groups - and put focus there
+****************/
+function issueExists(inputIssueKey) {
+
+    var blnResponse = false;
+    var locationKey;
+
+    //Go thru each issue group, each issue and find it
+    for (var g=0;g<workgroup.issueGroups.length;g++) {
+        for (var i=0;i<workgroup.issueGroups[g].issues.length;i++) {
+            //See if this issue matches
+            if (workgroup.issueGroups[g].issues[i].key == inputIssueKey) {
+                //we have a match
+                locationKey = workgroup.issueGroups[g].key + "+" + g + "+" + workgroup.issueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
+                //alert("LOCATION KEY IS: " + locationKey);
+                
+                //Expand if not already expanded
+                if (!workgroup.issueGroups[g].expandGroup) {
+                    workgroup.issueGroups[g].expandGroup = true;
+                    document.getElementById(workgroup.issueGroups[g].key + "-details").open = workgroup.issueGroups[g].expandGroup;
+                }
+                document.getElementById(locationKey).focus(); 
+                document.getElementById(locationKey).select();
+
+                blnResponse = true;
+                return blnResponse;
+            }
+        }
+    };
+
+    return blnResponse;
+
+}
+
+
+/****************
+Set Button Status based on our data
+****************/    
+function setButtonStatus() {
+
+    //And set our button as well as enabling input - log hours, submit, submitted, approved. Need 1) Total hours 2) Status of all issues
+    switch (timecardStatus) {
+        case "approved":
+            document.getElementById("submit-image").src = "images/approved.png";
+            document.getElementById("submit-image").className = "disabled-image";
+            document.getElementById('reject-button').style.display = 'none';
+            setWorklogEnabled(false);
+            break;
+        case "submitted":
+            if (blnAdmin) {
+                document.getElementById("submit-image").src = "images/click-to-approve.png";
+                document.getElementById("submit-image").className = "enabled-image";
+                setWorklogEnabled(true);
+
+                //And we weill need a reject - which reverst back to entry (pre-submitted)
+                document.getElementById('reject-button').style.display = 'block';
+                document.getElementById("reject-button").className = "enabled-image";
+            }
+            else {
+                document.getElementById("submit-image").src = "images/submitted-for-approval.png";
+                document.getElementById("submit-image").className = "disabled-image";
+                document.getElementById('reject-button').style.display = 'none';
+                setWorklogEnabled(false);
+            }
+            break;
+        default: //same as "entry" and "submit-for-approval"
+            if (totalTotal >= userToRun.minHoursToSubmit) {
+                document.getElementById("submit-image").src = "images/submit-for-approval.png";
+                document.getElementById("submit-image").className = "enabled-image";
+                document.getElementById('reject-button').style.display = 'none';
+                timecardStatus = "submit-for-approval";
+                setWorklogEnabled(true);
+            }
+            else {
+                document.getElementById("submit-image").src = "images/log-weekly-hours-to-submit.png";
+                document.getElementById("submit-image").className = "disabled-image";
+                document.getElementById('reject-button').style.display = 'none';
+                timecardStatus = "entry";
+                setWorklogEnabled(true);
+            }
+            break;
+    }
+}
+
+
+/****************
+Initialize the Work Log array wew will be showing for a given issue
+****************/    
+function initializeWorkLogArray(issue) {
+
+    //Reset our worklog display objects array
+
+    issue.worklogDisplayObjects = [];
+    issue.issueTotalTime = 0;
+
+    //Load and initialize the worklog objects, one for each day of the week for this issue
+    for (var j = 0; j < 7; j++) {
+    
+        //We want to do this for the days of the week, so dayDay + j
+        var nextDay = new Date(firstDay); //This should be the selected weeks view Saturday - shwihc is FirstDay 
+        nextDay.setDate(nextDay.getDate() + j);
+        var startOfTheDay = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), 0, 0, 0, 0);
+
+        //This is our worklogDisplayObject
+        var worklogDisplayObect = {
+            "worklogIssueId": issue.id,
+            "worklogId": 0,
+            "worklogTimeStarted": startOfTheDay,
+            "worklogTimeSpent": 0,
+            "worklogComment": userToRun.userid + "|" + userToRun.email + "|entry",  //We are using comment to hold person's users ID + email address who logged for + entry/submitted/approved status - new entries are "entry' status
+            "worklogDayOfWeek": ""
+        }
+
+        //Now add the entry to the issue object
+        issue.worklogDisplayObjects.push(worklogDisplayObect);
+
+    }
+}         
+
+
+/****************
+Value change handler - when update happens, post it back to Jira
+****************/   
+function postWorklogTimeChange(worklogChangeItem) {
+
+    var blnValid = true;  //Boolean to hold validity flag for the entry
+
+    //Reset if any error message was set
+    notificationMessage(workgroup.messages.waiting, "notification");
+
+    //Lets disable the page
+    togglePageBusy(true);
+
+    //Info stored in the id for group, issue, etc.
+    var idParts = worklogChangeItem.id.split("+");
+    var issueGroupKey = idParts[0];
+    var issueGroupIndex = idParts[1];
+    var issueId = idParts[2];
+    var issueIndex = idParts[3];
+    var workLogIndex = idParts[4];
+
+    var issueGroupObject = workgroup.issueGroups[issueGroupIndex];
+    var issueObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex];
+    var workLogObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex];
+
+    var worklogDisplayObject = {
+        "worklogIssueId": issueObject.id,
+        "worklogId": 0,
+        "worklogTimeStarted": workLogObject.worklogTimeStarted,
+        "worklogTimeSpent": 0,
+        "worklogComment": workLogObject.worklogComment, 
+        "worklogDayOfWeek": workLogIndex
+    }       
+
+    //Validate it first
+    if (worklogChangeItem.value.length <= 0) {
+        worklogChangeItem.value = 0;
+    }
+    
+    if (isNaN(worklogChangeItem.value)) {
+        blnValid = false; //Not a number
+        notificationMessage(workgroup.messages.hoursNumeric, "error");
+    }
+    else if (!Number.isInteger(worklogChangeItem.value * 4)) {
+        blnValid = false; //Not a 15 minute increment .25,.5.75
+        notificationMessage(workgroup.messages.hoursIncrements, "error");
+    }
+    else if (worklogChangeItem.value > 16) {
+        blnValid = false; //Really? 16 hours a day should be enough
+        notificationMessage(workgroup.messages.hoursTooMany, "error");
+    }
+    else if (worklogChangeItem.value < 0) {
+        blnValid = false; //Sorry Charlie - no negatives
+        notificationMessage(workgroup.messages.hoursPositive, "error");
+    }
+    else if (workLogObject.worklogTimeSpent == worklogChangeItem.value) {
+        blnValid = false; //No change so skip it
+        togglePageBusy(false);
+        return;
+    }
+
+    if (blnValid) {
+
+        //turn it blue as we are updating it...
+        worklogChangeItem.style.color = "#0000ff";
+
+        //Here we post the update
+        JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, worklogChangeItem.value, getStartedTime(workLogObject.worklogTimeStarted))
+            .then(function(responseWorklogObject) {
+            //Success
+            notificationMessage(workgroup.messages.hoursChangeSuccess.replace(/_TIMEBEGIN_/gi, workLogObject.worklogTimeStarted).replace(/_TIMEENTRY_/gi, worklogChangeItem.value), "notification");
+
+            //If we have 0 hours, this worklog was deleted
+            if (worklogChangeItem.value == 0) {
+                if (responseWorklogObject == null) {
+                    //Empty as we deleted it
+                    worklogDisplayObject.worklogIssueId = issueObject.id;
+                    worklogDisplayObject.worklogId = 0;
+                    worklogDisplayObject.worklogTimeStarted = workLogObject.worklogTimeStarted;
+                    worklogDisplayObject.worklogTimeSpent = 0;
+                    worklogDisplayObject.worklogComment = workLogObject.worklogComment;
+                    worklogDisplayObject.worklogDayOfWeek = workLogIndex;
+                }
+                else {
+                    worklogDisplayObject.worklogIssueId = issueObject.id;
+                    worklogDisplayObject.worklogId = responseWorklogObject.id;
+                    worklogDisplayObject.worklogTimeStarted = responseWorklogObject.started;
+                    worklogDisplayObject.worklogTimeSpent = responseWorklogObject.timeSpentSeconds / 3600;
+                    worklogDisplayObject.worklogComment = responseWorklogObject.comment;
+                    worklogDisplayObject.worklogDayOfWeek = workLogIndex;
+                }
+            }
+            else {
+                if (responseWorklogObject == null) {
+                    worklogDisplayObject.worklogIssueId = issueObject.id;
+                    worklogDisplayObject.worklogId = 0;
+                    worklogDisplayObject.worklogTimeStarted = workLogObject.worklogTimeStarted;
+                    worklogDisplayObject.worklogTimeSpent = 0;
+                    worklogDisplayObject.worklogComment = workLogObject.worklogComment;
+                    worklogDisplayObject.worklogDayOfWeek = workLogIndex;
+                }
+                else {
+                    worklogDisplayObject.worklogIssueId = issueObject.id;
+                    worklogDisplayObject.worklogId = responseWorklogObject.id;
+                    worklogDisplayObject.worklogTimeStarted = responseWorklogObject.started;
+                    worklogDisplayObject.worklogTimeSpent = responseWorklogObject.timeSpentSeconds / 3600;
+                    worklogDisplayObject.worklogComment = responseWorklogObject.comment;
+                    worklogDisplayObject.worklogDayOfWeek = workLogIndex;
+                }    
+            }
+
+            //Update our objects collection with the new worklog entry
+            workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex] = worklogDisplayObject;
+
+            //Update our totals by how much we changed = timespent/seconds
+            var deltaTimeSpent = worklogDisplayObject.worklogTimeSpent - workLogObject.worklogTimeSpent;
+            issueObject.issueTotalTime = issueObject.issueTotalTime + deltaTimeSpent;
+            issueGroupObject.dayTotals[workLogIndex] = issueGroupObject.dayTotals[workLogIndex] + deltaTimeSpent;
+            issueGroupObject.timeTotal = issueGroupObject.timeTotal + deltaTimeSpent;
+            totalTotal = totalTotal + deltaTimeSpent;
+
+                //And the display values issue Total
+            document.getElementById(issueGroupKey + "+" + issueId + "+total").innerText = issueObject.issueTotalTime; 
+            
+            //Day totals
+            document.getElementById("total-total+" + workLogIndex).value = Number(document.getElementById("total-total+" + workLogIndex).value) + deltaTimeSpent;
+
+                //Total-Total - Turn green/red if nwe changed over/under 40
+            document.getElementById("total+total+total").innerText = totalTotal;
+            if (totalTotal >= userToRun.minHoursToSubmit)
+                document.getElementById("total+total+total").style.backgroundColor = "green";
+            else
+                document.getElementById("total+total+total").style.backgroundColor = "red"; 
+
+            //Gotta update issue group messages
+            workgroup.issueGroups.forEach(function(issueGroup) {
+                //Issue Group totals
+                if (issueGroup.timeTotal > 0) {
+                    var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
+                    if (issueGroupPercentage >= issueGroup.minPercentage) {
+                        //Hit threshhold, leave it grean
+                        document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
+                    }
+                    else {
+                        //Did not hit threshhold, make it red
+                        document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + issueGroupPercentage + "%";
+                        document.getElementById(issueGroup.key + "-issue-group-message").style.color="red";
+                    }
+                }
+                else
+                    document.getElementById(issueGroup.key + "-issue-group-message").innerText = issueGroup.timeTotal + " hours / " + 0 + "%";
+            })
+
+            //Get latest remaining estimate
+            JIRA.getRemainingEstimate(issueId)
+            .then(function(responseObject) {
+                //Success, update remaining estimate value
+                var remainingEstimate = responseObject.fields.timetracking.remainingEstimate;
+                remainingEstimate = remainingEstimate.replace("h", "");
+                document.getElementById(issueGroupKey + "+" + issueGroupIndex + "+" + issueId + "+" + issueIndex + "+remest").value = remainingEstimate;
+            }, function(error) {
                 //Failure
                 genericResponseError(error);
             });
-            
-        }
-        else {
-            worklogChangeItem.style.color = "#ff0000";
-            worklogChangeItem.focus();
-        }
 
-       //Lets enable the page
-       togglePageBusy(false);
+            //And set our button status
+            setButtonStatus();    
 
-    }    
-
-
-    /****************
-    Pushing time card thru the process by updating all of the status on the worlogs
-    ****************/   
-    function updateWorklogStatuses(inputAction) {
-
-        //If we are already busy, get out to avoid multiple clicks
-        if (!blnInteractive)
-            return;
-
-        togglePageBusy(true);
-        
-        //If status is entry, get outta dodge
-        switch (timecardStatus) {
-            case "approved":
-                break;
-            case "submitted":
-                if (blnAdmin) {
-
-                    if (inputAction == "reject") {
-                        //Here is where we updates status to entry (rejected/revert)
-                        updateTimecardStatus("submitted", "entry");
-                    }
-                    else {
-                        //Here is where we updates status to approved
-                        updateTimecardStatus("submitted", "approved");
-                    }
-
-                    //Changed status, so reset everything
-                    processIssueGroups("worklogsubmitted");
-                }
-                break;
-            case "submit-for-approval":
-                //Here is where we updates status to submitted - for every worklog object, update status   
-                updateTimecardStatus("entry", "submitted");
-
-                //Changed status, so reset everything
-                processIssueGroups("worklogsubmitforapproval");
-
-            default: //includes "entry"
-                break;
-        }
-        
-        togglePageBusy(false);
-
-        return false;
-    }
-
-    /****************
-    Post the change for remaining estimate
-    ****************/   
-    function postRemainingEstimateChange(remainingEstimateItem, inputIssue) {
-
-        //If we are already busy, get out to avoid multiple clicks
-        if (!blnInteractive)
-            return;
-
-        togglePageBusy(true);
-        
-        //Post update for this remaining estimate
-        JIRA.updateRemainingEstimate(inputIssue.id, remainingEstimateItem.value)
-        .then(function(data) {
-            //Success
-            notificationMessage("Updated Estimate for " + inputIssue.key + " to " + remainingEstimateItem.value, "notification");
             //When posted successfully, turn to blue
-            remainingEstimateItem.style.color = "#0000ff";
+            worklogChangeItem.style.color = "#0000ff";
 
-        }, function(error) {
-            //Failure, turn to red
-            remainingEstimateItem.style.color = "#ff0000";
+            }, function(error) {
+            //Failure
             genericResponseError(error);
         });
-
-        togglePageBusy(false);
-
-        return false;
-
+        
+    }
+    else {
+        worklogChangeItem.style.color = "#ff0000";
+        worklogChangeItem.focus();
     }
 
-    /****************
-    Update the status of all of the worklogs for this time card
-    ****************/   
-    function updateTimecardStatus(fromStatus, toStatus) {
+    //Lets enable the page
+    togglePageBusy(false);
 
-        workgroup.issueGroups.forEach(function(issueGroup) {
-            issueGroup.issues.forEach(function(issue) {
-                issue.worklogDisplayObjects.forEach(function(workLogObject) {
+}    
 
-                    if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
-                        workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
-                         
-                        console.log("Alvis Time: Status update " + workLogObject.worklogIssueId + " FROM " + fromStatus + " TO " + toStatus);
 
-                        JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
-                        .then(function(data) {
-                            //Success
-                            notificationMessage(workgroup.messages.statusChangeSuccess.replace(/_FROM_/gi, fromStatus).replace(/_TO_/gi, toStatus), "notification");
+/****************
+Pushing time card thru the process by updating all of the status on the worlogs
+****************/   
+function updateWorklogStatuses(inputAction) {
 
-                        }, function(error) {
-                            //Failure
-                            genericResponseError(error);
-                        });
-                        
-                    }
-                })
-            })
-        })
-    }
+    //If we are already busy, get out to avoid multiple clicks
+    if (!blnInteractive)
+        return;
 
-    /****************
-    Set all of the worklog entry fields enabled/disabled based on status
-    ****************/  
-    function setWorklogEnabled(inputEnabled) {
+    togglePageBusy(true);
+    
+    //If status is entry, get outta dodge
+    switch (timecardStatus) {
+        case "approved":
+            break;
+        case "submitted":
+            if (blnAdmin) {
 
-        //For each worklog we have in our set, disable/enable the data entry
-        workgroup.issueGroups.forEach(function (issueGroup, issueGroupIndex) {
-            issueGroup.issues.forEach(function(issue, issueIndex) {
-                for (var w = 0; w < 7; w++) {
+                if (inputAction == "reject") {
+                    //Here is where we updates status to entry (rejected/revert)
+                    updateTimecardStatus("submitted", "entry");
+                }
+                else {
+                    //Here is where we updates status to approved
+                    updateTimecardStatus("submitted", "approved");
+                }
 
-                    var workLogEntry = document.getElementById(issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + w);
+                //Changed status, so reset everything
+                processIssueGroups("worklogsubmitted");
+            }
+            break;
+        case "submit-for-approval":
+            //Here is where we updates status to submitted - for every worklog object, update status   
+            updateTimecardStatus("entry", "submitted");
 
-                    //Weird logic here due to how the disabled property works
-                    if (workLogEntry.disabled != !inputEnabled) {
-                        workLogEntry.disabled = !inputEnabled;
-                    }
-                    else {
-                        //what?
-                    }
-                }          
-            })
-        })
+            //Changed status, so reset everything
+            processIssueGroups("worklogsubmitforapproval");
+
+        default: //includes "entry"
+            break;
     }
     
+    togglePageBusy(false);
 
-    /***************
-    HTML interaction
-    ****************/
+    return false;
+}
 
-    //Turn processing wheel on and off and disable the UI elements while we are processing
-    function togglePageBusy(blnPageBusy) {
-        
-        //Set the spinner and disable the page if busy
-        if (blnPageBusy) {
-            document.getElementById('loader-container').style.display = 'block';
-            document.getElementById('previousWeek').onclick = doNothing;
-            document.getElementById('nextWeek').onclick = doNothing;
-            document.getElementById('closeLink').onclick = doNothing;
-            blnInteractive = false;
-        }
-        else {
-            document.getElementById('loader-container').style.display = 'none';
-            document.getElementById('previousWeek').onclick = previousWeek;
-            document.getElementById('nextWeek').onclick = nextWeek;
-            document.getElementById('closeLink').onclick = closeit;
-            blnInteractive = true;
-        }
+/****************
+Post the change for remaining estimate
+****************/   
+function postRemainingEstimateChange(remainingEstimateItem, inputIssue) {
 
+    //If we are already busy, get out to avoid multiple clicks
+    if (!blnInteractive)
+        return;
+
+    togglePageBusy(true);
+    
+    //Post update for this remaining estimate
+    JIRA.updateRemainingEstimate(inputIssue.id, remainingEstimateItem.value)
+    .then(function(data) {
+        //Success
+        notificationMessage("Updated Estimate for " + inputIssue.key + " to " + remainingEstimateItem.value, "notification");
+        //When posted successfully, turn to blue
+        remainingEstimateItem.style.color = "#0000ff";
+
+    }, function(error) {
+        //Failure, turn to red
+        remainingEstimateItem.style.color = "#ff0000";
+        genericResponseError(error);
+    });
+
+    togglePageBusy(false);
+
+    return false;
+
+}
+
+/****************
+Update the status of all of the worklogs for this time card
+****************/   
+function updateTimecardStatus(fromStatus, toStatus) {
+
+    workgroup.issueGroups.forEach(function(issueGroup) {
+        issueGroup.issues.forEach(function(issue) {
+            issue.worklogDisplayObjects.forEach(function(workLogObject) {
+
+                if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
+                    workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
+                        
+                    console.log("Alvis Time: Status update " + workLogObject.worklogIssueId + " FROM " + fromStatus + " TO " + toStatus);
+
+                    JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
+                    .then(function(data) {
+                        //Success
+                        notificationMessage(workgroup.messages.statusChangeSuccess.replace(/_FROM_/gi, fromStatus).replace(/_TO_/gi, toStatus), "notification");
+
+                    }, function(error) {
+                        //Failure
+                        genericResponseError(error);
+                    });
+                    
+                }
+            })
+        })
+    })
+}
+
+/****************
+Set all of the worklog entry fields enabled/disabled based on status
+****************/  
+function setWorklogEnabled(inputEnabled) {
+
+    //For each worklog we have in our set, disable/enable the data entry
+    workgroup.issueGroups.forEach(function (issueGroup, issueGroupIndex) {
+        issueGroup.issues.forEach(function(issue, issueIndex) {
+            for (var w = 0; w < 7; w++) {
+
+                var workLogEntry = document.getElementById(issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + w);
+
+                //Weird logic here due to how the disabled property works
+                if (workLogEntry.disabled != !inputEnabled) {
+                    workLogEntry.disabled = !inputEnabled;
+                }
+                else {
+                    //what?
+                }
+            }          
+        })
+    })
+}
+
+
+/***************
+HTML interaction
+****************/
+
+//Turn processing wheel on and off and disable the UI elements while we are processing
+function togglePageBusy(blnPageBusy) {
+    
+    //Set the spinner and disable the page if busy
+    if (blnPageBusy) {
+        document.getElementById('loader-container').style.display = 'block';
+        document.getElementById('previousWeek').onclick = doNothing;
+        document.getElementById('nextWeek').onclick = doNothing;
+        document.getElementById('closeLink').onclick = doNothing;
+        blnInteractive = false;
+    }
+    else {
+        document.getElementById('loader-container').style.display = 'none';
+        document.getElementById('previousWeek').onclick = previousWeek;
+        document.getElementById('nextWeek').onclick = nextWeek;
+        document.getElementById('closeLink').onclick = closeit;
+        blnInteractive = true;
     }
 
-    //Draw our issues group - collapsable table/grid
-    function drawIssueGroupTable(issueGroup, issueGroupIndex) {
-        
-        //Array for holding unique classfiications
-        var classifications = [];
+}
 
-        //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
-        issueGroup.name = issueGroup.name.replace(/_JIRAPROJECTKEY_/gi, issueGroup.JiraProjectKey); 
-        issueGroup.name = issueGroup.name.replace(/_GOIMAGE_/gi, "<img id='issue-search' src='" + config.orgGoLogo + "' height='33' style='display: inline-block; vertical-align:middle'>");
+//Draw our issues group - collapsable table/grid
+function drawIssueGroupTable(issueGroup, issueGroupIndex) {
+    
+    //Array for holding unique classfiications
+    var classifications = [];
 
-        var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
-        myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
-        myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.issues.count/gi, issueGroup.issues.length);
+    //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
+    issueGroup.name = issueGroup.name.replace(/_JIRAPROJECTKEY_/gi, issueGroup.JiraProjectKey); 
+    issueGroup.name = issueGroup.name.replace(/_GOIMAGE_/gi, "<img id='issue-search' src='" + config.orgGoLogo + "' height='33' style='display: inline-block; vertical-align:middle'>");
 
-        //Close the expansion of the issue group, if we need to
-        if (issueGroup.expandGroup)
-            myIssueGroupHTML = myIssueGroupHTML.replace(/<details open/gi, "<details closed");
-        else
-            myIssueGroupHTML = myIssueGroupHTML.replace(/<details closed/gi, "<details open");   
+    var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
+    myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
+    myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.issues.count/gi, issueGroup.issues.length);
 
-        //And put the totals message in
-        if (totalTotal > 0) {
-            //See if we are past our minimums
-            var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
-            if (issueGroupPercentage >= issueGroup.minPercentage) {
-                //Hit threshhold, leave it grean
-                myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%");
-            }
-            else {
-                //Did not hit threshhold, make it red
-                myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, '<div style="color:red;">' + issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%</div>");
-            }
+    //Close the expansion of the issue group, if we need to
+    if (issueGroup.expandGroup)
+        myIssueGroupHTML = myIssueGroupHTML.replace(/<details open/gi, "<details closed");
+    else
+        myIssueGroupHTML = myIssueGroupHTML.replace(/<details closed/gi, "<details open");   
+
+    //And put the totals message in
+    if (totalTotal > 0) {
+        //See if we are past our minimums
+        var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
+        if (issueGroupPercentage >= issueGroup.minPercentage) {
+            //Hit threshhold, leave it grean
+            myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%");
         }
-        else
-            myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + 0 + "%");
- 
-        //Create our container for htis
-        var issueGroupDiv = buildHTML('div');
-        issueGroupDiv.innerHTML = myIssueGroupHTML;
-        document.getElementById('all-issue-groups-container').appendChild(issueGroupDiv);
+        else {
+            //Did not hit threshhold, make it red
+            myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, '<div style="color:red;">' + issueGroup.timeTotal + " hours / " + (100 * issueGroup.timeTotal / totalTotal).toFixed(0) + "%</div>");
+        }
+    }
+    else
+        myIssueGroupHTML = myIssueGroupHTML.replace(/_ISSUEGROUP_TOTALS_MESSAGE_/gi, issueGroup.timeTotal + " hours / " + 0 + "%");
 
-        //Now go thru each issue for this issue gruup and create a line item for it
-        issueGroup.issues.forEach(function(issue, issueIndex) {
+    //Create our container for htis
+    var issueGroupDiv = buildHTML('div');
+    issueGroupDiv.innerHTML = myIssueGroupHTML;
+    document.getElementById('all-issue-groups-container').appendChild(issueGroupDiv);
 
-            //For all issues, create the table row
-            var row = generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex);
+    //Now go thru each issue for this issue gruup and create a line item for it
+    issueGroup.issues.forEach(function(issue, issueIndex) {
 
-            //And add it to our issue group table
-            document.getElementById(issueGroup.key + "-issue-group-table").appendChild(row);
+        //For all issues, create the table row
+        var row = generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex);
 
-            //Override classification, if we have one
+        //And add it to our issue group table
+        document.getElementById(issueGroup.key + "-issue-group-table").appendChild(row);
+
+        //Override classification, if we have one
+        if (blnAdmin) {
             if (workgroup.settings.projectOverrides) {
                 if (workgroup.settings.projectOverrides.length > 0) {
                     workgroup.settings.projectOverrides.forEach(function (override) {
@@ -2163,593 +2268,481 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
                     });
                 }    
             }
- 
-            //Add classifcation to list, if not already there
-            if (classifications.indexOf(issue.classification) >= 0) {
-                //skip it
-            }
-            else {
-                classifications.push(issue.classification);
-            }
+        }
 
-        })
 
-        //Do our classification selection
-        if (classifications.length > 1 && issueGroup.classSelect) {
-            
-            //Setup our selection list
-            var classificationSelect = buildHTML('select', null, {
-                id: issueGroup.key + "-classification-select"
+        //Add classifcation to list, if not already there
+        if (classifications.indexOf(issue.classification) >= 0) {
+            //skip it
+        }
+        else {
+            classifications.push(issue.classification);
+        }
+
+    })
+
+    //Do our classification selection
+    if (classifications.length > 1 && issueGroup.classSelect) {
+        
+        //Setup our selection list
+        var classificationSelect = buildHTML('select', null, {
+            id: issueGroup.key + "-classification-select"
+        });
+
+        //Our first entry will be ALL entries
+        var classificationOption = buildHTML('option', "(All " + issueGroup.name + ")", {
+        }); 
+        classificationSelect.appendChild(classificationOption);
+
+        //Now do the list of our unique classifications for this issues query
+        classifications.forEach(function (classification) {
+            var classificationOption = buildHTML('option', classification, {
             });
-
-            //Our first entry will be ALL entries
-            var classificationOption = buildHTML('option', "(All " + issueGroup.name + ")", {
-            }); 
             classificationSelect.appendChild(classificationOption);
-
-            //Now do the list of our unique classifications for this issues query
-            classifications.forEach(function (classification) {
-                var classificationOption = buildHTML('option', classification, {
-                });
-                classificationSelect.appendChild(classificationOption);
-            });
-            document.getElementById(issueGroup.key + "-classification-selection").appendChild(classificationSelect);
-
-            //And handle when selection changes
-            document.getElementById(issueGroup.key + "-classification-select").addEventListener("change", function () { 
-
-                //For keeping track of how many match
-                var hitCount = 0;
-
-                //We picked one, so let filter on that value - only enable ones that match select, disable those that dont
-                issueGroup.issues.forEach(function (issue) {
-
-                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")" || document.getElementById(issueGroup.key + "-classification-select").value == issue.classification) {
-                        document.getElementById(issueGroup.key + "+" + issue.id).style.display =  '';
-                        hitCount++;
-                     }
-                    else {
-                       document.getElementById(issueGroup.key + "+" + issue.id).style.display =  'none';
-                    }
-
-                    //Update our counts
-                    if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")") {
-                        document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = issueGroup.issues.length;
-                    }
-                    else {
-                        document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = hitCount + " / " + issueGroup.issues.length;
-                    }
-
-                });
-            });
-        }   
- 
-        //Set open or closed
-        document.getElementById(issueGroup.key + "-details").open = issueGroup.expandGroup;
-
-        //Setup listeners to track our collapsing - save for re-use
-        document.getElementById(issueGroup.key + "-details").addEventListener("toggle", function () {
-
-            //Setup our storage keys to save the collapse setting for this group
-            var expandKeyName = issueGroup.key + "-expand";
-            var expandKeyObj = {};
-            expandKeyObj[expandKeyName] = document.getElementById(issueGroup.key + "-details").open;
-            chrome.storage.local.set(expandKeyObj, function () {
-                issueGroup.expandGroup = document.getElementById(issueGroup.key + "-details").open;
-            });
         });
+        document.getElementById(issueGroup.key + "-classification-selection").appendChild(classificationSelect);
 
-        //I think this does nothing - document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
-        
-    }
+        //And handle when selection changes
+        document.getElementById(issueGroup.key + "-classification-select").addEventListener("change", function () { 
 
-    //Create our issue row - part of the issueGroup
-    function generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex) {
+            //For keeping track of how many match
+            var hitCount = 0;
 
-        /********
-        Issue row - define here and add stuff to it
-        ********/
-        var row = buildHTML('tr', null, {
-            id: issueGroup.key + "+" + issue.id,
-            class: 'issueRow'
-        });
+            //We picked one, so let filter on that value - only enable ones that match select, disable those that dont
+            issueGroup.issues.forEach(function (issue) {
 
-        /************
-        Issue summary
-        ************/
+                if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")" || document.getElementById(issueGroup.key + "-classification-select").value == issue.classification) {
+                    document.getElementById(issueGroup.key + "+" + issue.id).style.display =  '';
+                    hitCount++;
+                    }
+                else {
+                    document.getElementById(issueGroup.key + "+" + issue.id).style.display =  'none';
+                }
 
-        //Setup our classification grouping
-        issue.classificationChild = "";
-        issue.classification = "";
-        if (workgroup.settings.customFieldForClassification) {
-            var customClassificationField = issue.fields[workgroup.settings.customFieldForClassification];
-            if (customClassificationField) {
-                issue.classification = customClassificationField.value;
-                if (customClassificationField.child) {
-                    issue.classificationChild = customClassificationField.child.value;
+                //Update our counts
+                if (document.getElementById(issueGroup.key + "-classification-select").value == "(All " + issueGroup.name + ")") {
+                    document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = issueGroup.issues.length;
                 }
                 else {
-                    issue.classificationChild = "";
+                    document.getElementById(issueGroup.key + "-issue-group-count").innerHTML = hitCount + " / " + issueGroup.issues.length;
                 }
+
+            });
+        });
+    }   
+
+    //Set open or closed
+    document.getElementById(issueGroup.key + "-details").open = issueGroup.expandGroup;
+
+    //Setup listeners to track our collapsing - save for re-use
+    document.getElementById(issueGroup.key + "-details").addEventListener("toggle", function () {
+
+        //Setup our storage keys to save the collapse setting for this group
+        var expandKeyName = issueGroup.key + "-expand";
+        var expandKeyObj = {};
+        expandKeyObj[expandKeyName] = document.getElementById(issueGroup.key + "-details").open;
+        chrome.storage.local.set(expandKeyObj, function () {
+            issueGroup.expandGroup = document.getElementById(issueGroup.key + "-details").open;
+        });
+    });
+
+    //I think this does nothing - document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
+    
+}
+
+//Create our issue row - part of the issueGroup
+function generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex) {
+
+    /********
+    Issue row - define here and add stuff to it
+    ********/
+    var row = buildHTML('tr', null, {
+        id: issueGroup.key + "+" + issue.id,
+        class: 'issueRow'
+    });
+
+    /************
+    Issue summary
+    ************/
+
+    //Setup our classification grouping
+    issue.classificationChild = "";
+    issue.classification = "";
+    if (workgroup.settings.customFieldForClassification) {
+        var customClassificationField = issue.fields[workgroup.settings.customFieldForClassification];
+        if (customClassificationField) {
+            issue.classification = customClassificationField.value;
+            if (customClassificationField.child) {
+                issue.classificationChild = customClassificationField.child.value;
             }
             else {
-                issue.classification = "No classification defined";
+                issue.classificationChild = "";
             }
         }
         else {
-            issue.classification = "(issues not classified)";
+            issue.classification = "No classification defined";
         }
+    }
+    else {
+        issue.classification = "(issues not classified)";
+    }
 
-        issue.classification = trim(issue.classification);
-        issue.classificationChild = trim(issue.classificationChild);
+    issue.classification = trim(issue.classification);
+    issue.classificationChild = trim(issue.classificationChild);
 
 
-        //Gotta fix our bogus classification's (for "problemes", there is none) AJH
-        if (issue.classification == "No classification defined") {
-            if (issue.fields["issuetype"].name == "Problem") { //Hardcoding for now
-                issue.classification = "10705 - LandsEnd.com Support";
-                issue.classificationChild = "19461 - Problems/Incidents"
-                console.log("Alvis Time: Reset the classifiation for " + issue.key + " = " + issue.classification + " - " + issue.classificationChild);
-            }
+    //Gotta fix our bogus classification's (for "problemes", there is none) AJH
+    if (issue.classification == "No classification defined") {
+        if (issue.fields["issuetype"].name == "Problem") { //Hardcoding for now
+            issue.classification = "10705 - LandsEnd.com Support";
+            issue.classificationChild = "19461 - Problems/Incidents"
+            console.log("Alvis Time: Reset the classifiation for " + issue.key + " = " + issue.classification + " - " + issue.classificationChild);
         }
-        else if (issue.classificationChild == "Checkout") {
-            //Problems with SN and Jira out of sync - checkout is a not a sub-project
-            issue.classificationChild = "";
+    }
+    else if (issue.classificationChild == "Checkout") {
+        //Problems with SN and Jira out of sync - checkout is a not a sub-project
+        issue.classificationChild = "";
+    }
+    
+    //Setup our remaining estimate
+    issue.remainingEstimate = "0";
+    if (workgroup.settings.remainingEstimateField) {
+        var issueRemainingEstimate = issue.fields[workgroup.settings.remainingEstimateField];
+        if (issueRemainingEstimate) {
+            issue.remainingEstimate = issueRemainingEstimate / 3600;
         }
+    }
+
+    var issueDescription;
+    var summaryCell;
+        if (issue.fields.summary == issue.fields.summary.toUpperCase()) {
+        //All upper case - skip classifiations and make it more pronounced, also skip remaining hours
+        issueDescription = "<table><tr><td class='big-summary'>" + issue.fields.summary + "</td></tr></table>"
+        summaryCell = buildHTML('td', issueDescription, {  
+        });
+        issue.remainingEstimate = "";
+    }
+    else {
+        issueDescription = "<table><tr><td class='small-summary'>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
+        summaryCell = buildHTML('td', issueDescription, {  
+            class: 'truncate'
+        });
+    }
         
-        //Setup our remaining estimate
-        issue.remainingEstimate = "0";
-        if (workgroup.settings.remainingEstimateField) {
-            var issueRemainingEstimate = issue.fields[workgroup.settings.remainingEstimateField];
-            if (issueRemainingEstimate) {
-                issue.remainingEstimate = issueRemainingEstimate / 3600;
-            }
-        }
+    //Write the Summary cell
+    row.appendChild(summaryCell);       
 
-        var issueDescription;
-        var summaryCell;
-         if (issue.fields.summary == issue.fields.summary.toUpperCase()) {
-            //All upper case - skip classifiations and make it more pronounced, also skip remaining hours
-            issueDescription = "<table><tr><td class='big-summary'>" + issue.fields.summary + "</td></tr></table>"
-            summaryCell = buildHTML('td', issueDescription, {  
-            });
-            issue.remainingEstimate = "";
-        }
-        else {
-            issueDescription = "<table><tr><td class='small-summary'>" + issue.fields.summary + "</td></tr><tr><td class='reporting-group'>" + issue.classification + "<br>" + issue.classificationChild + "</td></tr></table>"
-            summaryCell = buildHTML('td', issueDescription, {  
-                class: 'truncate'
-            });
-        }
-         
-        //Write the Summary cell
-        row.appendChild(summaryCell);       
+    /*************
+     Issue ID cell
+    *************/
+    var idCell = buildHTML('td', null, {
+        class: 'issue-id'
+    });
 
-        /*************
-         Issue ID cell
-        *************/
-        var idCell = buildHTML('td', null, {
-            class: 'issue-id'
-        });
+    var idText = document.createTextNode(issue.key);
 
-        var idText = document.createTextNode(issue.key);
+    /*********************
+    Link to the JIRA issue
+    *********************/
+    var jiraLink = buildHTML('a', null, {
+        class: "jira-issue-link"
+    });
 
-        /*********************
-        Link to the JIRA issue
-        *********************/
-        var jiraLink = buildHTML('a', null, {
-            class: "jira-issue-link"
-        });
+    jiraLink.addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
+    jiraLink.appendChild(idText);
+    idCell.appendChild(jiraLink);
+    row.appendChild(idCell);
 
-        jiraLink.addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
-        jiraLink.appendChild(idText);
-        idCell.appendChild(jiraLink);
-        row.appendChild(idCell);
+    /*********
+    Time input for the 7 Days of the Week
+    *********/
 
-        /*********
-        Time input for the 7 Days of the Week
-        *********/
+    //We have the issue and array goes Saturdy --> Friday
+    for (var i = 0; i < 7; i++) {
 
-        //We have the issue and array goes Saturdy --> Friday
-        for (var i = 0; i < 7; i++) {
+        //Rip thru each day of the week and grab the worklog object for each
 
-            //Rip thru each day of the week and grab the worklog object for each
-  
-            var timeInputDay = createWorklogCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, issue.worklogDisplayObjects[i], i);
+        var timeInputDay = createWorklogCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, issue.worklogDisplayObjects[i], i);
 
-            //Create table cell element for this worklog
-            var timeInputDayCell = buildHTML('td');
-            timeInputDayCell.appendChild(timeInputDay);
+        //Create table cell element for this worklog
+        var timeInputDayCell = buildHTML('td');
+        timeInputDayCell.appendChild(timeInputDay);
 
-            //Add to the row
-            row.appendChild(timeInputDayCell);
-        }
-
-
-        /*********
-        Time input TOTAL
-        *********/
-        var timeInputTotal = buildHTML('text', issue.issueTotalTime, {
-            class: 'issue-time-total',
-            id: issueGroup.key + "+" + issue.id + "+total"
-        });
-
-        timeInputTotal.innerText = issue.issueTotalTime;
-
-        // Total cell
-        var timeInputTotalCell = buildHTML('td');
-        timeInputTotalCell.appendChild(timeInputTotal);
-
-        //Add total tiem entry to the row
-        row.appendChild(timeInputTotalCell);
-
-        //And our remaining estimate column
-        var timeRemainingEstimate = createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, issue.worklogDisplayObjects[i], i);
-        var timeRemainingCell = buildHTML('td');
-        timeRemainingCell.appendChild(timeRemainingEstimate);
-
-        //Add remaining estimate to the row
-        row.appendChild(timeRemainingCell);
-  
-        //And our buffer
-        var varBuffer = buildHTML('text', "", {
-            innterText: ""
-        });
-        var bufferCell = buildHTML('td');
-        bufferCell.appendChild(varBuffer);
-        row.appendChild(bufferCell);
-
-        return row;
-
+        //Add to the row
+        row.appendChild(timeInputDayCell);
     }
 
 
-    //Create our issue row - part of the issueGroup
-    function generateTotalsRow(issueGroups) {
+    /*********
+    Time input TOTAL
+    *********/
+    var timeInputTotal = buildHTML('text', issue.issueTotalTime, {
+        class: 'issue-time-total',
+        id: issueGroup.key + "+" + issue.id + "+total"
+    });
 
-        //Accumulate our sum
-        var dailyTotal = [0, 0, 0, 0, 0, 0, 0];
-        var rowTotalTotal = 0;
-        
-        issueGroups.forEach(function(issueGroup) {
-            for (var d=0;d<7;d++) {
-                if (typeof dailyTotal[d] === 'undefined') {
-                    dailyTotal[d] = issueGroup.dayTotals[d];
-                }
-                else {
-                    dailyTotal[d] = dailyTotal[d] + issueGroup.dayTotals[d];
-                }
+    timeInputTotal.innerText = issue.issueTotalTime;
+
+    // Total cell
+    var timeInputTotalCell = buildHTML('td');
+    timeInputTotalCell.appendChild(timeInputTotal);
+
+    //Add total tiem entry to the row
+    row.appendChild(timeInputTotalCell);
+
+    //And our remaining estimate column
+    var timeRemainingEstimate = createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, issue.worklogDisplayObjects[i], i);
+    var timeRemainingCell = buildHTML('td');
+    timeRemainingCell.appendChild(timeRemainingEstimate);
+
+    //Add remaining estimate to the row
+    row.appendChild(timeRemainingCell);
+
+    //And our buffer
+    var varBuffer = buildHTML('text', "", {
+        innterText: ""
+    });
+    var bufferCell = buildHTML('td');
+    bufferCell.appendChild(varBuffer);
+    row.appendChild(bufferCell);
+
+    return row;
+
+}
+
+
+//Create our issue row - part of the issueGroup
+function generateTotalsRow(issueGroups) {
+
+    //Accumulate our sum
+    var dailyTotal = [0, 0, 0, 0, 0, 0, 0];
+    var rowTotalTotal = 0;
+    
+    issueGroups.forEach(function(issueGroup) {
+        for (var d=0;d<7;d++) {
+            if (typeof dailyTotal[d] === 'undefined') {
+                dailyTotal[d] = issueGroup.dayTotals[d];
             }
-            rowTotalTotal = rowTotalTotal + issueGroup.timeTotal;
-        });
-
-        //We can validate our counters all add up
-        if (rowTotalTotal != totalTotal)
-            console.log("Alvis Time: We have a validation problem")
-
-        /********
-        Totals row - define here and add stuff to it
-        ********/
-        var row = buildHTML('tr', null, {
-            'id': 'totals-issue-id'
-        });
-
-        /************
-        Empty summary
-        ************/
-        var summaryCell = buildHTML('td', "", {  
-            class: 'totals-title'
-        });
-
-        //Write the Summary cell
-        row.appendChild(summaryCell);       
-
-        /*************
-         Issue ID cell
-        *************/
-        var idCell = buildHTML('td', "Totals:", {
-            class: 'totals-title'
-        });
-
-        var idText = document.createTextNode("");
-        idCell.appendChild(idText);
-        row.appendChild(idCell);         
-
-
-        /*********
-        Time input for the 7 Days of the Week
-        *********/
-
-        //We have the issue and array goes Saturdy --> Friday
-        for (var i = 0; i < 7; i++) {
-
-            //Rip thru each day of the week
-
-            //Create the html input field for this total
-            var timeInputDay = buildHTML('input', "0", {
-                class: "day-time-total",
-                'id': "total-total+" + i,
-                disabled: true
-            });                   
-
-            //Make Saturday and Sunday gray
-            if (i < 2) {
-                timeInputDay.style.backgroundColor = "#D3D3D3";
+            else {
+                dailyTotal[d] = dailyTotal[d] + issueGroup.dayTotals[d];
             }
-
-            //Create table cell element for this worklog
-            timeInputDay.value = dailyTotal[i];
-            var timeInputDayCell = buildHTML('td');
-            timeInputDayCell.appendChild(timeInputDay);
-
-            //Add to the row
-            row.appendChild(timeInputDayCell);
         }
+        rowTotalTotal = rowTotalTotal + issueGroup.timeTotal;
+    });
+
+    //We can validate our counters all add up
+    if (rowTotalTotal != totalTotal)
+        console.log("Alvis Time: We have a validation problem")
+
+    /********
+    Totals row - define here and add stuff to it
+    ********/
+    var row = buildHTML('tr', null, {
+        'id': 'totals-issue-id'
+    });
+
+    /************
+    Empty summary
+    ************/
+    var summaryCell = buildHTML('td', "", {  
+        class: 'totals-title'
+    });
+
+    //Write the Summary cell
+    row.appendChild(summaryCell);       
+
+    /*************
+     Issue ID cell
+    *************/
+    var idCell = buildHTML('td', "Totals:", {
+        class: 'totals-title'
+    });
+
+    var idText = document.createTextNode("");
+    idCell.appendChild(idText);
+    row.appendChild(idCell);         
 
 
-        /*********
-        Time input TOTAL
-        *********/
-        
-        //Add the final total cell
-        if (rowTotalTotal > 0) {
-            var timeInputTotal = buildHTML('text', rowTotalTotal, {
-                class: 'total-time-total',
-                id: "total+total+total"
-            });
-        }
-        else {
-            var timeInputTotal = buildHTML('text', "0", {
-                class: 'total-time-total',
-                id: "total+total+total"
-            });           
-        }
+    /*********
+    Time input for the 7 Days of the Week
+    *********/
 
+    //We have the issue and array goes Saturdy --> Friday
+    for (var i = 0; i < 7; i++) {
 
-        //Set the total element to red/green if > 40 yet.
-        timeInputTotal.style.color = "white";
-        if (rowTotalTotal >= userToRun.minHoursToSubmit)
-            timeInputTotal.style.backgroundColor = "green";
-        else
-            timeInputTotal.style.backgroundColor = "red";        
+        //Rip thru each day of the week
 
-
-        // Total cell
-        var timeInputTotalCell = buildHTML('td');
-        timeInputTotalCell.appendChild(timeInputTotal);
-
-        //Add total tiem entry to the row
-        row.appendChild(timeInputTotalCell);
-        
-        //And our remaining estimate column
-        var timeRemainingEstimate = buildHTML('text', "", {
-            class: 'total-time-total',
-            id: "total+total+remaining"
-        });
-        var timeRemainingCell = buildHTML('td');
-        timeRemainingCell.appendChild(timeRemainingEstimate);
-        row.appendChild(timeRemainingCell);
-
-        //And our buffer
-        var varBuffer = buildHTML('text', "", {
-            innterText: ""
-        });
-        var bufferCell = buildHTML('td');
-        bufferCell.appendChild(varBuffer);
-        row.appendChild(bufferCell);
-
-        return row;
-
-    }
-
-    //Create the worklog cell entry
-    function createWorklogCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, inputWorklogObject, dayIndex) {
-        
-
-        //Create the html input field for this worklog
-        var timeInputDay = buildHTML('input', null, {
-            class: 'issue-time-input',
-            'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + dayIndex
-        });                
+        //Create the html input field for this total
+        var timeInputDay = buildHTML('input', "0", {
+            class: "day-time-total",
+            'id': "total-total+" + i,
+            disabled: true
+        });                   
 
         //Make Saturday and Sunday gray
-        if (dayIndex < 2) {
+        if (i < 2) {
             timeInputDay.style.backgroundColor = "#D3D3D3";
         }
 
-        //Wire up the listener to handle posts when the data changes
-        timeInputDay.addEventListener ("change", function(){ postWorklogTimeChange(this)});  
+        //Create table cell element for this worklog
+        timeInputDay.value = dailyTotal[i];
+        var timeInputDayCell = buildHTML('td');
+        timeInputDayCell.appendChild(timeInputDay);
 
-        if (typeof issue.worklogs === 'undefined') {
-            timeInputDay.value = 0;
-        }
-        else {
-            //We have right user, right day, drop it in for display
-            timeInputDay.value = inputWorklogObject.worklogTimeSpent;
+        //Add to the row
+        row.appendChild(timeInputDayCell);
+    }
 
-            //Lets take care of the worklog status
-            var worklogParts = inputWorklogObject.worklogComment.split("|");
-            var worklogUserID = worklogParts[0];
-            var worklogEmail = worklogParts[1];
-            var worklogStatus = worklogParts[2];                           
 
-            //Make sure its valid
-            if (worklogStatus == "entry" || worklogStatus == "submit-for-approval" || worklogStatus == "submitted" || worklogStatus == "approved") {
-                //We are good - as long as this is a real card
-                if (inputWorklogObject.worklogId != 0) {
+    /*********
+    Time input TOTAL
+    *********/
+    
+    //Add the final total cell
+    if (rowTotalTotal > 0) {
+        var timeInputTotal = buildHTML('text', rowTotalTotal, {
+            class: 'total-time-total',
+            id: "total+total+total"
+        });
+    }
+    else {
+        var timeInputTotal = buildHTML('text', "0", {
+            class: 'total-time-total',
+            id: "total+total+total"
+        });           
+    }
 
-                    if (!blnTimeCardStatusInitialized) {
-                        timecardStatus = worklogStatus;
-                        blnTimeCardStatusInitialized = true;
-                    }
-                    else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
-                        //We have worklogs with mixed statuses..mmmm
-                        var messageText = workgroup.messages.mixedStatuses;
-                        messageText = messageText.replace(/_ISSUE_/gi, issue.key);
-                        messageText = messageText.replace(/_WORKLOG_/gi, inputWorklogObject.worklogId);
-                        messageText = messageText.replace(/_STATUS_/gi, worklogStatus);
-                        notificationMessage(messageText, "error");
-                    }
+
+    //Set the total element to red/green if > 40 yet.
+    timeInputTotal.style.color = "white";
+    if (rowTotalTotal >= userToRun.minHoursToSubmit)
+        timeInputTotal.style.backgroundColor = "green";
+    else
+        timeInputTotal.style.backgroundColor = "red";        
+
+
+    // Total cell
+    var timeInputTotalCell = buildHTML('td');
+    timeInputTotalCell.appendChild(timeInputTotal);
+
+    //Add total tiem entry to the row
+    row.appendChild(timeInputTotalCell);
+    
+    //And our remaining estimate column
+    var timeRemainingEstimate = buildHTML('text', "", {
+        class: 'total-time-total',
+        id: "total+total+remaining"
+    });
+    var timeRemainingCell = buildHTML('td');
+    timeRemainingCell.appendChild(timeRemainingEstimate);
+    row.appendChild(timeRemainingCell);
+
+    //And our buffer
+    var varBuffer = buildHTML('text', "", {
+        innterText: ""
+    });
+    var bufferCell = buildHTML('td');
+    bufferCell.appendChild(varBuffer);
+    row.appendChild(bufferCell);
+
+    return row;
+
+}
+
+//Create the worklog cell entry
+function createWorklogCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, inputWorklogObject, dayIndex) {
+    
+
+    //Create the html input field for this worklog
+    var timeInputDay = buildHTML('input', null, {
+        class: 'issue-time-input',
+        'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+" + dayIndex
+    });                
+
+    //Make Saturday and Sunday gray
+    if (dayIndex < 2) {
+        timeInputDay.style.backgroundColor = "#D3D3D3";
+    }
+
+    //Wire up the listener to handle posts when the data changes
+    timeInputDay.addEventListener ("change", function(){ postWorklogTimeChange(this)});  
+
+    if (typeof issue.worklogs === 'undefined') {
+        timeInputDay.value = 0;
+    }
+    else {
+        //We have right user, right day, drop it in for display
+        timeInputDay.value = inputWorklogObject.worklogTimeSpent;
+
+        //Lets take care of the worklog status
+        var worklogParts = inputWorklogObject.worklogComment.split("|");
+        var worklogUserID = worklogParts[0];
+        var worklogEmail = worklogParts[1];
+        var worklogStatus = worklogParts[2];                           
+
+        //Make sure its valid
+        if (worklogStatus == "entry" || worklogStatus == "submit-for-approval" || worklogStatus == "submitted" || worklogStatus == "approved") {
+            //We are good - as long as this is a real card
+            if (inputWorklogObject.worklogId != 0) {
+
+                if (!blnTimeCardStatusInitialized) {
+                    timecardStatus = worklogStatus;
+                    blnTimeCardStatusInitialized = true;
+                }
+                else if (timecardStatus != "submit-for-approval" && timecardStatus != worklogStatus) {
+                    //We have worklogs with mixed statuses..mmmm
+                    var messageText = workgroup.messages.mixedStatuses;
+                    messageText = messageText.replace(/_ISSUE_/gi, issue.key);
+                    messageText = messageText.replace(/_WORKLOG_/gi, inputWorklogObject.worklogId);
+                    messageText = messageText.replace(/_STATUS_/gi, worklogStatus);
+                    notificationMessage(messageText, "error");
                 }
             }
         }
-
-        return timeInputDay;
-
     }
 
-    //Create the reamainging estimate cell entry
-    function createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, inputWorklogObject) {
-            
-        var remainingEstimateInput;    
-        //If we have a value, make it editable
-         if (issue.remainingEstimate) {
-            //Create the html input field for this worklog
-            remainingEstimateInput = buildHTML('input', null, {
-                class: 'issue-time-input',
-                'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
-            });                
+    return timeInputDay;
 
-            //Wire up the listener to handle posts when the data changes
-            remainingEstimateInput.addEventListener ("change", function(){ postRemainingEstimateChange(this, issue)});  
+}
 
-            remainingEstimateInput.value = issue.remainingEstimate;
-         }
-         else {
-             //Create an empty field
-            remainingEstimateInput = buildHTML('text', "", {
-                class: 'issue-time-input',
-                'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
-            });
+//Create the reamainging estimate cell entry
+function createTimeRemainingCellEntry(issueGroup, issueGroupIndex, issue, issueIndex, inputWorklogObject) {
+        
+    var remainingEstimateInput;    
+    //If we have a value, make it editable
+        if (issue.remainingEstimate) {
+        //Create the html input field for this worklog
+        remainingEstimateInput = buildHTML('input', null, {
+            class: 'issue-time-input',
+            'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
+        });                
 
-         }
+        //Wire up the listener to handle posts when the data changes
+        remainingEstimateInput.addEventListener ("change", function(){ postRemainingEstimateChange(this, issue)});  
 
-        return remainingEstimateInput;
-    }
-
-    //Open Jira ticket in a new window
-    function jiraIssuelink(inputURI) {
-
-        chrome.windows.create ({
-            url: inputURI,
-            type: "popup"
+        remainingEstimateInput.value = issue.remainingEstimate;
+        }
+        else {
+            //Create an empty field
+        remainingEstimateInput = buildHTML('text', "", {
+            class: 'issue-time-input',
+            'id': issueGroup.key + "+" + issueGroupIndex + "+" + issue.id + "+" + issueIndex + "+remest"
         });
-        //window.open(inputURI);
-        return false;
-    }
 
-    /***************
-    Week selection routines
-    ***************/
-
-    //Get the range of dates for the week, based on offset
-    function getWeek(inputOffset) {
-
-        //Get our date objects
-        today = new Date();
-
-        if (inputOffset == null || typeof inputOffset === 'undefined' || inputOffset.length <= 0) {
-            //If just loaded and today is sun/mon/tues - so default week to LAST week
-            if (today.getDay() < userToRun.daysToHangOntoPriorWeek)
-                offset = -1;
-            else
-                offset = 0; 
-        }
-        else {
-            offset = inputOffset;
         }
 
-        firstDay = new Date();
-        firstDay.setDate(firstDay.getDate() - dayOfWeekOffset + (offset * 7));
-        firstDay.setHours(0, 0, 0, 0); //This sets it to mignight morning of
-        
-        // .setDate() sets the date (1-31) of the current month.
-            // The beginning of the week is:
-            //    today's date (firstDay.getDate())
-            //    minus the day of week offset to get us back to sunday (dayOfWeekOffset)
-            //    plus the number of days we need to offset for future / past weeks (offset * 7) 
+    return remainingEstimateInput;
+}
 
-        lastDay = new Date(firstDay);
-        lastDay.setDate(lastDay.getDate() + 6);
-        lastDay.setHours(23,59,59,59); //This gets it to just before midnight, night of the last day is the first day plus 6
+//Open Jira ticket in a new window
+function jiraIssuelink(inputURI) {
 
-        //Build our date range header
-        range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
-
-        //If Monday or Tuesday AND week selected is current week Then DO WARNING - make it read
-        if (today.getDay() < userToRun.daysToHangOntoPriorWeek && offset == 0) {
-            range.innerHTML = "<div style='color:red'>" + workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay) + "</div>";
-            notificationMessage('WARNING: You may be entering time for the WRONG week.  You may want PRIOR week', "error");
-        }
-        else {
-            notificationMessage(workgroup.messages.intro, "notification");
-        }
-
-    }
-        
-    //Create nicely formatted date for use
-    function makeDateString(date) {
-        var dd = date.getDate();
-        var mm = date.getMonth() + 1;
-        var y = date.getFullYear();
-        
-        var dateString = mm + '/'+ dd + '/'+ y;
-        return dateString;
-        
-    }
-
-    function makeMMDD(date) {
-        var dd = date.getDate();
-        var mm = date.getMonth() + 1;
-        
-        var dateString = mm + '-'+ dd;
-        return dateString;      
-    }
-
-    function addDays(inputDate, inputCount) {
-        var date = new Date(inputDate);
-        date.setDate(date.getDate() + inputCount);
-        return date;
-    }
-
-    //Rotate back 1 week
-    function previousWeek() {
-
-        offset = offset - 1;
-
-        getWeek(offset);
-        
-        //Store our week for resuse and continue
-        if (blnAdmin) {
-            chrome.storage.local.set({"recentOffset": offset}, function () {});
-            loadWorkgroupTimeCards();
-        }
-        
-        //Changed the week, so reset everything
-        processIssueGroups("previousweek");
-
-        return false; //This causes the href to not get invoked
-    }
-        
-    //Rotate forward 1 week
-    function nextWeek() {
-
-        offset = offset + 1;
-
-        getWeek(offset);
-
-        //Store our week for resuse and continue
-        if (blnAdmin) {
-            chrome.storage.local.set({"recentOffset": offset}, function () {});
-            loadWorkgroupTimeCards();
-        }
-
-        //Changed the week, so reset everything
-        processIssueGroups("nextweek");
-
-        return false; //This causes the href to not get invoked
-    }
-
+    chrome.windows.create ({
+        url: inputURI,
+        type: "popup"
+    });
+    //window.open(inputURI);
+    return false;
 }
 
 
@@ -3087,6 +3080,19 @@ function doNothing() {
     return false;
 }
 
+function doVersionLink(inputObject) {
+
+    document.getElementById('version-message').innerHTML = "The upgrade is downloaded!<br><br>Unzip/extract it into your Alvis Time install location, and you are good to go.";
+    document.getElementById('version-link').innerHTML = "";
+
+    //alert("DOING IT: " + chrome.runtime.getURL('popup.js'));
+    //chrome.fileSystem.getDisplayPath(Entry entry, function(displayPath) {
+    //})
+
+    //window.close();
+    return true; //This causes the href to not get invoked
+}
+
 //Open the help window
 function openHelp(){
 
@@ -3095,6 +3101,8 @@ function openHelp(){
     document.getElementById('orgkeyrequest').style.display =  'none';
     document.getElementById('timecard-summary').style.display =  'none';
     document.getElementById('help-text').style.display =  'block';
+    document.getElementById('welcome-intro').style.display =  'none';
+    document.getElementById('version-intro').style.display =  'none';
     
     //chrome.windows.create ({
     //   url: config.orgHelpPage,
@@ -3327,23 +3335,90 @@ function loadConfig(inputFileName, callback) {
 }    
 
 //For loading JSON file remotely - download a file
-function getConfig(url, callback) {
+function getConfig(inputType, inputAction, url, callback) {
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.responseType = 'json';
     
-    xhr.onload = function() {
-    
-        var status = xhr.status;
-        if (status == 200) {
-            callback(null, xhr.response);
-        } else {
-            callback(status);
-        }
-    };
-    
-    xhr.send();
+    try {
+        console.log("GETTING CONFIG " + url);
+        var xhr = new XMLHttpRequest();
+        console.log("POS 1");
+        xhr.open('GET', url, true);
+        console.log("POS 2");        
+        xhr.responseType = 'json';
+        console.log("POS 3");
+        xhr.addEventListener("error", transferFailed);
+        xhr.onload = function() {
+            console.log("POS 4");
+            var status = xhr.status;
+            if (status == 200) {
+                //Got it, store it
+                console.log("STORING URL IS:" + url);
+                //Need to store key and the value, not just URL = 
+
+                var urlObject = {};
+                urlObject[inputType] = xhr.response;
+
+                chrome.storage.local.set(urlObject, function () {});
+                //And call back
+                callback(null, xhr.response);
+            } else {
+                if (inputAction == "update") {
+                    //Attempting to load a new org key and it didnt work, so reject..don't go back to old
+                    callback(status);
+                }
+                else {
+                    //Here we try local storage
+                    chrome.storage.local.get(inputType, function(response) {
+                        if (response) {
+                            console.log("Alvis Time: Loading URI from cache: " + url);
+                            callback(null, response.keyLocation);
+                        }
+                        else {
+                            //No dice, do error
+                            callback(status);
+                        }
+                    });
+                }
+
+            }
+        };
+        
+        xhr.send();       
+    }
+    catch(err) {
+        //Here we try local storage
+        console.log("POS 5 - TOOK BAD ERROR");
+        chrome.storage.local.get(inputType, function(response) {
+            if (response) {
+                console.log("Alvis Time: Loading URI from cache: " + url);
+                callback(null, response.keyLocation);
+            }
+            else {
+                //No dice, do error
+                callback(xhr.status);
+            }
+        });    
+    }
+
+    function transferFailed(evt) {
+        console.log("An error occurred while transferring the file.");
+
+        //Here we try local storage
+        console.log("POS 5B - TOOK BAD ERROR");
+        chrome.storage.local.get(inputType, function(response) {
+            if (response) {
+                console.log("Alvis Time: Loading URI from cache: " + url);
+                callback(null, response.keyLocation);
+            }
+            else {
+                //No dice, do error
+                callback(status);
+            }
+        }); 
+
+    }
+
+
 };
 
 //Now is time to put is back where we were - user, week, page
@@ -3377,6 +3452,17 @@ function initializeApp() {
     });
 }
 
+//Update the column headers to be the right date
+function updateDateHeaders() {
+    document.getElementById('issue-title-header').innerHTML = dateTitleHeaderSave.replace(/_SAT_/gi, makeMMDD(firstDay));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_SUN_/gi, makeMMDD(addDays(firstDay, 1)));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_MON_/gi, makeMMDD(addDays(firstDay, 2)));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_TUE_/gi, makeMMDD(addDays(firstDay, 3)));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_WED_/gi, makeMMDD(addDays(firstDay, 4)));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_THR_/gi, makeMMDD(addDays(firstDay, 5)));
+    document.getElementById('issue-title-header').innerHTML = document.getElementById('issue-title-header').innerHTML.replace(/_FRI_/gi, makeMMDD(lastDay));
+}
+
 
 //Here is the code for doing the post to Service Now
 /***************
@@ -3389,6 +3475,121 @@ function openLink(inputLink) {
     console.log("LOADING LINK: " + inputLink);
     return false;
 
+}
+
+
+/***************
+Week selection routines
+***************/
+
+//Get the range of dates for the week, based on offset
+function getWeek(inputOffset) {
+
+    //Get our date objects
+    today = new Date();
+
+    if (inputOffset == null || typeof inputOffset === 'undefined' || inputOffset.length <= 0) {
+        //If just loaded and today is sun/mon/tues - so default week to LAST week
+        if (today.getDay() < userToRun.daysToHangOntoPriorWeek)
+            offset = -1;
+        else
+            offset = 0; 
+    }
+    else {
+        offset = inputOffset;
+    }
+
+    firstDay = new Date();
+    firstDay.setDate(firstDay.getDate() - dayOfWeekOffset + (offset * 7));
+    firstDay.setHours(0, 0, 0, 0); //This sets it to mignight morning of
+    
+    // .setDate() sets the date (1-31) of the current month.
+        // The beginning of the week is:
+        //    today's date (firstDay.getDate())
+        //    minus the day of week offset to get us back to sunday (dayOfWeekOffset)
+        //    plus the number of days we need to offset for future / past weeks (offset * 7) 
+
+    lastDay = new Date(firstDay);
+    lastDay.setDate(lastDay.getDate() + 6);
+    lastDay.setHours(23,59,59,59); //This gets it to just before midnight, night of the last day is the first day plus 6
+
+    //Build our date range header
+    range.innerHTML = workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay);
+
+    //If Monday or Tuesday AND week selected is current week Then DO WARNING - make it read
+    if (today.getDay() < userToRun.daysToHangOntoPriorWeek && offset == 0) {
+        range.innerHTML = "<div style='color:red'>" + workgroup.titles.week + " " + makeDateString(firstDay) + ' - ' + makeDateString(lastDay) + "</div>";
+        notificationMessage('WARNING: You may be entering time for the WRONG week.  You may want PRIOR week', "error");
+    }
+    else {
+        notificationMessage(workgroup.messages.intro, "notification");
+    }
+
+}
+    
+//Create nicely formatted date for use
+function makeDateString(date) {
+    var dd = date.getDate();
+    var mm = date.getMonth() + 1;
+    var y = date.getFullYear();
+    
+    var dateString = mm + '/'+ dd + '/'+ y;
+    return dateString;
+    
+}
+
+function makeMMDD(date) {
+    var dd = date.getDate();
+    var mm = date.getMonth() + 1;
+    
+    var dateString = mm + '-'+ dd;
+    return dateString;      
+}
+
+function addDays(inputDate, inputCount) {
+    var date = new Date(inputDate);
+    date.setDate(date.getDate() + inputCount);
+    return date;
+}
+
+//Rotate back 1 week
+function previousWeek() {
+
+    offset = offset - 1;
+
+    getWeek(offset);
+    
+    //Store our week for resuse and continue
+    if (blnAdmin) {
+        chrome.storage.local.set({"recentOffset": offset}, function () {});
+        loadWorkgroupTimeCards();
+    }
+    
+    //Changed the week, so reset everything
+    updateDateHeaders();
+    processIssueGroups("previousweek");
+
+    return false; //This causes the href to not get invoked
+}
+    
+//Rotate forward 1 week
+function nextWeek() {
+
+    offset = offset + 1;
+
+    getWeek(offset);
+
+    //Store our week for resuse and continue
+    if (blnAdmin) {
+        chrome.storage.local.set({"recentOffset": offset}, function () {});
+        loadWorkgroupTimeCards();
+    }
+
+    //Changed the week, so reset everything
+    updateDateHeaders();
+    processIssueGroups("nextweek");
+
+    return false; //This causes the href to not get invoked
 }
 
 
@@ -3475,8 +3676,8 @@ function userDefaults(inputUser) {
 
 
 //Useful code for dealing with local storage
-// GET chrome.storage.local.get(function(result){console.log(result)})
-// DELETE chrome.storage.local.clear(function(result){console.log(result)})
+// GET: chrome.storage.local.get(function(result){console.log(result)})
+// DELETE: chrome.storage.local.clear(function(result){console.log(result)})
 
 
 

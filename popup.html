@@ -587,6 +587,17 @@
 		</style>
 	</head>
 	<body>
+		<!--Welcome and warm up -->
+		<div id="welcome-intro" class="summary-display" style="display: block;">
+				<img src="images/icon128.png">
+				<div id="welcome-spinner"><div class="loader" id="welcome-spinner"></div></div>
+		</div>
+		<!--Verusion upgrade -->
+		<div id="version-intro" class="summary-display" style="display: none;">
+			<img src="images/icon128.png">
+			<div id="version-message">_VERSION_MESSAGE_<br><br></div><div id="version-link"><a href="_VERSION_LINK_">_VERSION_NUMBER_ - Click Here</a></div><br><br>
+			<a  id="version-close" target="_blank"><img id="version-close-image" class="enabled-image" src="images/click-to-close.png" height="33" /></a>
+		</div>
 		<!--The Time card summary presentation -->
 		<div id="timecard-summary" class="summary-display" style="display: none;">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
@@ -625,7 +636,7 @@
 				<a id="helpLink-orgkey" target="_blank"><img id="help-image-orgkey" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
 			</div>
 			<div style="display: inline-block;padding:10px">
-			Greetings and welcome to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time".  
+			Greetings and welcome to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time-onsite".  
 			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by the button below also (to do yet).<br><br>
 			</div>
 			<div style="text-align:center; vertical-align:bottom;">
