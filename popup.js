@@ -9,6 +9,7 @@ var userToRun; //easy refence for who we are running this for
 //Going to manage version, just by putting into code
 var version = "2020.08.23.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
+var orgKeyLocationFile = "";
 
 //Setup for the date selection
 var range;
@@ -77,10 +78,7 @@ function onDOMContentLoaded() {
     }
 
     //Initialize the view
-    document.getElementById('everything').style.display =  'none';
-    document.getElementById('orgkeyrequest').style.display =  'none';
-    document.getElementById('timecard-summary').style.display =  'none';
-    document.getElementById('help-text').style.display =  'none';
+    showPageView('welcome-intro');
     
     //And the buttons
     document.getElementById("submit-org-key").addEventListener ("click", function(){ updateOrgKey()}); 
@@ -88,13 +86,10 @@ function onDOMContentLoaded() {
     document.getElementById("close-image-orgkey").addEventListener ("click", function(){ closeit()}); 
     document.getElementById("help-image-orgkey").addEventListener ("click", function(){ openHelp()}); 
     document.getElementById("close-image-help").addEventListener ("click", function(){ 
+
         //Setup the view
-        document.getElementById('everything').style.display =  'block';
-        document.getElementById('orgkeyrequest').style.display =  'none';
-        document.getElementById('timecard-summary').style.display =  'none';
-        document.getElementById('help-text').style.display =  'none';
-        document.getElementById('welcome-intro').style.display =  'none';
-        document.getElementById('version-intro').style.display =  'none';
+        showPageView('everything');
+
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -163,6 +158,7 @@ function loadKeyAndOrg() {
                                     if (response.orgKeyURI) {
                                         console.log("Alvis Time: We have an org key location at:" + response.orgKeyURI);
                                         //OK, lets get the Org Key configuraiton from its location
+                                        orgKeyLocationFile = response.orgKeyURI;
                                         getConfig("keyStorage", "get", response.orgKeyURI,  function(keyErr, keyResponse) {
                                             //See if it worked
                                             if (keyErr != null) {
@@ -184,12 +180,7 @@ function loadKeyAndOrg() {
                                                     if (version < config.AlvisTime.version) {
 
                                                         //Show our version upgrade emssage
-                                                        document.getElementById('everything').style.display =  'none';
-                                                        document.getElementById('orgkeyrequest').style.display =  'none';
-                                                        document.getElementById('timecard-summary').style.display =  'none';
-                                                        document.getElementById('help-text').style.display =  'none';
-                                                        document.getElementById('welcome-intro').style.display =  'none';
-                                                        document.getElementById('version-intro').style.display =  'block';
+                                                        showPageView('version-intro');
 
                                                         document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
                                                         document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
@@ -272,12 +263,7 @@ CRUD manaagement of the orgKey
 function getNewOrgKey(inputValue, inputErr) {
 
     //Setup the view
-    document.getElementById('everything').style.display =  'none';
-    document.getElementById('orgkeyrequest').style.display =  'block';
-    document.getElementById('timecard-summary').style.display =  'none';
-    document.getElementById('help-text').style.display =  'none';
-    document.getElementById('welcome-intro').style.display =  'none';
-    document.getElementById('version-intro').style.display =  'none';
+    showPageView('orgkeyrequest');
 
     document.getElementById('orgkey').value = inputValue;
 
@@ -338,8 +324,9 @@ function updateOrgKey() {
 }
 
 function setupNewOrg() {
-    alert("TO DO: Create interface to setup a new org");
-    closeit();
+    
+    showPageView("orgkeysetup");
+
 }
 
 //For sorting array of objects, this is the compare
@@ -401,12 +388,7 @@ function showTimeCardSummary() {
     console.log(postedClassficationArray);
 
     //Setup the view
-    document.getElementById('everything').style.display =  'none';
-    document.getElementById('orgkeyrequest').style.display =  'none';
-    document.getElementById('timecard-summary').style.display =  'block';
-    document.getElementById('help-text').style.display =  'none';
-    document.getElementById('welcome-intro').style.display =  'none';
-    document.getElementById('version-intro').style.display =  'none';
+    showPageView('timecard-summary');
 
     //Load our name
     document.getElementById('timecard-summary-name').innerHTML = userToRun.name;
@@ -428,6 +410,7 @@ function showTimeCardSummary() {
 
     //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
     workgroup.issueGroups.forEach(function(issueGroup) {
+        console.log("OFFSET RUNNING ISSUE GROUPS:" + issueGroup.name + " PRIORITY: " + + issueGroup.timePriority);
         issueGroup.issues.forEach(function(issue) {
             if (issue.issueTotalTime > 0) {
  
@@ -463,6 +446,8 @@ function showTimeCardSummary() {
                         "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
 
+                    console.log("OFFSET SETTING CLASS OBJECT:" + classificationObject.description + " PRIORITY: " + classificationObject.timePriority);
+                    
                     //Now add the object to the array
                     classificationArray.push(classificationObject);
 
@@ -540,7 +525,7 @@ function showTimeCardSummary() {
     //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
 
-            console.log("OFFSET: Hours to offset = " + hoursToOffset);
+            console.log("OFFSET: Hours to offset = " + hoursToOffset + " CLASSIFICIATON IS: " + classificationObject.description + " PRIORITY IS: " + classificationObject.timePriority);
 
             if (classificationObject.description == prevClassificationObject.description) {
                 //Same main class, don't show the main class name
@@ -578,7 +563,7 @@ function showTimeCardSummary() {
             document.getElementById("timecard-summary-details").appendChild(row);   
 
             //If admin, dd listener to checkbox
-            if (user.legacyPostTime) {
+            if (user.legacyPostTime && classificationObject.description != "No classification defined") {
                 document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
             }
             else {
@@ -706,12 +691,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById("summary-image").addEventListener ("click", function(){ showTimeCardSummary()}); 
     document.getElementById("close-image-summary").addEventListener ("click", function(){ 
         //Setup the view
-        document.getElementById('everything').style.display =  'block';
-        document.getElementById('orgkeyrequest').style.display =  'none';
-        document.getElementById('timecard-summary').style.display =  'none';
-        document.getElementById('help-text').style.display =  'none';
-        document.getElementById('welcome-intro').style.display =  'none';
-        document.getElementById('version-intro').style.display =  'none';
+        showPageView('everything');
+
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -722,12 +703,8 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("close-image-help").addEventListener ("click", function(){ 
         //Setup the view
-        document.getElementById('everything').style.display =  'block';
-        document.getElementById('orgkeyrequest').style.display =  'none';
-        document.getElementById('timecard-summary').style.display =  'none';
-        document.getElementById('help-text').style.display =  'none';
-        document.getElementById('welcome-intro').style.display =  'none';
-        document.getElementById('version-intro').style.display =  'none';
+        showPageView('everything');
+
         //Save our page laoded
         if (blnAdmin) {
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
@@ -838,19 +815,16 @@ function onUserSuccess(response) {
     console.log("Alvis Time: User:" + user.name + " - " + user.userid + " - " + user.email);
 
     //Setup the view
-    document.getElementById('everything').style.display =  'block';
-    document.getElementById('orgkeyrequest').style.display =  'none';
-    document.getElementById('timecard-summary').style.display =  'none';
-    document.getElementById('help-text').style.display =  'none';
-    document.getElementById('welcome-intro').style.display =  'none';
-    document.getElementById('version-intro').style.display =  'none';
-    
+    showPageView('everything');
+
     // Set week date range header in html
     range = document.getElementById('week-dates-description');
 
     //See if we are admin 
     if (user.role == "admin") {
         blnAdmin = true;
+
+        document.getElementById('orgkeylocationfile').innerHTML =  orgKeyLocationFile;
 
         //Admins get recent week
         getWeek(recentOffset);
@@ -2755,6 +2729,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     var showTotal;
     var descToDisplay;
     var hoursPercentage;
+    var imageClass;
     
     /********
     Summary row - define here and add stuff to it
@@ -2793,11 +2768,19 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         else
             descToDisplay = "(no project)"
 
-        var summaryCell = buildHTML('th', descToDisplay, {  
-            class: inputClass + '-description',
-            style: "text-align:left"
+        if (issueClassification.description == "No classification defined") {
+            var summaryCell = buildHTML('th', descToDisplay, {  
+                class: inputClass + '-description',
+                style: "text-align:left;color:red"
+            });
+        }
+        else {
+            var summaryCell = buildHTML('th', descToDisplay, {  
+                class: inputClass + '-description',
+                style: "text-align:left"
+            });
+        }
 
-        });
     }
     else if (inputType == "fill") {
         var summaryCell = buildHTML('td', "", {  
@@ -3014,9 +2997,17 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     console.log("TESTING FOR TYPE: " + inputType + " LEGACY POSTION: " + user.legacyPostTime);
     if (inputType == "detail" && user.legacyPostTime) {
 
-        if (findClassificationInPostedArray(issueClassification)) {
+        //If no classificaiton, disable the posting
+        if (issueClassification.description == "No classification defined") {
+            imageClass = "disabled-image";
+        }
+        else {
+            imageClass = "enabled-image";
+        }
+
+        if (findClassificationInPostedArray(issueClassification) || issueClassification.description == "No classification defined") {
             var classificationPostTime = buildHTML('img', "", {
-                class: "enabled-image",
+                class: imageClass,
                 src: "images/red_go_button.png",
                 height: "25px",
                 id:  issueClassification.id + "+posttime",
@@ -3025,7 +3016,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         }
         else {
             var classificationPostTime = buildHTML('img', "", {
-                class: "enabled-image",
+                class:imageClass,
                 src: "images/go_button.png",
                 height: "25px",
                 id:  issueClassification.id + "+posttime",
@@ -3046,6 +3037,9 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
 
 //Pushed button for this classification entry to post it
 function doClassificationPostTime(inputImage, inputClassificationObject) {
+
+
+    inputImage.src = "images/red_go_button.png";
 
     inputClassificationObject.legacyPostTime = true;
     postTime(inputClassificationObject);
@@ -3097,12 +3091,7 @@ function doVersionLink(inputObject) {
 function openHelp(){
 
     //Initialize the view
-    document.getElementById('everything').style.display =  'none';
-    document.getElementById('orgkeyrequest').style.display =  'none';
-    document.getElementById('timecard-summary').style.display =  'none';
-    document.getElementById('help-text').style.display =  'block';
-    document.getElementById('welcome-intro').style.display =  'none';
-    document.getElementById('version-intro').style.display =  'none';
+    showPageView('help-text'); 
     
     //chrome.windows.create ({
     //   url: config.orgHelpPage,
@@ -3175,6 +3164,21 @@ function buildHTML(tag, html, attrs) {
 
     return element;
 }
+
+//showPageView
+function showPageView(inputView) {
+
+    document.getElementById('everything').style.display =  'none';
+    document.getElementById('orgkeyrequest').style.display =  'none';
+    document.getElementById('orgkeysetup').style.display =  'none';
+    document.getElementById('timecard-summary').style.display =  'none';
+    document.getElementById('help-text').style.display =  'none';
+    document.getElementById('welcome-intro').style.display =  'none';
+    document.getElementById('version-intro').style.display =  'none';
+    document.getElementById(inputView).style.display =  'block';
+
+}
+
 
 // Simple Jira api error handling
 function genericResponseError(error) {

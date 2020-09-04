@@ -637,7 +637,7 @@
 			</div>
 			<div style="display: inline-block;padding:10px">
 			Greetings and welcome to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time-onsite".  
-			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by the button below also (to do yet).<br><br>
+			If your organization is brand new to Alvis Time, then you will need to configure it.  Do so by the button below also.<br><br>
 			</div>
 			<div style="text-align:center; vertical-align:bottom;">
 			Please enter valid organization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey" type="text" style="width: 250px;display: inline-block;">
@@ -689,6 +689,21 @@
 			<ul>
 				That's it.  Have fun with <b>Alvis Time!</b><br><br><br><br><br><br>
 			</ul>
+		</div>
+		<!--The Org Setup Presentation-->
+		<div id="orgkeysetup" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-orgkeysetup" target="_blank"><img id="close-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
+				<a id="helpLink-orgkeysetup" target="_blank"><img id="help-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+			</div>
+			<div style="display: inline-block;padding:10px">
+			We are going to setup a new Orginization Key and define its configuration parameters. Mostly this means deciding on a unique, easy to remember name and filling out values in a JSON file.<br><br>
+			</div>
+			<div style="text-align:center; vertical-align:bottom;">
+			Please enter unique name for your orgnaization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey-orgkeysetup" type="text" style="width: 250px;display: inline-block;">
+			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-orgkeysetup" src="images/submit-org-key.png" width="176" height="33" class="week-images"></a><br><br>
+			<div id="orgKeySetupMessage"></div>
+			</div>
 		</div>
 		<!--The Main Presentation-->
 		<div id="everything" style="display: none;">
@@ -794,5 +809,7 @@
 				</tr>
 			</table> 
 		</div>
+		<!--The End of Presentations-->
+		<div id="orgkeylocationfile" style="text-align: center;font-size:8px"></div>
 	</body>
 </html>
