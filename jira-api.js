@@ -21,11 +21,13 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         getUser: getUser,
         getIssue : getIssue,
         getIssues: getIssues,
+        getReportIssues: getReportIssues,
         getTimeCardIssues: getTimeCardIssues,
         getIssueWorklogs : getIssueWorklogs,
         updateWorklog : updateWorklog,
         updateRemainingEstimate : updateRemainingEstimate,
-        getRemainingEstimate : getRemainingEstimate
+        getRemainingEstimate : getRemainingEstimate,
+        sendEmail : sendEmail
     };
 
 //AJH DIFF AUTH '   function login() {
@@ -48,6 +50,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
     }
 
     function getIssue (id) {
+        console.log("TR: SENT ISSUE");
         return ajaxWrapper('/issue/' + id, {}, "getIssue", {});
     }
 
@@ -55,12 +58,26 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         //console.log("ISSUE GRUP IS: " + inputIssuesGroup.name);
         return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", inputIssuesGroup);
     }    
-
     
+    function getReportIssues (inputJQL, inputReport) {
+        return ajaxWrapper('/search?jql=' + inputJQL, {}, "getReportIssues", inputReport);
+    }   
+
     function getTimeCardIssues (inputJQL) {
         return ajaxWrapper('/search?jql=' + inputJQL, {}, "getIssues", {});
     }    
+ 
+    function sendEmail (id, emailObject) {
+        
+        var options;
 
+        options = {
+            type: "POST",
+            data: JSON.stringify(emailObject)
+        }
+
+        return ajaxWrapper('/issue/' + id + '/notify', options, "sendEmail");
+    }    
 
     function getIssueWorklogs (id, startDateInUNIXTimeFormat, inputIssue, inputIssueGroup) {
         return ajaxWrapper('/issue/' + id + '/worklog?startedAfter=' + startDateInUNIXTimeFormat, {}, "getIssueWorklogs", inputIssue, inputIssueGroup);
@@ -157,7 +174,13 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
                 if (req.status >= 200 && req.status < 400) {
                     //Based on the request, send back a stowaway object
                     switch (reqType) {
-                        case "getIssues":
+                        case "getIssue":
+                            //We have issuesGroup this query ran for, need to pass it back to the orginator
+                            //var responseObject = {response: req.response, issuesGroup: objStowaway};
+                            console.log("DID GET ISSUE: " + req)
+                            resolve(req.response);
+                            break;
+                       case "getIssues":
                             //We have issuesGroup this query ran for, need to pass it back to the orginator
                             //var responseObject = {response: req.response, issuesGroup: objStowaway};
                             responseObject = req.response;
@@ -169,6 +192,12 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
                             responseObject = req.response;
                             responseObject.issue = objStowaway;
                             responseObject.issueGroup = objStowaway2;
+                            resolve(responseObject); //Object has query object included now, for use in callback
+                            break;
+                        case "getReportIssues":
+                            //var responseObject = {response: req.response, issue: objStowaway};
+                            responseObject = req.response;
+                            responseObject.report = objStowaway;
                             resolve(responseObject); //Object has query object included now, for use in callback
                             break;
                         default:
@@ -223,8 +252,6 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         });
 
     }
-
-
 
     /*
         Helper functions

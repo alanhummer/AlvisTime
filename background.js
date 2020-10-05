@@ -34,9 +34,8 @@ function loadKeyAndOrg() {
         //See if we got it or not
         if (response) {            
             //We got it, let's d this
-            console.log("Alvis Time: Loading Org Key from cache: " + response);
-            console.log(response);
-            config = response;
+            console.log("Alvis Time: Loading Org Key from cache");
+            config = response.keyStorage;
             mainControlThread();          
         }
         else {
@@ -54,12 +53,12 @@ function loadKeyAndOrg() {
 
 /****************
 Main control thread - When we are set, do this routine
-****************/
+****************/ 
 function mainControlThread() { 
 
-    console.log("Alvis Time: Config loaded and we are running");
-
-    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "NoJQLToInitialize");
+    console.log("Alvis Time: Config loaded and we are running. Config;", JSON.parse(JSON.stringify(config)));
+    
+    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
 
     //Get User info - may want this in a loop/interval.  This starts when browser opens, and if not already logged into Jira, will fail
     //Idea is, to have it try again...then when you are logged in to Jira, it works
@@ -151,7 +150,7 @@ function onUserSuccess(response) {
 Fetch for user failed -
 ****************/    
 function onUserError(error) {
-    console.log("Alvis Time: Failed to get user:" + error);
+    console.log("Alvis Time: Failed to get user:", JSON.parse(JSON.stringify(error)));
     blnPollJira = false;
 }
 

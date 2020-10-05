@@ -41,7 +41,7 @@
 					color: red;
 					text-decoration: underline;
 					font-weight: bold;
-					margin: 0 8px;
+					margin: 0 0px;
 				}
 
 				a:hover, a:active, a:focus {
@@ -115,7 +115,7 @@
 				.timecard-summary-class-description {
 					font-size: 12px;
 					color: blue;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: right;
 					overflow: hidden;
 					text-overflow: ellipsis;
@@ -125,7 +125,7 @@
 				.timecard-summary-class-offset-description {
 					font-size: 12px;
 					color: red;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: right;
 					overflow: hidden;
 					text-overflow: ellipsis;
@@ -135,57 +135,155 @@
 				.timecard-summary-totals-description {
 					font-size: 16px;
 					color: blue;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: right;
 				}
 
 				.timecard-summary-totals-offset-description {
 					font-size: 16px;
 					color: red;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: right;
 				}
 
 				.timecard-summary-totals-net-description {
 					font-size: 16px;
 					color: purple;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: right;
 				}				
 
 				.timecard-summary-class {
 					font-size: 14px;
 					color: blue;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: center;
 				}
 
 				.timecard-summary-class-offset {
 					font-size: 16px;
 					color: red;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: center;
 				}
 
 				.timecard-summary-totals {
 					font-size: 16px;
 					color: blue;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: center;
 				}
 				
 				.timecard-summary-totals-offset {
 					font-size: 16px;
 					color: red;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: center;
 				}
 
 				.timecard-summary-totals-net {
 					font-size: 16px;
 					color: purple;
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 					text-align: center;
+				}
+
+				.report-header {
+					font-size: 14px;
+					width: 40px;
+					color: blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: center;
+					padding: 2px;
+				}
+
+				.report-header:hover a {
+					color: blue;
+				}
+	
+				.report-header a {
+					color: blue;
+				}
+
+				.report-line {
+					font-size: 14px;
+					width: 40px;
+					color:blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: center;
+					padding: 2px;
+				}
+
+				.report-total-line {
+					font-size: 14px;
+					width: 40px;
+					color: black;
+					border: 1px solid black;
+					text-align: center;
+					padding: 2px;
+				}
+
+				.report-total-red-line {
+					font-size: 14px;
+					width: 40px;
+					color: red;
+					border: 1px solid black;
+					text-align: center;
+					padding: 2px;
+				}
+				.report-title {
+					font-size: 14px;
+					width: 210px;
+					height: 36px;
+					color: blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: right;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					padding: 2px;
+				}
+
+				.report-title:hover a {
+					color: blue;
+				}
+	
+				.report-title a {
+					color: blue;
+				}
+
+				.report-summary {
+					font-size: 12px;
+					width: 210px;
+					height: 36px;
+					color:blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: left;
+					padding: 2px;
+  					overflow: hidden; 
+					text-overflow: ellipsis;
+					display: -webkit-box;
+					-webkit-line-clamp: 2; /* number of lines to show */
+					-webkit-box-orient: vertical;
+
+				}
+
+				.report-summary:hover a {
+					color: blue;
+				}
+	
+				.report-summary a {
+					color: blue;
+				}
+
+				.report-shade-1 {
+					background: #D3D3D3;
+					border-bottom: 0px;
+				}
+
+				.report-shade-2 {
+					background: #B9D3EE;
+					border-bottom: 0px;
 				}
 
 				.totals-title {
@@ -260,11 +358,11 @@
 				td {
 					font-size: 12px;
 					color: #333333;
-					/* border-bottom: 1px solid #dddddd;*/
+					/* border-bottom: 0px solid #dddddd;*/
 				}
 
 				.issueRow {
-					border-bottom: 1px solid #dddddd;
+					border-bottom: 0px solid #dddddd;
 				}
 				
 				.issueTitle {
@@ -629,6 +727,79 @@
 			<br><br>
 		</div>
 		<div id="postimagediv"></div>
+		<!--The Report presentation -->
+		<div id="report" class="summary-display" style="display: none;">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a id="closeLink-report" target="_blank"><img id="close-image-report" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
+				<a id="helpLink-report" target="_blank"><img id="help-image-report" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+			</div>
+			<div id="report-name"></div><div id="report-range"></div>
+			<br>
+			<div id="report-template" style="display: none;">
+				<table>
+					<tbody id="report-header-row">
+						<tr class="report-shade-entry">
+							<td width="750px" colspan="12" class="report-summary" style="color:black;">_REPORTISSUE_</td>
+						</tr>
+					</body>
+					<tbody id="report-row">
+						<tr class="report-shade-entry">
+							<td class="report-summary" style="border: 1px solid white;"><a id="Report-Link-_REPORTISSUEKEY_">_REPORTISSUE_</a></td>
+							<td class="report-line">_REPORTDAY0_</td>
+							<td class="report-line">_REPORTDAY1_</td>
+							<td class="report-line">_REPORTDAY2_</td>
+							<td class="report-line">_REPORTDAY3_</td>
+							<td class="report-line">_REPORTDAY4_</td>						
+							<td class="report-line">_REPORTDAY5_</td>
+							<td class="report-line">_REPORTDAY6_</td>						
+							<td class="report-total-line">_REPORTWEEKTOTAL_</td>	
+							<td class="report-total-line">_REPORTESTIMATE_</td>
+							<td class="report-total-line">_REPORTREMAINING_</td>	
+							<td class="report-total-black-red-line">_REPORTTOTALTOTAL_</td>
+						</tr>
+					</tbody>
+					<tbody id="report-total">
+						<tr class="report-shade-entry">
+							<td class="report-summary">_REPORTISSUE_</td>
+							<td class="report-line">_REPORTDAY0_</td>
+							<td class="report-line">_REPORTDAY1_</td>
+							<td class="report-line">_REPORTDAY2_</td>
+							<td class="report-line">_REPORTDAY3_</td>
+							<td class="report-line">_REPORTDAY4_</td>						
+							<td class="report-line">_REPORTDAY5_</td>
+							<td class="report-line">_REPORTDAY6_</td>						
+							<td class="report-total-line">_REPORTWEEKTOTAL_</td>	
+							<td class="report-total-line">_REPORTTOTALTOTAL_</td>
+							<td class="report-total-line">_REPORTESTIMATE_</td>
+							<td class="report-total-line">_REPORTREMAINING_</td>	
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div>
+
+				<table id="timecard-report-details">
+					<thead>
+						<tr style="display:block">
+							<th class="report-header" style="width:210px"></th>
+							<th class="report-header">Sat</th>
+							<th class="report-header">Sun</th>
+							<th class="report-header">Mon</th>
+							<th class="report-header">Tues</th>
+							<th class="report-header">Wed</th>						
+							<th class="report-header">Thur</th>
+							<th class="report-header">Fri</th>						
+							<th class="report-header" style="color:black;width:42px">Tot</th>
+							<th class="report-header" style="color:black;width:42px">Est</th>	
+							<th class="report-header" style="color:black;width:42px">Rem</th>	
+							<th class="report-header" style="color:black;width:42px">All</th>
+						</tr>
+					</thead>
+					<tbody id="report-display" style="display:block;overflow-y: scroll; height:485px;">
+					</tbody>
+				</table>
+			</div>
+		</div>
 		<!--The Orge Key presentation-->
 		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
@@ -687,7 +858,71 @@
 				</ol>			
 			</ul>
 			<ul>
-				That's it.  Have fun with <b>Alvis Time!</b><br><br><br><br><br><br>
+				That's it.  Have fun with <b>Alvis Time!</b><br><br><hr>
+			</ul>
+			<ul>
+				<b><u>GOALS OF ALVIS TIME:</u></b><br><br>
+				<ul>
+					<li><b>Detailed Time Reporting</b>  - Enter time against work items
+						<ul>
+							<li>Will enable us to get information/details on what actually is being worked in and how much</li>
+							<li>Great for tracking where we are, reporting on where and how activity spent</li>
+						</ul>
+						<br>
+					</li>
+					<li><b>Make it super fast and easy</b>
+					</li>
+					<br>
+					<li><b>Make it single data entry</b> - Only enter time in one place
+					</li>
+					<br>			
+					<li><b>Jira is a great answer</b>  - Log time in Jira
+						<ul>
+							<li>It is where we track all activity</li>
+							<li>Where estimates/work is tracked already</li>
+							<li>Jira has a REST API - makes it easy to do integrations</li>
+						</ul>
+					</li>	
+				</ul>
+				<br><hr>
+			</ul>
+			<ul>
+				<b><u>FEATURES OF ALVIS TIME:</u></b><br><br>
+				<ul>
+					<li><b>Track time effectively against issues in sprint/kanban flow</b> - see/understand what is left<br><br></li>
+					<li><b>Gotta be super easy and seemless to use</b> - log thru out the day, every day<br><br></li>
+					<li><b>Do not enter time twice.  Only once</b> - spreadsheet --> Jira --> SN ?  No. Replace spreadsheet or other entry systems. <br><br></li>
+					<li><b>Replace SN entry for the users</b> - Save SN licensing costs as a bonus<br><br></li>
+					<li><b>See time card full view easily</b> - hours, %'s, daily totoals + project/task totals<br><br></li>
+					<li><b>View "my" work</b> - query attempt to show you stuff you are working on and easily select what to post time to<br><br></li>
+					<li><b>Also include LE time buckets</b> - Run the Biz, Admin, Support buckets<br><br></li>
+					<li><b>Support non-task project entry</b> - meetings, discussion, research, etc. whatever<br><br></li>
+					<li><b>Viewable "summary" that is SN rendering view of time</b><br><br></li>
+					<li><b>Work for any JIRA organization</b> - configuration for anywhere<br><br></li>
+					<li><b>Support different issue groups via queries</b><br><br></li>
+					<li><b>Support different work groups or teams within an org</b><br><br></li>
+					<li><b>Support text/logos/buttons/etc dynamically</b> - for locale and language customization<br><br></li>
+					<li><b>Help page as time entry guide</b><br><br></li>
+					<li><b>Integrate to legacy SN reporting</b> - as seemlessly as possible<br><br></li>
+					<li><b>Users have min hours to submit, max hours to submit </b> - FTE (40) vs Consultant<br><br></li>
+					<li><b>If MAX, then can enter as much as you worked, but only 40 goes to SN</b> - based on hierarchy of issuge group. IE: Vacation goes 1st and then projects, etc. til run out<br><br></li>
+					<li><b>Integrate to Jira and updates time in an issue automatically</b> - decrements remaining time<br><br></li>
+					<li><b>Links to Jira tix to see them and adjust</b> - easily fix project/sub-project if is not filled or wrong<br><br></li>
+					<li><b>When hit min, button to "submit" card for approval enables</b><br><br></li>
+					<li><b>Admin sees submitted entries, to review and approve. </b> - Status set is "entry", "submitted", "approved"<br><br></li>
+					<li><b>Notification: Ex - Friday after noon and you have not entered time</b> - get an alert, link to enter it<br><br></li>
+					<li><b>Notification: Someone submits a time card, admin get alert and link to look at it</b><br><br></li>
+					<li><b>Visuals to show hit/missed #'s. </b> - Like 90% projects = turn red if < min<br><br></li>
+					<li><b>Visual to ensure entering time for right week</b> - after week ends a couple days to finish up entry<br><br></li>
+					<li><b>Filters for projects in list</b><br><br></li>
+					<li><b>Scrollable week to week</b><br><br></li>
+					<li><b>Look up issues you don't see</b><br><br></li>
+					<li><b>Update remaining hours</b> - dorectly enter from the tool<br><br></li>					
+					<li><b>Collaspaclbe/filterable list of issues/groups</b><br><br></li>
+					<li><b>Links to Legacy SN to see how time posted there</b><br><br></li>					
+					<li><b>FUTURE: Alerts about versions</b> - click here to update now<br><br></li>
+					<li><b>FUTURE: Configuration tool </b> - to setup Alvis time by an admin and do all of the configuruations<br><br></li>	
+				</ul>
 			</ul>
 		</div>
 		<!--The Org Setup Presentation-->
@@ -712,6 +947,7 @@
 			<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
 			<a id="helpLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
 			<a id="summaryInfoLink" target="_blank"><img id="summary-info-image" class="enabled-image" style="float: right;" src="images/summary_button_off.png" height="33" /></a>
+			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" /></a>
 		</div>
 		<div id="date-range">
 			<table class="positioning-table">
@@ -725,7 +961,7 @@
 		</div>
 		<div id="notice"></div>
 		<div id="table-container">
-			<table class="issueTitle" class="border-bottom: 1px solid #dddddd;" id="issue-title-header">
+			<table class="issueTitle" class="border-bottom: 0px solid #dddddd;" id="issue-title-header">
 				<thead>
 					<tr>
 						<th width="30%"></th>
@@ -752,7 +988,7 @@
 						</summary>
 						<table id="issueGroup.key-issue-group-table">
 							<thead>
-								<tr class="issueTitle" class="border-bottom: 1px solid #dddddd;">
+								<tr class="issueTitle" class="border-bottom: 0px solid #dddddd;">
 									<th width="30%"></th>
 									<th width="7%"></th>
 									<th width="7%" class="issueTitle" >Sat</th>
