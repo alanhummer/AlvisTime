@@ -32,11 +32,17 @@ function loadKeyAndOrg() {
     chrome.storage.local.get("keyStorage", function(response) {
 
         //See if we got it or not
-        if (response) {            
-            //We got it, let's d this
-            console.log("Alvis Time: Loading Org Key from cache");
-            config = response.keyStorage;
-            mainControlThread();          
+        if (response) {
+            if (response.keyStorage) {
+                //We got it, let's d this
+                console.log("Alvis Time: Loading Org Key from cache");
+                config = response.keyStorage;
+                mainControlThread();  
+            }  
+            else {
+              //No dice, abort
+              console.log("Alvis Time: No org key storage yet defined.  Abort.");              
+            }                
         }
         else {
             //No dice, abort
