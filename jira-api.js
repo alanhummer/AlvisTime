@@ -26,6 +26,7 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         getIssueWorklogs : getIssueWorklogs,
         updateWorklog : updateWorklog,
         updateRemainingEstimate : updateRemainingEstimate,
+        updateClassification : updateClassification,
         getRemainingEstimate : getRemainingEstimate,
         sendEmail : sendEmail
     };
@@ -128,6 +129,19 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
         }
 
         return ajaxWrapper(url, options, "updateWorklog", {});
+    }
+
+
+    function updateClassification(issueId, inputClassificationObject) {
+
+        var options;
+        options = {
+            type: 'PUT',
+            data: JSON.stringify(inputClassificationObject)
+        }  
+
+        return ajaxWrapper('/issue/' + issueId, options, "updateClassification", {});
+
     }
 
     function updateRemainingEstimate(issueId, remainingEstimateHours) {

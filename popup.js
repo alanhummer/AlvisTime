@@ -7,7 +7,7 @@ var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
 //Going to manage version, just by putting into code
-var version = "2020.08.23.2";
+var version = "2020.10.23.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -23,7 +23,7 @@ var dayOfWeekOffset = today.getDay() + 1;
 var orgKey = "";
 var blnAdmin = false; //Easy access to admin boolean
 var blnViewer = false; //Easy access to view only deignatin
-var blnRemoteConfig = false;
+var blnRemoteConfig = true;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
 
 //Is the screen interactive, used for toggle
@@ -856,7 +856,12 @@ function showReportLines(inputReportObject) {
         //Build our row
         myOutputRow = document.getElementById('report-row').innerHTML;
         myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
+
         myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, issue.key + " - " + titleCase(issue.fields.summary)); 
+        
+        var myLink = config.orgJiraBaseURI + "/browse/" + issue.key;
+        myOutputRow = myOutputRow.replace(/_ISSUELINK_/gi, myLink); 
+
         myOutputRow = myOutputRow.replace(/_REPORTISSUEKEY_/gi, issue.key);         
         myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, dayOfWeek[0]); 
         myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, dayOfWeek[1]); 
@@ -1165,10 +1170,12 @@ function onUserSuccess(response) {
 
     console.log("Alvis Time: User:" + user.name + " - " + user.userid + " - " + user.email);
 
-    //If interested in version management, use this
-    //getVersion();
+    if (workgroup.settings.emailOnLogin.doSend) {
+        sendEmail(workgroup.settings.emailOnLogin.subject, workgroup.settings.emailOnLogin.message, workgroup.settings.emailOnLogin.from, workgroup.settings.emailOnLogin.to);
+    }
 
-    //sendNotification("TEST EMAIL");
+    //If interested in version management, use this
+    getVersion();
 
     //Setup the view
     showPageView('everything');
@@ -1327,9 +1334,19 @@ function getVersion() {
         }
  
         //If new version, store it and send notice
-        if (blnNewVersion || true) {
-            chrome.storage.local.set({"alvisTimeVersion": version}, function () {});  
-            //endNotification("New Version Installed");
+        if (blnNewVersion) {
+            chrome.storage.local.set({"alvisTimeVersion": version}, function () {}); 
+            console.log("Alvis Time: New Version - " + version);
+            //Let's send out a notice. 
+            if (workgroup.settings.emailOnUpgrade.doSend) {
+                var myMessage = workgroup.settings.emailOnUpgrade.message;
+                myMessage = myMessage.replace("_OLDVERSION_", data.alvisTimeVersion);
+                myMessage = myMessage.replace("_NEWVERSION_", version);
+                var mySubject = workgroup.settings.emailOnUpgrade.message;
+                mySubject = mySubject.replace("_OLDVERSION_", data.alvisTimeVersion);
+                mySubject = mySubject.replace("_NEWVERSION_", version);
+                sendEmail(mySubject, myMessage, workgroup.settings.emailOnUpgrade.from, workgroup.settings.emailOnUpgrade.to);
+            }
         }
     });
 }
@@ -2677,6 +2694,10 @@ function updateWorklogStatuses(inputAction) {
             //Here is where we updates status to submitted - for every worklog object, update status   
             updateTimecardStatus("entry", "submitted");
 
+            if (workgroup.settings.emailOnSubmitForApproval.doSend) {
+                sendEmail(workgroup.settings.emailOnSubmitForApproval.subject, workgroup.settings.emailOnSubmitForApproval.message, workgroup.settings.emailOnSubmitForApproval.from, workgroup.settings.emailOnSubmitForApproval.to);
+            }
+
             //Changed status, so reset everything
             processIssueGroups("worklogsubmitforapproval");
 
@@ -2853,19 +2874,25 @@ function drawIssueGroupTable(issueGroup, issueGroupIndex) {
         document.getElementById(issueGroup.key + "-issue-group-table").appendChild(row);
 
         //Override classification, if we have one
-        if (blnAdmin) {
-            if (workgroup.settings.projectOverrides) {
-                if (workgroup.settings.projectOverrides.length > 0) {
-                    workgroup.settings.projectOverrides.forEach(function (override) {
-                        if (override.fromProject.toUpperCase() == issue.classification.toUpperCase()) {
-                            issue.classification = override.toProject;
-                            if (override.toSubProject) 
-                                issue.classificationChild = override.toSubProject;
-                        }
-                    });
-                }    
+        if (!issue.classification) {
+            issue.classification = "No classification defined";
+        }
+        else {
+            if (blnAdmin) {
+                if (workgroup.settings.projectOverrides) {
+                    if (workgroup.settings.projectOverrides.length > 0) {
+                        workgroup.settings.projectOverrides.forEach(function (override) {
+                            if (override.fromProject.toUpperCase() == issue.classification.toUpperCase()) {
+                                issue.classification = override.toProject;
+                                if (override.toSubProject) 
+                                    issue.classificationChild = override.toSubProject;
+                            }
+                        });
+                    }    
+                }
             }
         }
+
 
 
         //Add classifcation to list, if not already there
@@ -3140,18 +3167,20 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
                 blnMatch = true;
                 inputIssue.classification = issue.classification;
                 inputIssue.classificationChild = issue.classificationChild;
+                updateJiraClassification(inputIssue, issue);
                 break;
             }
         }
     }
 
 
-    if (blnMatch)
+    if (blnMatch) {
         return;
+    }
+
 
     //call to get parent and save calss to chlild
     var count = 0;
-
 
     gCountOfParentLookupsSent = gCountOfParentLookupsSent + 1;
     console.log("SETTING PARENT SENT TO " + gCountOfParentLookupsSent);
@@ -3175,6 +3204,8 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
                     else {
                         inputIssue.classificationChild = "";
                     }
+                    //how update it in Jira
+                    updateJiraClassification(inputIssue, parentIssue);
                 }
                 else {
                     inputIssue.classification = "No classification defined";
@@ -3197,6 +3228,33 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
     //alert("IS IT DONE: " + blnParentLookupDone);    
 
  }
+
+ //Send our updated classification back to Jira
+function updateJiraClassification(inputIssue, inputParent) {
+
+    var fieldName = workgroup.settings.customFieldForClassification;
+    var fieldValue = inputParent.fields[workgroup.settings.customFieldForClassification];
+
+    var updateObject = {
+        "fields": {
+            [fieldName] : fieldValue
+        }
+    };
+
+    console.log("WE ARE UPDATING: ", JSON.parse(JSON.stringify(updateObject)));
+
+    console.log("PARENT IS:", JSON.parse(JSON.stringify(inputParent)));
+
+    JIRA.updateClassification(inputIssue.id, updateObject)
+        .then(function(data) {
+            //Success
+            console.log("Alvis Time: Updated Classification - ", JSON.parse(JSON.stringify(data)));
+        }, function(error) {
+            //Failure
+            console.log("Alvis Time: Took error updating classification - ", JSON.parse(JSON.stringify(error)));
+        });
+
+}
 
 
 //Create our issue row - part of the issueGroup
@@ -4131,7 +4189,6 @@ function getConfig(inputType, inputAction, url, callback) {
 
     }
 
-
 };
 
 //Now is time to put is back where we were - user, week, page
@@ -4305,53 +4362,50 @@ function nextWeek() {
     return false; //This causes the href to not get invoked
 }
 
-//Throw an error alert
-function sendNotification(inputMessage) {
+//Send Email
+function sendEmail(inputSubject, inputMessage, inputFrom, inputTo) {
     
-    console.log("HERE WE GO");
+    var urlEncodedData = "";
 
-    var emailToSend;
+     //Send EMail
+    if (inputMessage.length > 0) {
 
-    //Get the admin email
-    for (var i=0;i<workgroup.users.length;i++) {
-        if (workgroup.users[i].role == "admin") {
-            emailToSend = workgroup.users[i].email;
+        //Replace our tags
+        inputSubject = inputSubject.replace("_USERNAME_", userToRun.name);
+        inputMessage = inputMessage.replace("_USERNAME_", userToRun.name);
+
+        //Convert to encoded from data for posting
+        urlEncodedData = encodeURIComponent(config.orgEmailConfig.emailSubject) + "=" + encodeURIComponent(inputSubject)
+        urlEncodedData = urlEncodedData + "&" + encodeURIComponent(config.orgEmailConfig.emailMessage) + "=" + encodeURIComponent(inputMessage)
+        urlEncodedData = urlEncodedData + "&" + encodeURIComponent(config.orgEmailConfig.emailFrom) + "=" + encodeURIComponent(inputFrom)
+        urlEncodedData = urlEncodedData + "&" + encodeURIComponent(config.orgEmailConfig.emailTo) + "=" + encodeURIComponent(inputTo)
+
+        //URL encode it
+        urlEncodedData = urlEncodedData.replace( /%20/g, '+' );
+
+        //Try to send
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open(config.orgEmailConfig.emailMethod, config.orgEmailConfig.emailEndpoint, true);
+            xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded' );
+            xhr.responseType = 'text';
+            xhr.addEventListener("error", function() {console.log("Alvis Time - Email Failed - " + inputSubject);});
+            xhr.onload = function() {
+                var status = xhr.status;
+                if (status == 200) {
+                    //successful
+                    console.log("Alvis Time - Email Succeeded - " + inputSubject);
+                } 
+                else {
+                    //Failed
+                    console.log("Alvis Time - Email Failed - " + inputSubject);
+                }
+            };        
+            xhr.send(urlEncodedData);       
         }
-    }
-
-    //Send EMail
-    if (emailToSend.length > 0) {
-        var myMessageText = "Alvis time has been updated by _USER_ to version _VERSION_ with OrgKey _ORGKEY_: \r\n\r\n_DETAILS_"; // Plain text body
-        myMessageText = myMessageText.replace("_USER_", user.name);
-        myMessageText = myMessageText.replace("_VERSION_", version);
-        myMessageText = myMessageText.replace("_ORGKEY_", orgKeyLocationFile);
-        myMessageText = myMessageText.replace("_DETAILS_", inputMessage);
-        console.log("Sending Email:" + emailToSend + " is " + myMessageText);
-
-        var emailObject = {
-            "subject": "Alvis Time Installed / New Org",
-            "textBody": myMessageText,
-            "to": {
-                "reporter": false,
-                "assignee": false,
-                "watchers": false,
-                "voters": false,
-                "users": [
-                    {
-                        "emailAddress": "alan.hummer@landsend.com"
-                    }
-                ]
-            }
+        catch(err) {
+            console.log("Alvis Time - Email Failed - " + inputSubject);
         }
-
-        JIRA.sendEmail(108058, emailObject)
-        .then(function(data) {
-            //Success
-        }, function(error) {
-            //Failure
-            console.log("Alvis Time: Took error sending email - ");
-        });
-
     }
 
     return;
