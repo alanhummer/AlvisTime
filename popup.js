@@ -7,7 +7,7 @@ var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
 //Going to manage version, just by putting into code
-var version = "2020.10.23.1";
+var version = "2020.10.26.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -400,15 +400,18 @@ function showTimeCardSummary() {
     if (user.legacyViewCard) {
         if (typeof userToRun.legacyTimeID  === 'undefined') {
             document.getElementById('viewcard-summary').style.display =  'none';
+            document.getElementById('viewcard-approved-summary').style.display =  'none';
             console.log("LEGACY CARD OFF: " + userToRun.legacyTimeID);
         }
         else {
             document.getElementById('viewcard-summary').style.display =  '';
+            document.getElementById('viewcard-approved-summary').style.display =  '';
             console.log("LEGACY CARD ON: " + userToRun.legacyTimeID);
         }
     }
     else {
         document.getElementById('viewcard-summary').style.display =  'none';
+        document.getElementById('viewcard-approved-summary').style.display =  'none';
     }
 
 
@@ -1076,13 +1079,14 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Set up UI Element for Screenshot Button
     //document.getElementById('screenshotlink-summary').href = "nowhere";
     //document.getElementById('screenshotlink-summary').onclick = legacyView;    
-    document.getElementById("screenshot-image-summary").addEventListener ("click", function(){ legacyView(true)}); 
+    document.getElementById("screenshot-image-summary").addEventListener ("click", function(){ legacyView(true, "approved")}); 
 
 
     //Set up UI Element for timecard view Button
     //document.getElementById('viewcard-summary').href = "nowhere";
     //document.getElementById('viewcard-summary').onclick = legacyView;    
-    document.getElementById("viewcard-image-summary").addEventListener ("click", function(){ legacyView(false)}); 
+    document.getElementById("viewcard-image-summary").addEventListener ("click", function(){ legacyView(false, "pending")}); 
+    document.getElementById("viewcard-approved-image-summary").addEventListener ("click", function(){ legacyView(false, "approved")}); 
 
     //Grab our HTML blocks
     issueGroupHTML = document.getElementById('all-issue-groups-container').innerHTML;
@@ -4446,7 +4450,9 @@ function postTime(inputCLassificationObject) {
 /***************
 Screen Shot utility
 ***************/
-function legacyView(blnTakeScreenshot) {
+function legacyView(blnTakeScreenshot, inputPageLoadType) {
+
+    var URLtoLoad = "";
 
     //Make sure we have legacy ID, else we done
     if (!userToRun.legacyTimeID) {
@@ -4457,7 +4463,14 @@ function legacyView(blnTakeScreenshot) {
     console.log("Alvis Time: Taking screenshot For Legacy ID: " + userToRun.legacyTimeID);
 
     //Build URL to laod from our pieces
-    var URLtoLoad = config.orgLegacyTimeIntegration.legacyTimeReportURI;
+    switch(inputPageLoadType) {
+        case "approved":
+            URLtoLoad = config.orgLegacyTimeIntegration.legacyTimeApprovedURI;
+            break;
+        default:
+            URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
+    }
+
     URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
     URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
 

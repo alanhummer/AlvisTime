@@ -687,22 +687,23 @@
 	<body>
 		<!--Welcome and warm up -->
 		<div id="welcome-intro" class="summary-display" style="display: block;">
-				<img src="images/icon128.png">
+				<img src="images/icon128.png" title="Alvis Time">
 				<div id="welcome-spinner"><div class="loader" id="welcome-spinner"></div></div>
 		</div>
 		<!--Verusion upgrade -->
 		<div id="version-intro" class="summary-display" style="display: none;">
-			<img src="images/icon128.png">
+			<img src="images/icon128.png" title="Alvis Time">
 			<div id="version-message">_VERSION_MESSAGE_<br><br></div><div id="version-link"><a href="_VERSION_LINK_">_VERSION_NUMBER_ - Click Here</a></div><br><br>
-			<a  id="version-close" target="_blank"><img id="version-close-image" class="enabled-image" src="images/click-to-close.png" height="33" /></a>
+			<a  id="version-close" target="_blank"><img id="version-close-image" class="enabled-image" src="images/click-to-close.png" height="33" title="Close"/></a>
 		</div>
 		<!--The Time card summary presentation -->
 		<div id="timecard-summary" class="summary-display" style="display: none;">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a  id="closeLink-summary" target="_blank"><img id="close-image-summary" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-summary" target="_blank"><img id="help-image-summary" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
-				<a id="screenshotlink-summary" target="_blank"><img id="screenshot-image-summary" class="enabled-image" style="float: right;" src="images/screenshot_button.png" height="33" /></a>
-				<a id="viewcard-summary" target="_blank"><img id="viewcard-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_button.png" height="33" /></a>
+				<a  id="closeLink-summary" target="_blank"><img id="close-image-summary" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-summary" target="_blank"><img id="help-image-summary" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
+				<a id="viewcard-summary" target="_blank"><img id="viewcard-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_button.png" height="33" title="View SN Working Card" /></a>
+				<a id="screenshotlink-summary" target="_blank"><img id="screenshot-image-summary" class="enabled-image" style="float: right;" src="images/screenshot_button.png" height="33" title="Screenshot of SN Approved Card" /></a>
+				<a id="viewcard-approved-summary" target="_blank"><img id="viewcard-approved-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_approved_button.png" height="33" title="Vew SN Approved Card" /></a>
 			</div>
 			<div id="timecard-summary-name"></div><div id="timecard-summary-range"></div>
 			<br>
@@ -730,8 +731,8 @@
 		<!--The Report presentation -->
 		<div id="report" class="summary-display" style="display: none;">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a id="closeLink-report" target="_blank"><img id="close-image-report" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-report" target="_blank"><img id="help-image-report" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+				<a id="closeLink-report" target="_blank"><img id="close-image-report" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-report" target="_blank"><img id="help-image-report" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
 			<div id="report-name"></div><div id="report-range"></div>
 			<br>
@@ -803,8 +804,8 @@
 		<!--The Orge Key presentation-->
 		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a  id="closeLink-orgkey" target="_blank"><img id="close-image-orgkey" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-orgkey" target="_blank"><img id="help-image-orgkey" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+				<a  id="closeLink-orgkey" target="_blank"><img id="close-image-orgkey" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-orgkey" target="_blank"><img id="help-image-orgkey" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
 			<div style="display: inline-block;padding:10px">
 			Greetings and welcome to "Alvis Time!". If someone in your organization has already setup Alvis Time, then enter the "Organization Key" below.  Something like "le-alvis-time-onsite".  
@@ -812,16 +813,16 @@
 			</div>
 			<div style="text-align:center; vertical-align:bottom;">
 			Please enter valid organization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey" type="text" style="width: 250px;display: inline-block;">
-			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-org-key" src="images/submit-org-key.png" width="176" height="33" class="week-images"></a>&nbsp;OR&nbsp;
-			<a tabindex="2" target="_blank" id="submit-link2"><img id="setup-new-org" src="images/setup-new-organization.png" width="176" height="33" class="week-images"></a><br><br>
+			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-org-key" src="images/submit-org-key.png" width="176" height="33" class="week-images" title="Submit Org Key"></a>&nbsp;OR&nbsp;
+			<a tabindex="2" target="_blank" id="submit-link2"><img id="setup-new-org" src="images/setup-new-organization.png" width="176" height="33" class="week-images" title="Setup New Org"></a><br><br>
 			<div id="orgKeyMessage"></div>
 			</div>
 		</div>
 		<!--The Help Presentation-->
 		<div id="help-text" style="display:none;font-size:16px">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a  id="closeLink-help" target="_blank"><img id="close-image-help" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-help" target="_blank"><img id="help-image-help" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+				<a  id="closeLink-help" target="_blank"><img id="close-image-help" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-help" target="_blank"><img id="help-image-help" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
 			<ul>
 				Welcome to <b>Alvis Time!</b>  Time card entry integrated with Jira.
@@ -928,15 +929,15 @@
 		<!--The Org Setup Presentation-->
 		<div id="orgkeysetup" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
-				<a  id="closeLink-orgkeysetup" target="_blank"><img id="close-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-				<a id="helpLink-orgkeysetup" target="_blank"><img id="help-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
+				<a  id="closeLink-orgkeysetup" target="_blank"><img id="close-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-orgkeysetup" target="_blank"><img id="help-image-orgkeysetup" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
 			<div style="display: inline-block;padding:10px">
 			We are going to setup a new Orginization Key and define its configuration parameters. Mostly this means deciding on a unique, easy to remember name and filling out values in a JSON file.<br><br>
 			</div>
 			<div style="text-align:center; vertical-align:bottom;">
 			Please enter unique name for your orgnaization key<br><br><br>Key:&nbsp;&nbsp;<input class="day-time-total" id="orgkey-orgkeysetup" type="text" style="width: 250px;display: inline-block;">
-			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-orgkeysetup" src="images/submit-org-key.png" width="176" height="33" class="week-images"></a><br><br>
+			<a tabindex="2" target="_blank" id="submit-link"><img id="submit-orgkeysetup" src="images/submit-org-key.png" width="176" height="33" class="week-images" title="Submit Org Key"></a><br><br>
 			<div id="orgKeySetupMessage"></div>
 			</div>
 		</div>
@@ -944,17 +945,17 @@
 		<div id="everything" style="display: none;">
 		<div style="text-align:left;float:left;" id="user-select"></div>
 		<div style="text-align:right;float:right;width: 200;" id="nav">
-			<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" /></a>
-			<a id="helpLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" /></a>
-			<a id="summaryInfoLink" target="_blank"><img id="summary-info-image" class="enabled-image" style="float: right;" src="images/summary_button_off.png" height="33" /></a>
-			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" /></a>
+			<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+			<a id="helpLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
+			<a id="summaryInfoLink" target="_blank"><img id="summary-info-image" class="enabled-image" style="float: right;" src="images/summary_button_off.png" height="33" title="Team Status Summary" /></a>
+			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" title="Work Item Report"/></a>
 		</div>
 		<div id="date-range">
 			<table class="positioning-table">
 				<tr class="positioning-row">
-					<td width="100" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="64" height="64" class="week-images"></a></td>
+					<td width="100" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="64" height="64" class="week-images" title="Prior Week"></a></td>
 					<td width="300" class="positioning-cell"><div id="week-dates-description" class="week-description"></div></td>
-					<td width="100" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="64" height="64" class="week-images"></a></td>
+					<td width="100" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="64" height="64" class="week-images" title="Next Week"></a></td>
 					<td width="100" class="positioning-cell"><div id="loader-container"><div class="loader" id="loader"></div></div></td>
 				</tr>
 			</table> 
@@ -1033,14 +1034,14 @@
 			<table class="positioning-table">
 				<tr class="positioning-row">
 					<td width="300" class="positioning-cell" style="text-align: left;">
-						<div id="logo"><img id="logoimage" src="" width="140" height="25" /><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" /></a></div>
+						<div id="logo"><img id="logoimage" src="" width="140" height="25" title="Org Logo" /><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" title="Change Org" /></a></div>
 					</td>
 					<td width="100" class="positioning-cell">
-						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" /></a>
+						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" title="Time Card Summary" /></a>
 					</td>
 					<td width="370" class="positioning-cell">
-						<a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33" /></a>
-						<a id="reject-button" target="_blank" style="display: none"><img id="reject-image" class="disabled-image" src="images/click-to-reject.png" height="33" /></a>
+						<a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33"  title="Log-Submit-Approved Time"/></a>
+						<a id="reject-button" target="_blank" style="display: none"><img id="reject-image" class="disabled-image" src="images/click-to-reject.png" height="33" title="Reject Time" /></a>
 					</td>
 				</tr>
 			</table> 

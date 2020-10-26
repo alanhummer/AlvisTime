@@ -577,9 +577,9 @@ function loadWindowForScreenshot (inputScreenshot) {
         chrome.tabs.remove(saveTab.id, function() {
             chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
                 saveTab = newTab;
-                if (inputScreenshot.takeScreenshot) {
+                //if (inputScreenshot.takeScreenshot) {
                     loadPageForScreenshot (saveTab, inputScreenshot);
-                }
+                //}
             });  
         });
     }
@@ -587,9 +587,9 @@ function loadWindowForScreenshot (inputScreenshot) {
         //Not exists
         chrome.tabs.create({ url: inputScreenshot.pageToLoad}, function(newTab) {
             saveTab = newTab;
-            if (inputScreenshot.takeScreenshot) {
+            //if (inputScreenshot.takeScreenshot) {
                 loadPageForScreenshot (newTab, inputScreenshot);
-            }
+            //}
         });          
     }
 

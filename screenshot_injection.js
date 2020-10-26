@@ -14,14 +14,25 @@ chrome.storage.local.get("screenshotData", function(data) {
     if (data) {
         console.log("Alvis Time: Completing a post for: " + data.screenshotData.emailAddress + " = " + data.screenshotData.pageToLoad);
         //Call back to backgrhound script ge the screenshot
-        chrome.runtime.sendMessage({action: "takescreenshot"}, function(response) {
-            console.log("Alvis Time: Got a reply back message");
-            if (response.imgSrc) {
-                //Got all the info, build the email
-                console.log("Alvis Time: Has data so doing email");
-                createEML(data.screenshotData, response.imgSrc);
-            }
-        });
+        
+        if (data.screenshotData.takeScreenshot) {
+            console.log("Alvist Time: Takings Screenshot");
+            chrome.runtime.sendMessage({action: "takescreenshot"}, function(response) {
+                console.log("Alvis Time: Got a reply back message");
+                if (response.imgSrc) {
+                    //Got all the info, build the email
+                    console.log("Alvis Time: Has data so doing email");
+                    createEML(data.screenshotData, response.imgSrc);
+                }
+            });
+        }
+        else {
+            console.log("Alvist Time: Not Taking Screenshot");
+        }
+
+        //Now we can do form entry actions - toggle checkboxes on for approving, appprove, whatever
+        doFormEntry();
+
     }
 });
 
@@ -54,3 +65,52 @@ function createEML(screenshotData, inputImage) {
 
 }
 
+//Do Form Entry
+function doFormEntry() {
+    
+    var savedCell = "";
+    var totalHours = 0;
+
+    //1) Get TABLE by ID time_card_table
+    //2) Get earch row in the table or by id- row_time_card_ <guid> , matchs sys_id guid, matches - Save teh GUID and use it
+    //3) Get each column in the row - first is checkbox - id="check_time_card_<guid> OR GET CHECKBOX ID check_time_card_<guid>
+    //4) Turn checkbox on 
+
+    console.log("Alvis Time: Doing form entry");
+
+    //Rip thru table cells looking for our task
+    var table = this.document.getElementById("time_card_table");
+    for (var i = 0; i < table.rows.length; i++) {
+        //If row has a class id like row_time_card_ our id is that guild
+        if(table.rows[i].id) {
+            if (table.rows[i].id.indexOf("row_time_card_") >= 0) {
+                var ourRowID = table.rows[i].id.replace("row_time_card_", "");
+                console.log("Alvis Time: We have a entry row, so processing: " + ourRowID);
+                var checkBox = this.document.getElementById("check_time_card_" + ourRowID);
+                console.log("Alvis Time: We have eyes on checkbox. It is - ", JSON.parse(JSON.stringify(checkBox)));
+         
+                //Go thru columms, 2nd to last is our total
+                totalHours = 0;
+                savedCell = "";
+                console.log("Alvis Time: Numbers of Cells is: " + table.rows[i].cells.length);
+                for (var j = 0; j < table.rows[i].cells.length; j++) {
+                    if (j == table.rows[i].cells.length - 1) {
+                        //Our last entry, so prior must be total
+                        totalHours = savedCell;
+                    }
+                    else {
+                        savedCell = table.rows[i].cells[j].innerHTML;
+                    }
+                }
+                //See if we should enble or not
+                console.log("Alvis Time: Total for " + ourRowID + " is " + totalHours); 
+                if (totalHours > 0) {
+                    checkBox.checked = true;
+                }  
+                else {
+                    checkBox.checked = false;                    
+                }
+            }
+        }
+    }
+}
