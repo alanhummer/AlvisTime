@@ -7,7 +7,7 @@ var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
 //Going to manage version, just by putting into code
-var version = "2020.10.26.1";
+var version = "2020.11.01.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -15,6 +15,8 @@ var orgKeyLocationFile = "";
 var range;
 var firstDay; //This will hold the first day of our date range - the full date / time of the day
 var lastDay; //This will whold the last day of our date range - the full date / time of the day
+var reportFirstDay; //This will hold the first day of our date range - the full date / time of the day - for reports
+var reportLastDay; //This will whold the last day of our date range - the full date / time of the day - for reports
 var offset = 0;
 var today = new Date();
 var dayOfWeekOffset = today.getDay() + 1;
@@ -24,6 +26,7 @@ var orgKey = "";
 var blnAdmin = false; //Easy access to admin boolean
 var blnViewer = false; //Easy access to view only deignatin
 var blnRemoteConfig = true;
+var blnDoProductPerctentages = false;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
 
 //Is the screen interactive, used for toggle
@@ -63,6 +66,7 @@ var reportIssueCount = 0;
 var reportObject = {};
 var reportIssues = [];
 var reportIssueWorklogs = [];
+var reportSavedReport;
 
 //Show user summaries or not
 var blnDoUserTimecardSummaryView = false;
@@ -229,7 +233,6 @@ function loadKeyAndOrg() {
                             });
                         }
                         else {
-                            console.log("LOADING: " + data.orgKeya + ".json");
                             loadConfig(data.orgKeya + ".json", function(response) { 
                                 //See if it was bogus
                                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
@@ -373,6 +376,7 @@ function showTimeCardSummary() {
     var classificationID = 0;
     var classificationDisplay = "";
     var hoursToOffset = 0;
+    var projectTotal = 0;
     var row;
 
     //Save our page laoded
@@ -385,11 +389,9 @@ function showTimeCardSummary() {
     if (user.legacyScreenShot) {
         if (typeof userToRun.legacyTimeID  === 'undefined') {
             document.getElementById('screenshotlink-summary').style.display =  'none';
-            console.log("LEGACY TESTING OFF: " + userToRun.legacyTimeID);
         }
         else {
             document.getElementById('screenshotlink-summary').style.display =  '';
-            console.log("LEGACY TESTING ON: " + userToRun.legacyTimeID);
         }
     }
     else {
@@ -401,23 +403,16 @@ function showTimeCardSummary() {
         if (typeof userToRun.legacyTimeID  === 'undefined') {
             document.getElementById('viewcard-summary').style.display =  'none';
             document.getElementById('viewcard-approved-summary').style.display =  'none';
-            console.log("LEGACY CARD OFF: " + userToRun.legacyTimeID);
         }
         else {
             document.getElementById('viewcard-summary').style.display =  '';
             document.getElementById('viewcard-approved-summary').style.display =  '';
-            console.log("LEGACY CARD ON: " + userToRun.legacyTimeID);
         }
     }
     else {
         document.getElementById('viewcard-summary').style.display =  'none';
         document.getElementById('viewcard-approved-summary').style.display =  'none';
     }
-
-
-
-    console.log("Alvis Time: Posted array is ");
-    console.log(postedClassficationArray);
 
     //Setup the view
     showPageView('timecard-summary');
@@ -440,9 +435,104 @@ function showTimeCardSummary() {
         "totalTotal": 0
     }
 
+    //If we have a caculation override, figure out the override
+    if (!workgroup.settings.classificationToCalculate) {
+        //Skip all this mess
+    }
+    else {
+        //Get the main or most used classification
+        workgroup.issueGroups.forEach(function(issueGroup) {
+            //Only if it is a project do we care
+            if (issueGroup.isProject) {
+                issueGroup.issues.forEach(function(issue) {
+                                    
+                    if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
+                        //Skip what we are trying to override
+                    }
+                    else {
+
+                        //See if we cna find our classification already
+                        var classificationObject;
+                        classificationArray.forEach(function(classObj) {
+                            if (classObj.description == issue.classification) {
+                                //Found one - done
+                                classificationObject = classObj;
+                            }
+                        }) 
+
+                        //If not, create a new object
+                        if (!classificationObject) {
+
+                            //Add hours to classification holdking   
+                            classificationObject = {
+                                "id": classificationID,
+                                "userId": userToRun.userid,
+                                "legacyPostTime": false, //What is this?
+                                "weekOf": ISODate(firstDay),
+                                "description": issue.classification,
+                                "descriptionChild": issue.classificationChild,
+                                "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+                                "totalTotal": 0,
+                                "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+                                "postedTotal": 0, //For offset hours
+                                "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+                            }
+                            classificationArray.push(classificationObject);
+
+                        }
+
+                        //Add up the total
+                        classificationObject.totalTotal = classificationObject.totalTotal + issue.issueTotalTime;
+                        projectTotal = projectTotal + issue.issueTotalTime;
+                        
+                    }
+                })
+            }
+        });
+
+        //See if we cna find our classification already
+        var saveTotal = 0;
+        var saveClassObj;
+        classificationArray.forEach(function(classObj) {
+            classObj.projectPercentage = classObj.totalTotal / projectTotal;
+            if (classObj.totalTotal >= saveTotal) {
+                saveClassObj = classObj;
+                saveTotal = classObj.totalTotal;
+            }
+        })   
+
+        //See if we cna find our classification already
+        workgroup.issueGroups.forEach(function(issueGroup) {
+            issueGroup.issues.forEach(function(issue) {
+                if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
+                    issue.classification = saveClassObj.description;
+
+                   //AJH SOMEWHERE HERE IS WHERE WE SPLIT BY % classObj.projectPercentage - multiple time classes for one issue
+                    if (blnDoProductPerctentages) {
+
+                        if (!issue.classificationArray) {
+                            issue.classificationArray = [];
+                        }
+
+                        //Add dlassification objects for this match
+                        classificationArray.forEach(function(classObj) {
+                            if (classObj.totalTotal > 0) {
+                                issue.classificationArray.push(classObj);
+                                console.log("Alvis Time Project Percentage: Overriding issue '" + issue.fields.summary + "' classifiction of '" + workgroup.settings.classificationToCalculate + "' with caluclated value '" + classObj.projectPercentage + "' for " + issue.issueTotalTime + " hours");
+                            }
+                        })  
+                    }
+
+                }
+            })
+        });
+    }
+ 
+    //Re-initialize this
+    classificationArray = [];
+
     //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
     workgroup.issueGroups.forEach(function(issueGroup) {
-
         issueGroup.issues.forEach(function(issue) {
             if (issue.issueTotalTime > 0) {
     
@@ -478,18 +568,80 @@ function showTimeCardSummary() {
                         "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
 
-                    console.log("OFFSET SETTING CLASS OBJECT:" + classificationObject.description + " PRIORITY: " + classificationObject.timePriority);
-                    
                     //Now add the object to the array
                     classificationArray.push(classificationObject);
 
                 }
 
+                //And our issue classifiaiton array too
+                if (issue.classificationArray && blnDoProductPerctentages) {
+                    var blnFoundIssueClass = false;
+                    issue.classificationArray.forEach(function(issueClassObj) {
+                        classificationArray.forEach(function(classObj) {
+                            if (classObj.description == issueClassObj.description) {
+                                //Found one - done
+                                blnFoundIssueClass = true;
+                            }
+                        })                       
+
+                        if (!blnFoundIssueClass) {
+                        
+                            //A key for the classifications
+                            classificationID = classificationID + 1;
+    
+                            classificationObject = {
+                                "id": classificationID,
+                                "userId": userToRun.userid,
+                                "legacyPostTime": false, //What is this?
+                                "weekOf": ISODate(firstDay),
+                                "description": issueClassObj.description,
+                                "descriptionChild": issueClassObj.descriptionChild,
+                                "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+                                "totalTotal": 0,
+                                "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+                                "postedTotal": 0, //For offset hours
+                                "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+                            }
+        
+                            //Now add the object to the array
+                            classificationArray.push(classificationObject);
+                           
+                            console.log("Alvis Time: We added class from array - ", JSON.parse(JSON.stringify(classificationObject)));
+
+                        }
+
+                    });
+                }
+
+                //We have our % set per classification based on # hours per
+                //We have put those class objects into issue object as array
+                //We have added all class objest to the class array we are process
+                //Now, just do the match for each entry total * %, and get them in the right buckets
+                //Not bad...but they don't quite add up yet
+
                 //For each day, add the amounts to the totals for the classification
                 for (var dayIndex=0; dayIndex < 7; dayIndex++) {
                     if (issue.worklogDisplayObjects[dayIndex].worklogTimeSpent > 0) {
-                        classificationObject.dayTotal[dayIndex] =  classificationObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
-                        classificationTotalsObject.dayTotal[dayIndex] =  classificationTotalsObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
+                        if (issue.classificationArray && blnDoProductPerctentages) {
+                            issue.classificationArray.forEach(function(issueClassObj) {
+                                classificationArray.forEach(function(classObj) {
+                                    console.log("Alvis Time Project Percentage: We have '" + issue.fields.summary + " Class: " + issueClassObj.description + "' looking to match class array entry '" + classObj.description + "' RATE: " + issueClassObj.projectPercentage);
+                                    if (classObj.description == issueClassObj.description) {
+                                        //Found one - do the math and add tot the total
+                                        var issueAmountToAdd = issue.worklogDisplayObjects[dayIndex].worklogTimeSpent * issueClassObj.projectPercentage;
+                                        classObj.dayTotal[dayIndex] =  classObj.dayTotal[dayIndex] + issueAmountToAdd;
+                                        classificationTotalsObject.dayTotal[dayIndex] =  classificationTotalsObject.dayTotal[dayIndex] + issueAmountToAdd;
+                                        classificationObject.totalTotal = classificationObject.totalTotal + issue.issueAmountToAdd;
+                                        console.log("Alvis Time Project Percentage: matched '" + issue.fields.summary + "' Calculated from " + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + " to use " + issueClassObj.projectPercentage + " X " + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + " = " + issueAmountToAdd);
+                                    }
+                                })                       
+                            });
+                        }
+                        else {
+                            classificationObject.dayTotal[dayIndex] =  classificationObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
+                            classificationTotalsObject.dayTotal[dayIndex] =  classificationTotalsObject.dayTotal[dayIndex] + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent;
+
+                        }
                     }
                 }
 
@@ -551,14 +703,11 @@ function showTimeCardSummary() {
                 classificationObject.postedTotal = classificationObject.postedTotal + classificationObject.dayPostedTotal[dayIndex]
                 hoursToDrawDown = hoursToDrawDown - classificationObject.dayPostedTotal[dayIndex];
             }
-            //console.log("CLASSIFICATION OBJECT SORTED DRAW DOWN:", JSON.parse(JSON.stringify(classificationObject)));
         });
    // }
 
     //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
-
-            console.log("OFFSET: Hours to offset = " + hoursToOffset + " CLASSIFICIATON IS: " + classificationObject.description + " PRIORITY IS: " + classificationObject.timePriority);
 
             if (classificationObject.description == prevClassificationObject.description) {
                 //Same main class, don't show the main class name
@@ -621,7 +770,6 @@ function showTimeCardSummary() {
 
                 //For each day, add the amounts to the totals for the classification
                 for (var dayIndex=0; dayIndex < 7; dayIndex++) {
-                    console.log("OFFSET: TOTALS FOR " + classificationTotalsObject.description + " DAY: " + dayIndex + " IS " + classificationTotalsObject.dayTotal[dayIndex] + " VS " + workgroup.settings.dayHoursMax);
                     offsetObject.dayTotal[dayIndex] = classificationObject.dayTotal[dayIndex] - classificationObject.dayPostedTotal[dayIndex];
                     offsetObject.totalTotal = offsetObject.totalTotal + offsetObject.dayTotal[dayIndex];
 
@@ -634,8 +782,6 @@ function showTimeCardSummary() {
                     classificationTotalsNetObject.totalTotal = classificationTotalsNetObject.totalTotal - offsetObject.dayTotal[dayIndex];
 
                }
-
-                console.log("OFFSET: DONE.  Now we have hours to offset = " + hoursToOffset, JSON.parse(JSON.stringify(classificationTotalsObject)));
 
                 //Now have to create the offset row
                 row = generateTimecardSummaryRow(offsetObject, "timecard-summary-class", "offset");
@@ -682,8 +828,6 @@ Show Report
 ****************/
 function showReport(inputReportObject) {
 
-    console.log("DOING TEAM REPORT - ", JSON.parse(JSON.stringify(inputReportObject)));
-
     //Hold our counts of asyn callbacks
     gCountOfParentLookupsSent = 0;
     gCountOfParentLookupsDone = 0;
@@ -700,16 +844,12 @@ function showReport(inputReportObject) {
         }
 
     });
-
-    console.log("TESTING ON PARENT LOOKUPS: " + gCountOfParentLookupsSent + " VS " + gCountOfParentLookupsDone);
    
     if (gCountOfParentLookupsSent > gCountOfParentLookupsDone) {
-        console.log("DID WAIT ON PARENT LOOKUPS: " + gCountOfParentLookupsSent + " VS " + gCountOfParentLookupsDone);
         setTimeout(function () { showReportLines(inputReportObject); }, 3000);
     }
     else {
         //let's do this
-        console.log("SKIPPED WAIT ON PARENT LOOKUPS: " + gCountOfParentLookupsSent + " VS " + gCountOfParentLookupsDone);
         showReportLines(inputReportObject);
 
     }
@@ -734,13 +874,27 @@ function showReportLines(inputReportObject) {
     var totalWeekTotal = 0;
     var saveClassification = "";
     var saveShade = "report-shade-1";
-
-    console.log("PARENT PROCESSED SO WE ARE DOING REPORT");
-
-    //Add report header
-    document.getElementById('report-name').innerHTML = responseObject.issue.report.name + " - " + ISODate(firstDay);
+    var blnShowIt = false;
+    var calculatedTotalHours = 0;
+    var hoursPercent;
 
     inputReportObject.issues = inputReportObject.issues.sort(classificationCompare);
+
+    //Accumulate our hour totals to use as %
+    inputReportObject.issues.forEach(function (issue) {
+        issue.worklogs.forEach(function(worklog) {
+            if (inputReportObject.report.blnAllUsers) {
+                calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
+            }
+            else {
+                if (typeof worklog.comment != "undefined") {
+                    if (worklog.comment.includes(userToRun.userid + "|")) {
+                        calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
+                    }
+                }
+            }
+        });
+    });
 
     //Create our rows
     inputReportObject.issues.forEach(function (issue) {
@@ -748,51 +902,76 @@ function showReportLines(inputReportObject) {
         //Go thru the worklogs and add em up
         issue.worklogs.forEach(function(worklog) {
 
-            //Now lets process our worklog - filter date range and user id from comments
-            var worklogDate = new Date(worklog.started);
+            //Only if we care AHH
+            blnShowIt = false;
+     
 
-            //Now convert to CT for compare
-            if (worklogDate.getTimezoneOffset() == 300) {
-                //Central time - leave it
+            if (inputReportObject.report.blnAllUsers) {
+                blnShowIt = true;
             }
             else {
-                //Diff time zone - convert for comparison
-                worklogDate = convertToCentralTime(worklogDate);
+                if (typeof worklog.comment != "undefined") {
+                    if (worklog.comment.includes(userToRun.userid + "|")) {
+                        blnShowIt = true;
+                    }
+                    else {
+                        blnShowIt = false;
+                    }
+                }
+                else {
+                    blnShowIt = false;
+                }
             }
 
-            //Added em up to right day counts
-            switch(worklogDate.getDay()) {
-                case 6: //Saturday
-                    dayIndex = 0
-                    break;
-                case 0: //Sunday
-                    dayIndex = 1;
-                    break;
-                case 1: //Monday
-                    dayIndex = 2;
-                    break;
-                case 2: //Tuesday
-                    dayIndex = 3;
-                    break;
-                case 3: //Wednesday
-                    dayIndex = 4;
-                    break;
-                case 4: //Thursday
-                    dayIndex = 5;
-                    break;
-                case 5: //Friday
-                    dayIndex = 6;
-                    break;
-                default:
+            if (blnShowIt) {
+
+                //Now lets process our worklog - filter date range and user id from comments
+                var worklogDate = new Date(worklog.started);
+
+                //Now convert to CT for compare
+                if (worklogDate.getTimezoneOffset() == 300 || worklogDate.getTimezoneOffset() == 360) {
+                    //Central time - leave it
+                }
+                else {
+                    //Diff time zone - convert for comparison
+                    worklogDate = convertToCentralTime(worklogDate);
+                }
+
+                //Added em up to right day counts
+                switch(worklogDate.getDay()) {
+                    case 6: //Saturday
+                        dayIndex = 0
+                        break;
+                    case 0: //Sunday
+                        dayIndex = 1;
+                        break;
+                    case 1: //Monday
+                        dayIndex = 2;
+                        break;
+                    case 2: //Tuesday
+                        dayIndex = 3;
+                        break;
+                    case 3: //Wednesday
+                        dayIndex = 4;
+                        break;
+                    case 4: //Thursday
+                        dayIndex = 5;
+                        break;
+                    case 5: //Friday
+                        dayIndex = 6;
+                        break;
+                    default:
+                }
+
+                //Add to the right day
+                dayOfWeek[dayIndex] = dayOfWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                weekTotal = weekTotal + (worklog.timeSpentSeconds / 3600);
+
+                //Add to the right day for totals
+                totalWeek[dayIndex] = totalWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                totalWeekTotal = totalWeekTotal + (worklog.timeSpentSeconds / 3600);
+
             }
-
-            //Add to the right day
-            dayOfWeek[dayIndex] = dayOfWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
-            weekTotal = weekTotal + (worklog.timeSpentSeconds / 3600);
-
-            //Add to the right day for totals
-            totalWeek[dayIndex] = totalWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
-            totalWeekTotal = totalWeekTotal + (worklog.timeSpentSeconds / 3600);
 
         });
 
@@ -816,7 +995,8 @@ function showReportLines(inputReportObject) {
                 myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, weekTotalClassification); 
                 myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
                 myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "-"); 
+                hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
+                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
 
                 //Add it to the rest
                 myOutputRows = myOutputRows + myOutputRow;
@@ -847,8 +1027,6 @@ function showReportLines(inputReportObject) {
             myOutputRows = myOutputRows + myOutputRow;
 
         }
-
-        console.log("OK - PEEK AT ISSUE: ", JSON.parse(JSON.stringify(issue)));
 
         //We switched classificaiton and reset, so now add new amount in
         for(var u=0;u<dayOfWeekClassification.length;u++) {
@@ -930,7 +1108,8 @@ function showReportLines(inputReportObject) {
     myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, weekTotalClassification); 
     myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
     myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "-"); 
+    hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
+    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi,  "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
 
     //Add it to the rest
     myOutputRows = myOutputRows + myOutputRow;
@@ -957,12 +1136,11 @@ function showReportLines(inputReportObject) {
     myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, totalWeekTotal); 
     myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
     myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "-"); 
+    hoursPercent = (totalWeekTotal / calculatedTotalHours) * 100;
+    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
 
     //Add it to the rest
     myOutputRows = myOutputRows + myOutputRow;
-
-    console.log("AJH OOUTPUT ROW: " + myOutputRows); 
 
     document.getElementById('report-display').innerHTML = myOutputRows;
 
@@ -973,10 +1151,18 @@ function showReportLines(inputReportObject) {
         document.getElementById("Report-Link-" + issue.key).addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
 
     });
+    
+    //Override the name
+    var myReportName;
+    if (inputReportObject.report.blnAllUsers)
+        myReportName = "All Users - " + inputReportObject.report.name + ":&nbsp;&nbsp;";
+    else
+        myReportName = userToRun.name + " - " + inputReportObject.report.name + ":&nbsp;&nbsp;";
+ 
+    document.getElementById('report-name').innerHTML = myReportName;
 
      //Setup the view
     showPageView('report');
-
         
     //All done
     togglePageBusy(false);
@@ -1063,6 +1249,21 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
             chrome.storage.local.set({"recentPage": "everything"}, function () {});  
             recentPage = "everything";                
         }
+    }); 
+
+    //Wire up calendar selector
+    document.getElementById("daterange").addEventListener ("focus", function(){ 
+
+        $('input[name="daterange"]').daterangepicker({
+            opens: 'left'
+          }, function(start, end, label) {
+            console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
+            reportFirstDay = new Date(start);
+            reportLastDay = new Date(end);
+            //Now shoudl also fire off the report
+            generateReport();
+          });
+
     }); 
 
     //Show time card summary button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
@@ -1258,16 +1459,23 @@ function onUserSuccess(response) {
             document.getElementById("summary-info-image").remove();
         }
 
-        //Wire up the reprt info button
+        //Wire up the reprt info buttons
+        document.getElementById("report-single-image").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            generateReport("userTotal");
+
+        }); 
         document.getElementById("report-image").addEventListener ("click", function(){ 
 
             //Toggle the button an value
-            generateTeamReport("teamTotal");
+            generateReport("teamTotal");
 
         }); 
 
     }
     else {
+        document.getElementById("report-single-image").remove();
         document.getElementById("report-image").remove();
     }
 
@@ -1565,19 +1773,11 @@ Fetch for issues was Successful -
 ****************/
 function onIssueFetchSuccess(responseObject) {
 
-    //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
-
     //ResponseObject conatains "response" and "issuesGroup" objects - assign our retreived issues ot the issueGroup
     responseObject.issueGroup.issues = responseObject.issues;
 
-    //Document how many we have
-    //console.log("Alvis Time: We are processing a # of issues: " + responseObject.issueGroup.issues.length);
-
     //Let's process each issue
     responseObject.issueGroup.issues.forEach(function(issue) {
-
-        //Log it as awe go
-        //console.log("Alvis Time: Doing issue: " + issue.key);
 
         //Initialize our worklogs we will be showing
         initializeWorkLogArray(issue);
@@ -1625,7 +1825,6 @@ function onWorklogFetchSuccess(responseObject) {
             } else if (worklog.comment.includes("|entry") || worklog.comment.includes("|submitted") || worklog.comment.includes("|approved")) {
                 blnShowIt = false; //Includes somoeone elsess mark
             } else if (worklog.author.name == userToRun.userid) {
-                console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
                 //Entered manually, so add entry comment
                 updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
                 blnShowIt = true;
@@ -1634,7 +1833,6 @@ function onWorklogFetchSuccess(responseObject) {
                 //onsole.log("TEST: " + worklog.author.key + " VS " + userToRun.userid);
             }
         } else if (worklog.author.name == userToRun.userid) {
-            console.log("JORDAN - FOUND A WORKLOG: ", JSON.parse(JSON.stringify(worklog)))
             //Entered manually, so add entry comment
             updateWorklogComment(worklog, userToRun.userid + "|" + userToRun.email + "|entry");
             blnShowIt = true;
@@ -1646,15 +1844,14 @@ function onWorklogFetchSuccess(responseObject) {
             var myTimeLogDateStarted = new Date(worklog.started);
 
             //Now convert to CT for compare
-            if (myTimeLogDateStarted.getTimezoneOffset() == 300) {
+            if (myTimeLogDateStarted.getTimezoneOffset() == 300 || myTimeLogDateStarted.getTimezoneOffset() == 360) {
                 //Central time - leave it
             }
             else {
                 //Diff time zone - convert for comparison
                 myTimeLogDateStarted = convertToCentralTime(myTimeLogDateStarted);
             }
-            //console.log("COMPARING " + firstDay + " <= " + myTimeLogDateStarted + " <= " + lastDay);
-
+  
             ////OK, we only want worklogs in our date range - Be careful in those date comparisons, lastDay shouldbe MIDNIGHT on last day 23/59/59 - startDay should be 00/00/00 in the AM
             if (myTimeLogDateStarted <= lastDay && myTimeLogDateStarted >= firstDay) {
 
@@ -1776,13 +1973,26 @@ function onWorklogFetchSuccess(responseObject) {
 }
 
 /****************
-generateTeamReport
+generateReport
 ****************/
-function generateTeamReport(inputReport) {
+function generateReport(inputReport) {
+
+    //We are busy
+    togglePageBusy(true);
 
     //For our query
     var myJQL = "";
     var myUserQuery = "";
+
+    if (inputReport) {
+        //All good
+    }
+    else {
+        inputReport = reportSavedReport;
+    } 
+
+    //Save off for re-use
+    reportSavedReport = inputReport;
 
     //Initialize counts
     reportWorkLogFetchCount = 0;
@@ -1790,6 +2000,18 @@ function generateTeamReport(inputReport) {
     reportObject = {};
     reportIssues = [];
     reportIssueWorklogs = [];
+
+    //Initialize dates, if not already initialized
+    if (reportFirstDay) {
+        //Already set
+        console.log("AJH DATE SET - ", JSON.parse(JSON.stringify(reportFirstDay)));
+    }
+    else {
+        //Initialize these
+        reportFirstDay = firstDay;
+        reportLastDate = lastDay;
+        console.log("AJH DATE NOT SET - ", JSON.parse(JSON.stringify(reportFirstDay)));
+    }
 
     //We are busy
     togglePageBusy(true);
@@ -1802,8 +2024,12 @@ function generateTeamReport(inputReport) {
             //Add report to our hold hobject
             reportObject.report = report;
 
+
+            //Add report header
+            document.getElementById('report-name').innerHTML = "Running....:&nbsp;&nbsp;";
+
             //Add users to the list
-            if (blnAdmin || blnViewer) {
+            if (report.blnAllUsers && (blnAdmin || blnViewer)) {
                 workgroup.users.forEach(function(user) {
                     if (myUserQuery.length > 0) {
                         myUserQuery = myUserQuery + " OR " + report.userQuery.replace(/user.userid/gi, user.userid);
@@ -1821,18 +2047,19 @@ function generateTeamReport(inputReport) {
             myJQL = report.query;
             myJQL = myJQL.replace(/_USERQUERY_/gi, myUserQuery); 
 
-            var dateToUseStart = new Date(firstDay);
+            var dateToUseStart = new Date(reportFirstDay);
             //dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
             myJQL = myJQL.replace(/_TIMECARDSTART_/gi, ISODate(dateToUseStart));
     
-            var dateToUseEnd = new Date(lastDay);
+            var dateToUseEnd = new Date(reportLastDate);
             dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
             myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));      
             
             myJQL = myJQL + "&maxResults=500"
 
-            //Log the query
-            console.log("Alvis Time: Doing a report - JQL:" + myJQL);
+            //Load current selected ates to report
+            document.getElementById("daterange").value = ShortDate(dateToUseStart) + " - " + ShortDate(dateToUseEnd);
+            //01/01/2018 - 01/15/2018
 
             //Let run it and get the issues
             JIRA.getReportIssues(myJQL, report)
@@ -1868,7 +2095,7 @@ function onIssueReportSuccess(responseObject) {
         issue.report = responseObject.report;
 
         //Now get the worklogs and fill in the objects 
-        JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, responseObject.issueGroup)
+        JIRA.getIssueWorklogs(issue.id, reportFirstDay.getTime() / 1000, issue, responseObject.issueGroup)
         .then(onReportWorklogFetchSuccess, function (error) {
 
             console.log("Alvis Time: Report worklog fetch error - ", JSON.parse(JSON.stringify(error)));
@@ -1887,8 +2114,6 @@ function onIssueReportSuccess(responseObject) {
 Report Worklog Fetch Success -
 ****************/    
 function onReportWorklogFetchSuccess(responseObject) {
-
-    console.log("AJH REPORT GOT A worklog", JSON.parse(JSON.stringify(responseObject)));
    
     //Process each worklogs?  Or just store them to be used yet?
     responseObject.worklogs.forEach(function (worklog) {
@@ -1897,7 +2122,7 @@ function onReportWorklogFetchSuccess(responseObject) {
        var worklogDate = new Date(worklog.started);
 
        //Now convert to CT for compare
-       if (worklogDate.getTimezoneOffset() == 300) {
+       if (worklogDate.getTimezoneOffset() == 300 || worklogDate.getTimezoneOffset() == 360) {
            //Central time - leave it
        }
        else {
@@ -1905,16 +2130,11 @@ function onReportWorklogFetchSuccess(responseObject) {
            worklogDate = convertToCentralTime(worklogDate);
        }
 
-       console.log("COMPARING: " + firstDay + " VS" + worklogDate + " VS " + lastDay);
-       if (worklogDate <= lastDay && worklogDate >= firstDay) {
-
-            console.log("COMPARING HIT!: " + firstDay + " VS" + worklogDate + " VS " + lastDay);
+       if (worklogDate <= reportLastDate && worklogDate >= reportFirstDay) {
 
            //Build users selection list
            for (var u=0; u < workgroup.users.length; u++) {
                if (worklog.comment.includes(workgroup.users[u].userid + "|")) {
-
-                    console.log("ADDING A WORKLOG: ", JSON.parse(JSON.stringify(worklog)));
 
                     //Add the worklog to the issue
                     if (!responseObject.issue.worklogs) {
@@ -1935,8 +2155,6 @@ function onReportWorklogFetchSuccess(responseObject) {
 
     //Now we need to see if we are done
     reportWorkLogFetchCount = reportWorkLogFetchCount + 1;
-    console.log("AJH TESTING IF WE ARE DONE: " + reportWorkLogFetchCount + " VS " + reportIssueCount);
-
 
     //Here is where we are done - no, reportObject --> issues --> worklogs
     if (reportWorkLogFetchCount == reportIssueCount) {
@@ -1967,8 +2185,7 @@ function addToCleanup(worklogIssueId, worklogId, worklogComment, worklogTimeSpen
             if (!cleanupWorklog.processed) {
                 //Got one
                 cleanupWorklog.timeSpent = worklogTimeSpent;
-                console.log("CLEANUP LOG ALREADY EXISTS - DOING UPDATE FOR " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
-            }
+             }
             blnFound = true;
         }
     });      
@@ -1985,7 +2202,7 @@ function addToCleanup(worklogIssueId, worklogId, worklogComment, worklogTimeSpen
             processed: false                      
         }
         worklogCleanupArray.push(cleanupWorklog);
-        console.log("AJH ADDED ENTRY TO CLEANUP " + worklogId + " TIME SPENT:" + cleanupWorklog.timeSpent);
+
     }
 
 }
@@ -2030,9 +2247,11 @@ convertToCentralTime -
 ****************/ 
 function convertToCentralTime(inputTimeStarted) {
 
-    var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000);
-    var offset = inputTimeStarted.getTimezoneOffset() / 60;
+    var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000); //Current time
+    var offset = inputTimeStarted.getTimezoneOffset() / 60; //Now hours time zeon diff from UTC
     var newTime = new Date(utc + (3600000*offset));
+    
+    console.log("Alvis Time: Converting to central time: " + inputTimeStarted + " TIME ZONE OFFSET IS: " + inputTimeStarted.getTimezoneOffset()  + " UTC IS: " + Date(utc) + " OFFSET IS: " + offset + " to " + newTime);
 
     return newTime;
 
@@ -2051,8 +2270,7 @@ function onWorklogFetchError(error) {
 Update the WorkLog Comment
 ****************/    
 function updateWorklogComment(worklog, inputComment) {
-    console.log("Alvis Time: Updating comment to " + inputComment, JSON.parse(JSON.stringify(worklog)));
-
+ 
     if (worklog.comment.length > 0) {
         worklog.comment = worklog.comment + "\r\n" + inputComment;
     }
@@ -2069,7 +2287,6 @@ function updateWorklogComment(worklog, inputComment) {
         //Failure
         genericResponseError(error);
     });
-    console.log("Alvis Time: Updated it! ");
 
 }
 
@@ -2144,11 +2361,6 @@ Fetch for timecard issues was Successful -
 ****************/
 function onTimecardIssueFetchSuccess(responseObject) {
 
-    //console.log("HERE IS THE RESULT SET:", JSON.parse(JSON.stringify(responseObject)));
-
-    //Document how many we have
-    //console.log("Alvis Time: We are processing a # of issues for timecards - " + responseObject.issues.length);
-
     //Hang onto issue count so we know we are done
     tcIssueCount = responseObject.issues.length;
 
@@ -2161,8 +2373,6 @@ function onTimecardIssueFetchSuccess(responseObject) {
         //Initialize our tracking elements
         issue.worklogsProcessed = 0;
         issue.worklogsLoaded = false;
-
-        
 
         //Now get the worklogs and fill in the objects 
         JIRA.getIssueWorklogs(issue.id, firstDay.getTime() / 1000, issue, {})
@@ -2180,8 +2390,6 @@ function onTimecardWorklogFetchSuccess(responseObject) {
     //ResponseObject conatains "response", "issueGroup" and "issue" objects, assign our worklogs to the issue object
     responseObject.issue.worklogs = responseObject.worklogs;
 
-    //console.log("Alvis Time: We are processing a # of worklogs for timecards - " + responseObject.issue.id + " = " + responseObject.worklogs.length);
-
     tcIssueCountTracker = tcIssueCountTracker + 1;
 
     //Process each worklogs?  Or just store them to be used yet?
@@ -2197,7 +2405,6 @@ function onTimecardWorklogFetchSuccess(responseObject) {
                 if (worklog.comment.includes(workgroup.users[u].userid + "|")) {
                     //It is for this user and it si for this week, add it up
                     workgroup.users[u].timecardHours = workgroup.users[u].timecardHours + (worklog.timeSpentSeconds / 3600);
-                    console.log("Alvis Time: Timecard entry added to user " + workgroup.users[u].userid + " = " + workgroup.users[u].timecardHours);
 
                     //And do status
                     if (worklog.comment.includes("|submitted")) {
@@ -2756,9 +2963,7 @@ function updateTimecardStatus(fromStatus, toStatus) {
 
                 if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
                     workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
-                        
-                    console.log("Alvis Time: Status update " + workLogObject.worklogIssueId + " FROM " + fromStatus + " TO " + toStatus);
-
+ 
                     JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
                     .then(function(data) {
                         //Success
@@ -2767,8 +2972,7 @@ function updateTimecardStatus(fromStatus, toStatus) {
                     }, function(error) {
                         //Failure
                         genericResponseError(error);
-                    });
-                    
+                    });                    
                 }
             })
         })
@@ -2811,6 +3015,7 @@ function togglePageBusy(blnPageBusy) {
     
     //Set the spinner and disable the page if busy
     if (blnPageBusy) {
+        document.body.style.cursor = 'wait';
         document.getElementById('loader-container').style.display = 'block';
         document.getElementById('previousWeek').onclick = doNothing;
         document.getElementById('nextWeek').onclick = doNothing;
@@ -2818,6 +3023,7 @@ function togglePageBusy(blnPageBusy) {
         blnInteractive = false;
     }
     else {
+        document.body.style.cursor = 'default';
         document.getElementById('loader-container').style.display = 'none';
         document.getElementById('previousWeek').onclick = previousWeek;
         document.getElementById('nextWeek').onclick = nextWeek;
@@ -3143,7 +3349,6 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
             //We should handle Test Results as parents classification
             if (inputIssueGroup) {
                 setClassificationFromParent(inputIssue.fields["parent"], inputIssue, inputIssueGroup);
-                console.log("COMARE WE ARE BACK: " + inputIssue.classification);
             }
             else {
                 inputIssue.classification = "No classification defined";
@@ -3165,9 +3370,7 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
     //console.log("AJH TRYING TO MATCH: " + inputIssue.key);
     if (inputIssueGroup) {
         for(var issue of inputIssueGroup.issues) {
-            console.log("AJH COMPARE: " + inputParent.key + " VS " + issue.key);
             if (inputParent.key == issue.key) {
-                console.log("AJH DID MATCH: " + inputParent.key);
                 blnMatch = true;
                 inputIssue.classification = issue.classification;
                 inputIssue.classificationChild = issue.classificationChild;
@@ -3187,22 +3390,16 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
     var count = 0;
 
     gCountOfParentLookupsSent = gCountOfParentLookupsSent + 1;
-    console.log("SETTING PARENT SENT TO " + gCountOfParentLookupsSent);
 
     ///Jira lookup instad    
     JIRA.getIssue(inputParent.id) 
         .then(function(parentIssue) {
-            console.log("DOING LOOKUP 4: " + inputParent.id);
-            console.log("Got Parent:", JSON.parse(JSON.stringify(parentIssue)));
             //Get issue successfull, lets st calssificaiton object
             if (workgroup.settings.customFieldForClassification) {
-                console.log("TR: POS 1");
                 var customClassificationField = parentIssue.fields[workgroup.settings.customFieldForClassification];
                 if (customClassificationField) {
                     inputIssue.classification = customClassificationField.value;
-                    console.log("TR: POS 2: " + inputIssue.classification);
                     if (customClassificationField.child) {
-                        console.log("TR: POS 3");
                         inputIssue.classificationChild = customClassificationField.child.value;
                     }
                     else {
@@ -3218,14 +3415,11 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
             else {
                 inputIssue.classification = "(issues not classified)";
             }
-            console.log("DOING LOOKUP 5: " + inputParent.id);
             gCountOfParentLookupsDone = gCountOfParentLookupsDone + 1;
-            console.log("SETTING PARENT DONE TO " + gCountOfParentLookupsDone);
         }, function (error) {
             //Get issue failed
-            console.log("DOING LOOKUP 6: " + inputParent.id);
             gCountOfParentLookupsDone = gCountOfParentLookupsDone + 1;
-            console.log("SETTING PARENT DONE TO " + gCountOfParentLookupsDone);
+
         });
 
     //sleep(2000);
@@ -3244,10 +3438,6 @@ function updateJiraClassification(inputIssue, inputParent) {
             [fieldName] : fieldValue
         }
     };
-
-    console.log("WE ARE UPDATING: ", JSON.parse(JSON.stringify(updateObject)));
-
-    console.log("PARENT IS:", JSON.parse(JSON.stringify(inputParent)));
 
     JIRA.updateClassification(inputIssue.id, updateObject)
         .then(function(data) {
@@ -3508,7 +3698,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     var descToDisplay;
     var hoursPercentage;
     var imageClass;
-    
+
     /********
     Summary row - define here and add stuff to it
     ********/
@@ -3772,7 +3962,6 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         class: inputClass
     });        
 
-    console.log("TESTING FOR TYPE: " + inputType + " LEGACY POSTION: " + user.legacyPostTime);
     if (inputType == "detail" && user.legacyPostTime) {
 
         //If no classificaiton, disable the posting
@@ -3804,7 +3993,6 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         //Add checkbox to the cell
         postTimeCell.appendChild(classificationPostTime);
 
-        console.log("AJH WE ARE POSTING TIME");
     }
 
     //Add the column
@@ -3896,20 +4084,6 @@ function toggleSummaryButton() {
 
     return false;
 }
-
-
-// Show WOrklog Object
-function showWorkLogObject(inputMessage, inputWorklog) {
-    console.log("WORK LOG ******************************");
-    console.log("WORK LOG " + inputMessage);
-    console.log("WORK LOG ISSUE ID:" + inputWorklog.worklogIssueId);
-    console.log("WORK LOG WORKLOG ID:" + inputWorklog.worklogId);
-    console.log("WORK LOG TIME STARTED:" + inputWorklog.worklogTimeStarted);
-    console.log("WORK LOG TIME SPENT:" + inputWorklog.worklogTimeSpent);
-    console.log("WORK LOG COMMENT:" + inputWorklog.worklogComment);
-    console.log("WORK LOG DAY OF WEEK:" + inputWorklog.worklogDayOfWeek);
-    console.log("WORK LOG ******************************");
-} 
 
 
 // isDate function - JS doenst have good date functionality so build it yourself       
@@ -4071,6 +4245,24 @@ function ISODate(inputDate) {
     return (lYear +'-' + lMonth + '-' + lDay);
 }
 
+//Return the date as mm/dd/yyy
+function ShortDate(inputDate) {
+
+    inputDate = new Date(inputDate);
+    var lYear = inputDate.getFullYear();
+    var lMonth = inputDate.getMonth()+1;
+    var lDay = inputDate.getDate();
+    
+    if (lDay < 10) {
+        lDay = '0' + lDay;
+    }
+    if (lMonth < 10) {
+        lMonth = '0' + lMonth;
+    }
+    return (lMonth + '/' + lDay + '/' + lYear);
+}
+
+
 //Why do you have to have your own rounding function? Very lame
 function round(value, decimals) {
     return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
@@ -4176,10 +4368,9 @@ function getConfig(inputType, inputAction, url, callback) {
     }
 
     function transferFailed(evt) {
-        console.log("An error occurred while transferring the file.");
+        console.log("Alvis Time: An error occurred while transferring the file.");
 
         //Here we try local storage
-        console.log("POS 5B - TOOK BAD ERROR");
         chrome.storage.local.get(inputType, function(response) {
             if (response) {
                 console.log("Alvis Time: Loading URI from cache: " + url);
@@ -4246,7 +4437,6 @@ function openLink(inputLink) {
 
     //Pass to backround for laoding
     chrome.runtime.sendMessage({action: "loadURI", URI: inputLink});
-    console.log("LOADING LINK: " + inputLink);
     return false;
 
 }
@@ -4393,22 +4583,22 @@ function sendEmail(inputSubject, inputMessage, inputFrom, inputTo) {
             xhr.open(config.orgEmailConfig.emailMethod, config.orgEmailConfig.emailEndpoint, true);
             xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded' );
             xhr.responseType = 'text';
-            xhr.addEventListener("error", function() {console.log("Alvis Time - Email Failed - " + inputSubject);});
+            xhr.addEventListener("error", function() {console.log("Alvis Time - Email Failed - " + inputSubject + " to " + inputTo);});
             xhr.onload = function() {
                 var status = xhr.status;
                 if (status == 200) {
                     //successful
-                    console.log("Alvis Time - Email Succeeded - " + inputSubject);
+                    console.log("Alvis Time - Email Succeeded - " + inputSubject + " to " + inputTo);
                 } 
                 else {
                     //Failed
-                    console.log("Alvis Time - Email Failed - " + inputSubject);
+                    console.log("Alvis Time - Email Failed - " + inputSubject + " to " + inputTo);
                 }
             };        
             xhr.send(urlEncodedData);       
         }
         catch(err) {
-            console.log("Alvis Time - Email Failed - " + inputSubject);
+            console.log("Alvis Time - Email Failed - " + inputSubject + " to " + inputTo);
         }
     }
 
@@ -4439,8 +4629,6 @@ function postTime(inputCLassificationObject) {
     //Hold our data on local storage
     chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
         chrome.storage.local.set({"timeEntry": inputCLassificationObject}, function () {
-            console.log("Alvis Time: We are posting  time entry");
-            console.log(inputCLassificationObject);
             chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject});
         });
     });

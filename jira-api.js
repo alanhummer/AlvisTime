@@ -179,9 +179,6 @@ function JiraAPI (baseUrl, apiExtension, inputJQL) {
             // set response type (json)
             req.responseType = options.responseType;
             
-            if (reqType == "updateWorklog") {
-                console.log("Alvis Time: Updating worklog: ", JSON.parse(JSON.stringify(req)));
-            }
             // on load logic
             req.onload = function() {
                 // consider all statuses between 200 and 400 successful

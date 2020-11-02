@@ -6,6 +6,12 @@
 		<!-- For the Jira app --> 
 		<script src="jira-api.js"></script>
 		<script src="popup.js"></script>
+
+		<script type="text/javascript" src="jquery.min.js"></script>
+		<script type="text/javascript" src="moment.min.js"></script>
+		<script type="text/javascript" src="daterangepicker.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="daterangepicker.css" />
+
 		<style type="text/css">
 
 				/*For Opacity of images, make the hover over effect seem nice*/
@@ -211,7 +217,7 @@
 					color:blue;
 					border-bottom: 0px solid #dddddd;
 					text-align: center;
-					padding: 1px;
+					padding: 2px;
 				}
 
 				.report-total-line {
@@ -220,7 +226,7 @@
 					color: black;
 					border: 1px solid black;
 					text-align: center;
-					padding: 1px;
+					padding: 2px;
 				}
 
 				.report-total-red-line {
@@ -229,7 +235,7 @@
 					color: red;
 					border: 1px solid black;
 					text-align: center;
-					padding: 1px;
+					padding: 2px;
 				}
 				.report-title {
 					font-size: 14px;
@@ -241,7 +247,7 @@
 					overflow: hidden;
 					text-overflow: ellipsis;
 					white-space: nowrap;
-					padding: 1px;
+					padding: 2px;
 				}
 
 				.report-title:hover a {
@@ -259,7 +265,7 @@
 					color:blue;
 					border-bottom: 0px solid #dddddd;
 					text-align: left;
-					padding: 1px;
+					padding: 2px;
   					overflow: hidden; 
 					text-overflow: ellipsis;
 					display: -webkit-box;
@@ -731,11 +737,13 @@
 		<!--The Report presentation -->
 		<div id="report" class="summary-display" style="display: none;">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
+
+				<input type="text" id="daterange" name="daterange" value="01/01/2018 - 01/15/2018" />
+
 				<a id="closeLink-report" target="_blank"><img id="close-image-report" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
 				<a id="helpLink-report" target="_blank"><img id="help-image-report" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
-			<div id="report-name"></div><div id="report-range"></div>
-			<br>
+			<div id="report-name" style="text-align:right" ></div><div id="report-range"></div>
 			<div id="report-template" style="display: none;">
 				<table>
 					<tbody id="report-header-row">
@@ -907,8 +915,10 @@
 					<li><b>Integrate to legacy SN reporting</b> - as seemlessly as possible<br><br></li>
 					<li><b>Users have min hours to submit, max hours to submit </b> - FTE (40) vs Consultant<br><br></li>
 					<li><b>If MAX, then can enter as much as you worked, but only 40 goes to SN</b> - based on hierarchy of issuge group. IE: Vacation goes 1st and then projects, etc. til run out<br><br></li>
-					<li><b>Integrate to Jira and updates time in an issue automatically</b> - decrements remaining time<br><br></li>
-					<li><b>Links to Jira tix to see them and adjust</b> - easily fix project/sub-project if is not filled or wrong<br><br></li>
+					<li><b>Integrate to Jira and updates time in an issue automatically</b> - decrements remaining time and includes support for legacy Jira time entry<br><br></li>
+					<li><b>Links to Jira tix to see them and adjust</b> - easily fix project/sub-project if is not filled or wrong and makes sure they are loaded<br><br></li>
+					<li><b>Automatically update missing project/sub-projects</b> - for child or test result types that have them missing<br><br></li>
+					<li><b>Option to calculate project/sub-project</b> - for general tasks like "Deploys", which project it goes to determined automatically<br><br></li>
 					<li><b>When hit min, button to "submit" card for approval enables</b><br><br></li>
 					<li><b>Admin sees submitted entries, to review and approve. </b> - Status set is "entry", "submitted", "approved"<br><br></li>
 					<li><b>Notification: Ex - Friday after noon and you have not entered time</b> - get an alert, link to enter it<br><br></li>
@@ -920,8 +930,12 @@
 					<li><b>Look up issues you don't see</b><br><br></li>
 					<li><b>Update remaining hours</b> - dorectly enter from the tool<br><br></li>					
 					<li><b>Collaspaclbe/filterable list of issues/groups</b><br><br></li>
-					<li><b>Links to Legacy SN to see how time posted there</b><br><br></li>					
-					<li><b>FUTURE: Alerts about versions</b> - click here to update now<br><br></li>
+					<li><b>Links to Legacy SN for easy submission/approval view</b><br><br></li>	
+					<li><b>Detailed Report view of time logs by task by date range</b> -  With estimate/remaining views and indvidual or the whole work group<br><br></li>					
+					<li><b>View Only Option</b> - for people to see details but no updates<br><br></li>	
+					<li><b>Email notifications on activity</b> - send out notices on activity, like time submitted<br><br></li>	
+					<li><b>Configuration is hosted, so changes made automaticlaly</b> - Settings, updates, new users all pulled in from http end point, so very dynamic<br><br></li>	
+					<li><b>Versions, upgrades and alerts about new changes</b> - When there is an update, click here to update now<br><br></li>
 					<li><b>FUTURE: Configuration tool </b> - to setup Alvis time by an admin and do all of the configuruations<br><br></li>	
 				</ul>
 			</ul>
@@ -948,7 +962,8 @@
 			<a  id="closeLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
 			<a id="helpLink" target="_blank"><img id="help-image" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			<a id="summaryInfoLink" target="_blank"><img id="summary-info-image" class="enabled-image" style="float: right;" src="images/summary_button_off.png" height="33" title="Team Status Summary" /></a>
-			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" title="Work Item Report"/></a>
+			<a id="reportSingleInfoLink" target="_blank"><img id="report-single-image" class="enabled-image" style="float: right;" src="images/report_single_button.png" height="33" title="Individual Work Item Report"/></a>
+			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" title="Everybody Work Item Report"/></a>
 		</div>
 		<div id="date-range">
 			<table class="positioning-table">
