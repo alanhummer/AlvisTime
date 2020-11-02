@@ -17,6 +17,8 @@ var ltimeEntryArray = [];
 var blnTabLoaded = false;
 var saveTab;
 var blnTabStatusComplete = false;
+var blnOrgKeyLoaded = false;
+var blnOrgKeyLoading = false;
 
 console.log("Alvis Time: Is started and running");
 
@@ -28,7 +30,11 @@ Load our configuration and kick of the main processing thread on success
 ****************/
 function loadKeyAndOrg() {
 
+    //Let folks know we are loading, so they dont do the same
+    blnOrgKeyLoading = true;
+
     //if we have the configuration laoded, use it.  Else abort, til next time
+    console.log("Alvis Time: Loading key from storage");
     chrome.storage.local.get("keyStorage", function(response) {
 
         //See if we got it or not
@@ -37,6 +43,7 @@ function loadKeyAndOrg() {
                 //We got it, let's d this
                 console.log("Alvis Time: Loading Org Key from cache");
                 config = response.keyStorage;
+                blnOrgKeyLoaded = true;
                 mainControlThread();  
             }  
             else {
@@ -48,9 +55,8 @@ function loadKeyAndOrg() {
             //No dice, abort
             console.log("Alvis Time: No org key storage yet defined.  Abort.");
         }
+        blnOrgKeyLoading = false;
     });
-
-
 
     return true;
 
@@ -469,6 +475,11 @@ function sleep(inputMS) {
 
 //Add listener for messages from popup to laod URI to browser
 chrome.runtime.onMessage.addListener(function(requestMessage) {
+    
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+
     //We have recieved a message: If it is for posting time, off we go 
     if( requestMessage.action === "loadURI" ) {
         console.log("Loading URL: " + requestMessage.URI);
@@ -489,6 +500,11 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 
 //Add listener for messages from popup - relay to do the legacy integration
 chrome.runtime.onMessage.addListener(function(requestMessage) {
+
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+
     //We have recieved a message: If it is for posting time, off we go 
     if( requestMessage.action === "preparepost" ) {
         if (requestMessage.timeEntry.legacyPostTime) {
@@ -543,6 +559,11 @@ function legacyTabPost (inputTab, inputTimeEntry) {
 
 //Add listener for messages from popup - relay to do the screenshot integration
 chrome.runtime.onMessage.addListener(function(requestMessage) {
+
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+
     //We have recieved a message: If it is for screenshot, off we go 
     if( requestMessage.action === "screenshot" ) {
         loadWindowForScreenshot (requestMessage.screenshot);
@@ -552,6 +573,11 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 
 //Add listener for call from content to take a screenshot
 chrome.runtime.onMessage.addListener(function(requestMessage, sender, sendResponse) {
+    
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+
     console.log("Alvis Time: Got a message");
     console.log(requestMessage);
     if (requestMessage.action === "takescreenshot") {

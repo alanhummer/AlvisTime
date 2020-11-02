@@ -179,36 +179,49 @@ function loadKeyAndOrg() {
                                             if (keyErr != null) {
                                                 //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
                                                 console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
-                                                orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and acces, and try again. Or try a different organization key or contact your administrator.", "error")
+                                                orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and access, and try again.<BR><BR>Or try a different organization key or contact your administrator.", "error")
                                                 getNewOrgKey(data.orgKeya, "true");
                                             }
                                             else {
-                                                //All good, lets do this
-                                                orgKey = data.orgKeya;
-                                                config = keyResponse;
+                                                if (!keyResponse) {
+                                                    //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
+                                                    console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
+                                                    orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and access, and try again.<BR><BR>Or try a different organization key or contact your administrator.", "error")
+                                                    getNewOrgKey(data.orgKeya, "true");
+                                                }
+                                                else {
 
-                                                console.log("Alvis Time: Config is: ", JSON.parse(JSON.stringify(config)));
+                                                    //All good, lets do this
+                                                    orgKey = data.orgKeya;
+                                                    config = keyResponse;
 
-                                                //Compare versions
-                                                if (version && config.AlvisTime && config.AlvisTime.version) {
+                                                    console.log("Alvis Time: Config is: ", JSON.parse(JSON.stringify(config)));
 
-                                                    if (version < config.AlvisTime.version) {
+                                                    //Compare versions
+                                                    if (version && config.AlvisTime && config.AlvisTime.version) {
 
-                                                        //Show our version upgrade emssage
-                                                        showPageView('version-intro');
+                                                        if (version < config.AlvisTime.version) {
 
-                                                        document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
-                                                        document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
-                                                        document.getElementById('version-message').innerHTML = document.getElementById('version-message').innerHTML.replace("_VERSION_MESSAGE_", config.AlvisTime.message);
-                                                       
-                                                        document.getElementById('version-link').addEventListener ("click", function(){ doVersionLink(this)}); 
- 
-                                                        //Different versions, hwere we go
-                                                        if (config.AlvisTime.upgradeRequired) {
-                                                            document.getElementById("version-close").addEventListener ("click", function(){ closeit(this)});
+                                                            //Show our version upgrade emssage
+                                                            showPageView('version-intro');
+
+                                                            document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
+                                                            document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
+                                                            document.getElementById('version-message').innerHTML = document.getElementById('version-message').innerHTML.replace("_VERSION_MESSAGE_", config.AlvisTime.message);
+                                                            
+                                                            document.getElementById('version-link').addEventListener ("click", function(){ doVersionLink(this)}); 
+
+                                                            //Different versions, hwere we go
+                                                            if (config.AlvisTime.upgradeRequired) {
+                                                                document.getElementById("version-close").addEventListener ("click", function(){ closeit(this)});
+                                                            }
+                                                            else {
+                                                                document.getElementById("version-close").addEventListener ("click", function(){ mainControlThread()});
+                                                            }
                                                         }
                                                         else {
-                                                            document.getElementById("version-close").addEventListener ("click", function(){ mainControlThread()});
+                                                            //Get it, so put listner on DOM loaded event
+                                                            mainControlThread();                                                    
                                                         }
                                                     }
                                                     else {
@@ -216,11 +229,7 @@ function loadKeyAndOrg() {
                                                         mainControlThread();                                                    
                                                     }
                                                 }
-                                                else {
-                                                    //Get it, so put listner on DOM loaded event
-                                                    mainControlThread();                                                    
-                                                }
-                                            }                                            
+                                             }                                            
                                         });
                                     }
                                     else {
