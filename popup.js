@@ -1475,6 +1475,7 @@ function onUserSuccess(response) {
 
     }
     else {
+        document.getElementById("summary-info-image").remove();
         document.getElementById("report-single-image").remove();
         document.getElementById("report-image").remove();
     }
