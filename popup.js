@@ -25,7 +25,7 @@ var dayOfWeekOffset = today.getDay() + 1;
 var orgKey = "";
 var blnAdmin = false; //Easy access to admin boolean
 var blnViewer = false; //Easy access to view only deignatin
-var blnRemoteConfig = true;
+var blnRemoteConfig = false;
 var blnDoProductPerctentages = false;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
 
@@ -388,6 +388,13 @@ function showTimeCardSummary() {
     var projectTotal = 0;
     var row;
 
+    //Algorithm is:
+    //1) Combine all the non-caculated issues together - to figure out project allocation set
+    //2) Calculate from that set based on %, and load it up for the missing entries
+    //3) Start fresh then in showing the breakdowns - clssification array accumulate for each issue
+    //4) Clean it up, sort it
+    //5) Figure out offsets
+
     //Save our page laoded
     if (blnAdmin) {
         chrome.storage.local.set({"recentPage": "timecard-summary"}, function () {});  
@@ -441,9 +448,13 @@ function showTimeCardSummary() {
         "description": "TOTALS:",
         "descriptionChild": "TOTALS:",
         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
-        "totalTotal": 0
+        "totalTotal": 0,
+        "parentClassTotal": 0,
+        "capacity": 0
     }
 
+
+    //Combine all the non-caculated issues together - to figure out project allocation set
     //If we have a caculation override, figure out the override
     if (!workgroup.settings.classificationToCalculate) {
         //Skip all this mess
@@ -463,7 +474,7 @@ function showTimeCardSummary() {
                         //See if we cna find our classification already
                         var classificationObject;
                         classificationArray.forEach(function(classObj) {
-                            if (classObj.description == issue.classification) {
+                            if (classObj.description.toUpperCase() == issue.classification.toUpperCase()) {
                                 //Found one - done
                                 classificationObject = classObj;
                             }
@@ -482,16 +493,23 @@ function showTimeCardSummary() {
                                 "descriptionChild": issue.classificationChild,
                                 "dayTotal": [0, 0, 0, 0, 0, 0, 0],
                                 "totalTotal": 0,
+                                "parentClassTotal": 0,
                                 "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
                                 "postedTotal": 0, //For offset hours
                                 "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                             }
+
+                            //Get Override of Classifcation Child if we have one to
+                            loadClassificationChild(classificationObject);
+
+                            loadCapacity(classificationObject);
                             classificationArray.push(classificationObject);
 
                         }
 
                         //Add up the total
                         classificationObject.totalTotal = classificationObject.totalTotal + issue.issueTotalTime;
+                        classificationObject.parentClassTotal = classificationObject.parentClassTotal + issue.issueTotalTime;
                         projectTotal = projectTotal + issue.issueTotalTime;
                         
                     }
@@ -503,33 +521,44 @@ function showTimeCardSummary() {
         var saveTotal = 0;
         var saveClassObj;
         classificationArray.forEach(function(classObj) {
-            classObj.projectPercentage = classObj.totalTotal / projectTotal;
+           classObj.projectPercentage = classObj.totalTotal / projectTotal;
             if (classObj.totalTotal >= saveTotal) {
                 saveClassObj = classObj;
                 saveTotal = classObj.totalTotal;
             }
         })   
 
-        //See if we cna find our classification already
+        //See if we cna find our classification already - here is where we calculate the from the calculation set
         workgroup.issueGroups.forEach(function(issueGroup) {
             issueGroup.issues.forEach(function(issue) {
                 if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
-                    issue.classification = saveClassObj.description;
 
-                   //AJH SOMEWHERE HERE IS WHERE WE SPLIT BY % classObj.projectPercentage - multiple time classes for one issue
-                    if (blnDoProductPerctentages) {
+                    //See if user has an override
+                    if (userToRun.defaultClassification) {
+                        //Use this one
+                        issue.classification = userToRun.defaultClassification;
+                    }
+                    else {
 
-                        if (!issue.classificationArray) {
-                            issue.classificationArray = [];
+                        //Assigne to the biggest of our projects from the save list
+                        issue.classification = saveClassObj.description;
+
+                        //AJH SOMEWHERE HERE IS WHERE WE SPLIT BY % classObj.projectPercentage - multiple time classes for one issue
+                        if (blnDoProductPerctentages) {
+
+                            if (!issue.classificationArray) {
+                                issue.classificationArray = [];
+                            }
+
+                            //Add dlassification objects for this match
+                            classificationArray.forEach(function(classObj) {
+                                if (classObj.totalTotal > 0) {
+                                    issue.classificationArray.push(classObj);
+                                    console.log("Alvis Time Project Percentage: Overriding issue '" + issue.fields.summary + "' classifiction of '" + workgroup.settings.classificationToCalculate + "' with caluclated value '" + classObj.projectPercentage + "' for " + issue.issueTotalTime + " hours");
+                                }
+                            })  
                         }
 
-                        //Add dlassification objects for this match
-                        classificationArray.forEach(function(classObj) {
-                            if (classObj.totalTotal > 0) {
-                                issue.classificationArray.push(classObj);
-                                console.log("Alvis Time Project Percentage: Overriding issue '" + issue.fields.summary + "' classifiction of '" + workgroup.settings.classificationToCalculate + "' with caluclated value '" + classObj.projectPercentage + "' for " + issue.issueTotalTime + " hours");
-                            }
-                        })  
                     }
 
                 }
@@ -537,6 +566,8 @@ function showTimeCardSummary() {
         });
     }
  
+    //We have our calculted entries loaded - start fresh
+
     //Re-initialize this
     classificationArray = [];
 
@@ -549,9 +580,10 @@ function showTimeCardSummary() {
                 classificationDisplay = "";
 
                 var classificationObject;
+
                 //See if we cna find our classification already
                 classificationArray.forEach(function(classObj) {
-                    if (classObj.description == issue.classification && classObj.descriptionChild == issue.classificationChild) {
+                    if (classObj.description.toUpperCase() == issue.classification.toUpperCase() && classObj.descriptionChild.toUpperCase() == issue.classificationChild.toUpperCase()) {
                         //Found one - done
                         classificationObject = classObj;
                     }
@@ -572,12 +604,15 @@ function showTimeCardSummary() {
                         "descriptionChild": issue.classificationChild,
                         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
                         "totalTotal": 0,
+                        "parentClassTotal": 0,
                         "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
                         "postedTotal": 0, //For offset hours
                         "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
+                    //Get Override of Classifcation Child if we have one to
+                    loadClassificationChild(classificationObject);
 
-                    //Now add the object to the array
+                    loadCapacity(classificationObject);
                     classificationArray.push(classificationObject);
 
                 }
@@ -607,11 +642,13 @@ function showTimeCardSummary() {
                                 "descriptionChild": issueClassObj.descriptionChild,
                                 "dayTotal": [0, 0, 0, 0, 0, 0, 0],
                                 "totalTotal": 0,
+                                "parentClassTotal": 0,
                                 "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
                                 "postedTotal": 0, //For offset hours
                                 "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                             }
-        
+                            loadCapacity(classificationObject);
+
                             //Now add the object to the array
                             classificationArray.push(classificationObject);
                            
@@ -621,6 +658,9 @@ function showTimeCardSummary() {
 
                     });
                 }
+
+                
+
 
                 //We have our % set per classification based on # hours per
                 //We have put those class objects into issue object as array
@@ -659,10 +699,25 @@ function showTimeCardSummary() {
                 classificationTotalsObject.totalTotal = classificationTotalsObject.totalTotal + issue.issueTotalTime;
 
             }
+        
+            //Match on parent and add them up
+            classificationArray.forEach(function(classObj) {
+                if (classObj.description == issue.classification) {
+                    //Found one - add to it
+                    classObj.parentClassTotal = classObj.parentClassTotal + issue.issueTotalTime;
+                }
+            }) 
+        
         })
 
     })
 
+    //We have done all the muckety muck, result may have duplicates...let fix em
+    classificationArray = consolidateDuplicateEntries(classificationArray);
+
+    //Let's sort our array of classification objects by timePriority
+    classificationArray = classificationArray.sort(timePriorityCompare);
+ 
     //Setup starter object
     var prevClassificationObject = {
         "id": 0,
@@ -670,7 +725,9 @@ function showTimeCardSummary() {
         "descriptionChild": "(not defined)",
         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
         "totalTotal": 0,
-        "timePriority": 0
+        "parentClassTotal": 0,
+        "timePriority": 0,
+        "capacity": 0
     }
 
     //Setup our offset totals object
@@ -680,7 +737,9 @@ function showTimeCardSummary() {
         "descriptionChild": "OFFSET:",
         "dayTotal": [0, 0, 0, 0, 0, 0, 0],
         "totalTotal": 0,
-        "timePriority": 0
+        "parentClassTotal": 0,
+        "timePriority": 0,
+        "capacity": 0
     }
     
     //Make a copy of our totals for use in offset methods
@@ -689,119 +748,128 @@ function showTimeCardSummary() {
         "description": "NET TOTALS:",
         "descriptionChild": "NET TOTALS:",
         "dayTotal": [classificationTotalsObject.dayTotal[0], classificationTotalsObject.dayTotal[1], classificationTotalsObject.dayTotal[2], classificationTotalsObject.dayTotal[3], classificationTotalsObject.dayTotal[4], classificationTotalsObject.dayTotal[5], classificationTotalsObject.dayTotal[6]],
-        "totalTotal": classificationTotalsObject.totalTotal
+        "totalTotal": classificationTotalsObject.totalTotal,
+        "parentClassTotal": 0,
+        "capacity": 0
     }
-
-    //Let's sort our array of classification objects by timePriority
-    classificationArray = classificationArray.sort(timePriorityCompare);
 
     //Set our hours to offset
     //if (classificationTotalsObject.totalTotal > userToRun.maxHoursToSubmit) {
         hoursToOffset = classificationTotalsObject.totalTotal - userToRun.maxHoursToSubmit;
+
         //Fill in our time to the "posted time" by priority untill we run out (ie: 40)
         //do time priority 1 first, dish out posted time to those items, then 2, then 3...keep going til reach max hours mark
         hoursToDrawDown = userToRun.maxHoursToSubmit;
         classificationArray.forEach(function(classificationObject) {
             for (var dayIndex=0; dayIndex < 7; dayIndex++) {
+                console.log("AJH LOOKING TO DRAW DOWN - ", JSON.parse(JSON.stringify(classificationObject)));
                 if (hoursToDrawDown >=  classificationObject.dayTotal[dayIndex]) {
                     classificationObject.dayPostedTotal[dayIndex] = classificationObject.dayTotal[dayIndex];
                 }
                 else {
                     classificationObject.dayPostedTotal[dayIndex] = hoursToDrawDown;                   
                 }
-                classificationObject.postedTotal = classificationObject.postedTotal + classificationObject.dayPostedTotal[dayIndex]
+                console.log("AJH 39 TEST 2A = " + classificationObject.postedTotal + " DAY INDEX " + classificationObject.dayPostedTotal[dayIndex]);
+                classificationObject.postedTotal = Number(classificationObject.postedTotal + classificationObject.dayPostedTotal[dayIndex]);
+                console.log("AJH 39 TEST 2B = " + classificationObject.postedTotal);
                 hoursToDrawDown = hoursToDrawDown - classificationObject.dayPostedTotal[dayIndex];
             }
         });
-   // }
+    //}
+
 
     //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
 
-            if (classificationObject.description == prevClassificationObject.description) {
-                //Same main class, don't show the main class name
-            }
-            else {
-                //filler - if not the first one
-                if (prevClassificationObject.description != "(not defined)") {
+        //See if this is mucked:
+        console.log("AJH SHOWING OFF CLASSIFICATION AFTER OFFSET - ", JSON.parse(JSON.stringify(classificationObject)));
 
-                    //New main class, so start fresh and show the class name - filller first
-                    row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "", "3");
+        if (classificationObject.description == prevClassificationObject.description) {
+            //Same main class, don't show the main class name
+        }
+        else {
+            //filler - if not the first one
+            if (prevClassificationObject.description != "(not defined)") {
 
-                    //And add it to our issue group table
-                    document.getElementById("timecard-summary-details").appendChild(row);   
-  
-                    //New main class, so start fresh and show the class name - filller first
-                    row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "#99b3ff;", "1");
+                //New main class, so start fresh and show the class name - filller first
+                row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "", "3");
 
-                    //And add it to our issue group table
-                    document.getElementById("timecard-summary-details").appendChild(row);   
+                //And add it to our issue group table
+                document.getElementById("timecard-summary-details").appendChild(row);   
 
-                }
-
-                //New main class, so start fresh and show the class name
-                row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "head");
+                //New main class, so start fresh and show the class name - filller first
+                row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "fill", "#99b3ff;", "1");
 
                 //And add it to our issue group table
                 document.getElementById("timecard-summary-details").appendChild(row);   
 
             }
 
-            //Now have to dcreate the row now
-            row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "detail");
+            //New main class, so start fresh and show the class name
+            row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "head");
 
             //And add it to our issue group table
             document.getElementById("timecard-summary-details").appendChild(row);   
 
-            //If admin, dd listener to checkbox
-            if (user.legacyPostTime && classificationObject.description != "No classification defined") {
-                document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
-            }
-            else {
-                document.getElementById("postheader").style.display = 'none';
-            }    
-        
-            //Here is where the adjustment row goes
-            //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
-            if (classificationObject.postedTotal < classificationObject.totalTotal) {
+        }
 
-                //Doing an offset, build an offset object
-                offsetObject = {
-                    "id": 0,
-                    "description": "Offset",
-                    "descriptionChild": "Offset",
-                    "dayTotal": [0, 0, 0, 0, 0, 0, 0],
-                    "totalTotal": 0,
-                    "timePriority": classificationObject.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
-                }
+        //Now have to dcreate the row now
+        row = generateTimecardSummaryRow(classificationObject, "timecard-summary-class", "detail");
 
-                //Now do an offset
+        //And add it to our issue group table
+        document.getElementById("timecard-summary-details").appendChild(row);   
 
-                //For each day, add the amounts to the totals for the classification
-                for (var dayIndex=0; dayIndex < 7; dayIndex++) {
-                    offsetObject.dayTotal[dayIndex] = classificationObject.dayTotal[dayIndex] - classificationObject.dayPostedTotal[dayIndex];
-                    offsetObject.totalTotal = offsetObject.totalTotal + offsetObject.dayTotal[dayIndex];
+        //If admin, dd listener to checkbox
+        if (user.legacyPostTime && classificationObject.description != "No classification defined") {
+            document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
+        }
+        else {
+            document.getElementById("postheader").style.display = 'none';
+        }    
+    
+        //Here is where the adjustment row goes
+        //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
+        if (classificationObject.postedTotal < classificationObject.totalTotal) {
 
-                    //Fill in our offset totals object
-                    classificationTotalsOffsetObject.dayTotal[dayIndex] = classificationTotalsOffsetObject.dayTotal[dayIndex] + offsetObject.dayTotal[dayIndex];
-                    classificationTotalsOffsetObject.totalTotal = classificationTotalsOffsetObject.totalTotal + offsetObject.dayTotal[dayIndex];                 
-                    
-                    //Fill in our offset net object
-                    classificationTotalsNetObject.dayTotal[dayIndex] = classificationTotalsNetObject.dayTotal[dayIndex] - offsetObject.dayTotal[dayIndex];
-                    classificationTotalsNetObject.totalTotal = classificationTotalsNetObject.totalTotal - offsetObject.dayTotal[dayIndex];
-
-               }
-
-                //Now have to create the offset row
-                row = generateTimecardSummaryRow(offsetObject, "timecard-summary-class", "offset");
-
-                //And add it to our issue group table
-                document.getElementById("timecard-summary-details").appendChild(row);  
-
+            //Doing an offset, build an offset object
+            offsetObject = {
+                "id": 0,
+                "description": "Offset",
+                "descriptionChild": "Offset",
+                "dayTotal": [0, 0, 0, 0, 0, 0, 0],
+                "totalTotal": 0,
+                "parentClassTotal": 0,
+                "timePriority": classificationObject.timePriority, //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+                "capacity": 0
             }
 
-            //Reset our previous object
-            prevClassificationObject = classificationObject;
+            //Now do an offset
+
+            //For each day, add the amounts to the totals for the classification
+            for (var dayIndex=0; dayIndex < 7; dayIndex++) {
+                offsetObject.dayTotal[dayIndex] = classificationObject.dayTotal[dayIndex] - classificationObject.dayPostedTotal[dayIndex];
+                offsetObject.totalTotal = offsetObject.totalTotal + offsetObject.dayTotal[dayIndex];
+
+                //Fill in our offset totals object
+                classificationTotalsOffsetObject.dayTotal[dayIndex] = classificationTotalsOffsetObject.dayTotal[dayIndex] + offsetObject.dayTotal[dayIndex];
+                classificationTotalsOffsetObject.totalTotal = classificationTotalsOffsetObject.totalTotal + offsetObject.dayTotal[dayIndex];                 
+                
+                //Fill in our offset net object
+                classificationTotalsNetObject.dayTotal[dayIndex] = classificationTotalsNetObject.dayTotal[dayIndex] - offsetObject.dayTotal[dayIndex];
+                classificationTotalsNetObject.totalTotal = classificationTotalsNetObject.totalTotal - offsetObject.dayTotal[dayIndex];
+
+            }
+
+            //Now have to create the offset row
+            row = generateTimecardSummaryRow(offsetObject, "timecard-summary-class", "offset");
+
+            //And add it to our issue group table
+            document.getElementById("timecard-summary-details").appendChild(row);  
+
+        }
+
+        //Reset our previous object
+        prevClassificationObject = classificationObject;
 
     })
 
@@ -891,103 +959,124 @@ function showReportLines(inputReportObject) {
 
     //Accumulate our hour totals to use as %
     inputReportObject.issues.forEach(function (issue) {
-        issue.worklogs.forEach(function(worklog) {
-            if (inputReportObject.report.blnAllUsers) {
-                calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
-            }
-            else {
-                if (typeof worklog.comment != "undefined") {
-                    if (worklog.comment.includes(userToRun.userid + "|")) {
-                        calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
+        if (issue.worklogs) {
+            issue.worklogs.forEach(function(worklog) {
+                if (inputReportObject.report.blnAllUsers) {
+                    calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
+                }
+                else {
+                    if (typeof worklog.comment != "undefined") {
+                        if (worklog.comment.includes(userToRun.userid + "|")) {
+                            calculatedTotalHours = calculatedTotalHours + (worklog.timeSpentSeconds / 3600);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     });
 
     //Create our rows
     inputReportObject.issues.forEach(function (issue) {
 
         //Go thru the worklogs and add em up
-        issue.worklogs.forEach(function(worklog) {
+        if (issue.worklogs) {
+            issue.worklogs.forEach(function(worklog) {
 
-            //Only if we care AHH
-            blnShowIt = false;
-     
-
-            if (inputReportObject.report.blnAllUsers) {
-                blnShowIt = true;
-            }
-            else {
-                if (typeof worklog.comment != "undefined") {
-                    if (worklog.comment.includes(userToRun.userid + "|")) {
-                        blnShowIt = true;
+                //Only if we care AHH
+                blnShowIt = false;
+             
+                if (inputReportObject.report.blnAllUsers) {
+                    blnShowIt = true;
+                }
+                else {
+                    if (typeof worklog.comment != "undefined") {
+                        if (worklog.comment.includes(userToRun.userid + "|")) {
+                            blnShowIt = true;
+                        }
+                        else {
+                            blnShowIt = false;
+                        }
                     }
                     else {
                         blnShowIt = false;
                     }
                 }
-                else {
-                    blnShowIt = false;
+    
+                if (blnShowIt) {
+    
+                    //Now lets process our worklog - filter date range and user id from comments
+                    var worklogDate = new Date(worklog.started);
+    
+                    //Now convert to CT for compare
+                    if (worklogDate.getTimezoneOffset() == 300 || worklogDate.getTimezoneOffset() == 360) {
+                        //Central time - leave it
+                    }
+                    else {
+                        //Diff time zone - convert for comparison
+                        worklogDate = convertToCentralTime(worklogDate);
+                    }
+    
+                    //Added em up to right day counts
+                    switch(worklogDate.getDay()) {
+                        case 6: //Saturday
+                            dayIndex = 0
+                            break;
+                        case 0: //Sunday
+                            dayIndex = 1;
+                            break;
+                        case 1: //Monday
+                            dayIndex = 2;
+                            break;
+                        case 2: //Tuesday
+                            dayIndex = 3;
+                            break;
+                        case 3: //Wednesday
+                            dayIndex = 4;
+                            break;
+                        case 4: //Thursday
+                            dayIndex = 5;
+                            break;
+                        case 5: //Friday
+                            dayIndex = 6;
+                            break;
+                        default:
+                    }
+    
+                    //Add to the right day
+                    dayOfWeek[dayIndex] = dayOfWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                    weekTotal = weekTotal + (worklog.timeSpentSeconds / 3600);
+    
+                    //Add to the right day for totals
+                    totalWeek[dayIndex] = totalWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
+                    totalWeekTotal = totalWeekTotal + (worklog.timeSpentSeconds / 3600);
+    
                 }
-            }
+    
+            });
 
-            if (blnShowIt) {
+        }
 
-                //Now lets process our worklog - filter date range and user id from comments
-                var worklogDate = new Date(worklog.started);
-
-                //Now convert to CT for compare
-                if (worklogDate.getTimezoneOffset() == 300 || worklogDate.getTimezoneOffset() == 360) {
-                    //Central time - leave it
-                }
-                else {
-                    //Diff time zone - convert for comparison
-                    worklogDate = convertToCentralTime(worklogDate);
-                }
-
-                //Added em up to right day counts
-                switch(worklogDate.getDay()) {
-                    case 6: //Saturday
-                        dayIndex = 0
-                        break;
-                    case 0: //Sunday
-                        dayIndex = 1;
-                        break;
-                    case 1: //Monday
-                        dayIndex = 2;
-                        break;
-                    case 2: //Tuesday
-                        dayIndex = 3;
-                        break;
-                    case 3: //Wednesday
-                        dayIndex = 4;
-                        break;
-                    case 4: //Thursday
-                        dayIndex = 5;
-                        break;
-                    case 5: //Friday
-                        dayIndex = 6;
-                        break;
-                    default:
-                }
-
-                //Add to the right day
-                dayOfWeek[dayIndex] = dayOfWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
-                weekTotal = weekTotal + (worklog.timeSpentSeconds / 3600);
-
-                //Add to the right day for totals
-                totalWeek[dayIndex] = totalWeek[dayIndex] +  (worklog.timeSpentSeconds / 3600);
-                totalWeekTotal = totalWeekTotal + (worklog.timeSpentSeconds / 3600);
-
-            }
-
-        });
 
         if (issue.classification != saveClassification) {
 
             if (saveClassification != "") {
                 //Show the prior totals
+                var classificationObject = {
+                    "id": 0,
+                    "userId": userToRun.userid,
+                    "legacyPostTime": false, //What is this?
+                    "weekOf": ISODate(firstDay),
+                    "description": saveClassification,
+                    "descriptionChild": "",
+                    "dayTotal": dayOfWeekClassification,
+                    "totalTotal": 0,
+                    "parentClassTotal": 0,
+                    "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+                    "postedTotal": 0, //For offset hours
+                    "timePriority": 0 //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+                }
+
+                loadCapacity(classificationObject);
 
                 //Classification Row - total from prior
                 myOutputRow = document.getElementById('report-total').innerHTML;
@@ -1001,11 +1090,11 @@ function showReportLines(inputReportObject) {
                 myOutputRow = myOutputRow.replace(/_REPORTDAY4_/gi, dayOfWeekClassification[4]); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY5_/gi, dayOfWeekClassification[5]); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY6_/gi, dayOfWeekClassification[6]); 
-                myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, weekTotalClassification); 
-                myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
+                myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, "<font color='red'>" + weekTotalClassification + "</font>"); 
+                myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classificationObject.capacity + "</font>"); 
                 myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
                 hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
-                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
+                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='red'>" + Math.round(hoursPercent) + "%</font>"); 
 
                 //Add it to the rest
                 myOutputRows = myOutputRows + myOutputRow;
@@ -1102,6 +1191,25 @@ function showReportLines(inputReportObject) {
    
     });
 
+    //Show the prior totals
+    var classificationObject = {
+        "id": 0,
+        "userId": userToRun.userid,
+        "legacyPostTime": false, //What is this?
+        "weekOf": ISODate(firstDay),
+        "description": saveClassification,
+        "descriptionChild": "",
+        "dayTotal": dayOfWeekClassification,
+        "totalTotal": 0,
+        "parentClassTotal": 0,
+        "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+        "postedTotal": 0, //For offset hours
+        "timePriority": 0 //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+    }
+
+    loadCapacity(classificationObject);
+
+
     //Final classification total
     myOutputRow = document.getElementById('report-total').innerHTML;
     myOutputRow = myOutputRow.replace(/report-summary/gi, "report-title"); 
@@ -1114,11 +1222,11 @@ function showReportLines(inputReportObject) {
     myOutputRow = myOutputRow.replace(/_REPORTDAY4_/gi, dayOfWeekClassification[4]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY5_/gi, dayOfWeekClassification[5]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY6_/gi, dayOfWeekClassification[6]); 
-    myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, weekTotalClassification); 
-    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
+    myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, "<font color='red'>" + weekTotalClassification + "</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classificationObject.capacity + "</font>"); 
     myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
     hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
-    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi,  "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi,  "<font color='red'>" + Math.round(hoursPercent) + "%</font>"); 
 
     //Add it to the rest
     myOutputRows = myOutputRows + myOutputRow;
@@ -1488,7 +1596,6 @@ function onUserSuccess(response) {
         document.getElementById("report-single-image").remove();
         document.getElementById("report-image").remove();
     }
-
 
 
     //Grab our stored classification posts, if we have them
@@ -2019,7 +2126,7 @@ function generateReport(inputReport) {
     else {
         //Initialize these
         reportFirstDay = firstDay;
-        reportLastDate = lastDay;
+        reportLastDay = lastDay;
         console.log("AJH DATE NOT SET - ", JSON.parse(JSON.stringify(reportFirstDay)));
     }
 
@@ -2061,7 +2168,7 @@ function generateReport(inputReport) {
             //dateToUseStart.setDate(dateToUseStart.getDate() - 7);           
             myJQL = myJQL.replace(/_TIMECARDSTART_/gi, ISODate(dateToUseStart));
     
-            var dateToUseEnd = new Date(reportLastDate);
+            var dateToUseEnd = new Date(reportLastDay);
             dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
             myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));      
             
@@ -2140,7 +2247,7 @@ function onReportWorklogFetchSuccess(responseObject) {
            worklogDate = convertToCentralTime(worklogDate);
        }
 
-       if (worklogDate <= reportLastDate && worklogDate >= reportFirstDay) {
+       if (worklogDate <= reportLastDay && worklogDate >= reportFirstDay) {
 
            //Build users selection list
            for (var u=0; u < workgroup.users.length; u++) {
@@ -3883,10 +3990,28 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
 
     //Add the final total cell - Here is whwere we could ahve some rules to flag/id things out of or ranges
     if (inputType == "head") {
-        var timeInputTotal = buildHTML('th', "", {
-            //style: "display: inline-block",
-            class: inputClass  
-        });
+        if (issueClassification.capacity) {
+            var capacityPercentage = Number((100 * issueClassification.parentClassTotal / issueClassification.capacity).toFixed(0));
+            var timeInputTotal = buildHTML('th', "<font color='red'>" + issueClassification.capacity + "&#8594;" + capacityPercentage + "%</font>", {
+                //style: "display: inline-block",
+                class: inputClass  
+            });
+        }
+        else {
+            if (userToRun.capacities) {
+                var timeInputTotal = buildHTML('th', "<font color='red'>0</font>", {
+                    //style: "display: inline-block",
+                    class: inputClass  
+                });
+            }
+            else {
+                var timeInputTotal = buildHTML('th', "", {
+                    //style: "display: inline-block",
+                    class: inputClass  
+                });
+            }
+
+        }
     }
     else if (inputType == "fill") {
         var timeInputTotal = buildHTML('td', "", {
@@ -4025,14 +4150,99 @@ function doClassificationPostTime(inputImage, inputClassificationObject) {
 //Find classification in our posted array
 function findClassificationInPostedArray(inputClassification) {
     for (i=0;i<postedClassficationArray.length;i++) {
+        //console.log("AJH TRYING MATCH: ", JSON.parse(JSON.stringify(inputClassification)));
+        //console.log("AJH TO: ", JSON.parse(JSON.stringify(postedClassficationArray[i])));
         if (postedClassficationArray[i].description == inputClassification.description && postedClassficationArray[i].descriptionChild == inputClassification.descriptionChild &&
             postedClassficationArray[i].userId == inputClassification.userId && postedClassficationArray[i].weekOf == inputClassification.weekOf) {
+            //console.log("AJH FOUND POSTED TRUE: ", JSON.parse(JSON.stringify(inputClassification)));
             return true;
         }
     }
+    //console.log("AJH FOUND POSTED FALSE: ", JSON.parse(JSON.stringify(inputClassification)));
     return false;
 }
 
+//Find consolidate duplicate entries in the classificaiton array
+function consolidateDuplicateEntries(classificationArray) {
+
+    //create new array
+    var newClassificationArray = [];
+    var classificationObject;
+    var blnMatch = false;
+
+    //iterate thru input array
+    classificationArray.forEach(function(classObject) {
+        //foreach find in new array
+        blnMatch = false;
+        newClassificationArray.forEach(function(newClassObject) {
+            //if found, add #'s to found entry and replace
+            if (classObject.description.toUpperCase() == newClassObject.description.toUpperCase() && classObject.descriptionChild.toUpperCase() == newClassObject.descriptionChild.toUpperCase()) {
+                //We have a match - add #'s to found entry and replace
+                blnMatch = true;
+
+                //Add our numbers together
+                newClassObject.totalTotal = Number(newClassObject.totalTotal + classObject.totalTotal);
+                newClassObject.parentClassTotal = Number(newClassObject.parentClassTotal + classObject.parentClassTotal);
+                newClassObject.postedTotal = Number(newClassObject.postedTotal + classObject.postedTotal);
+                console.log("AJH 39 TEST 1 = " + newClassObject.postedTotal);
+
+                //And the daily numbers    
+                newClassObject.dayTotal[0] = Number(newClassObject.dayTotal[0] + classObject.dayTotal[0]);
+                newClassObject.dayTotal[1] = Number(newClassObject.dayTotal[1] + classObject.dayTotal[1]);
+                newClassObject.dayTotal[2] = Number(newClassObject.dayTotal[2] + classObject.dayTotal[2]);
+                newClassObject.dayTotal[3] = Number(newClassObject.dayTotal[3] + classObject.dayTotal[3]);
+                newClassObject.dayTotal[4] = Number(newClassObject.dayTotal[4] + classObject.dayTotal[4]);
+                newClassObject.dayTotal[5] = Number(newClassObject.dayTotal[5] + classObject.dayTotal[5]);
+                newClassObject.dayTotal[6] = Number(newClassObject.dayTotal[6] + classObject.dayTotal[6]);
+ 
+                newClassObject.dayPostedTotal[0] = Number(newClassObject.dayPostedTotal[0] + classObject.dayPostedTotal[0]);
+                newClassObject.dayPostedTotal[1] = Number(newClassObject.dayPostedTotal[1] + classObject.dayPostedTotal[1]);
+                newClassObject.dayPostedTotal[2] = Number(newClassObject.dayPostedTotal[2] + classObject.dayPostedTotal[2]);
+                newClassObject.dayPostedTotal[3] = Number(newClassObject.dayPostedTotal[3] + classObject.dayPostedTotal[3]);
+                newClassObject.dayPostedTotal[4] = Number(newClassObject.dayPostedTotal[4] + classObject.dayPostedTotal[4]);
+                newClassObject.dayPostedTotal[5] = Number(newClassObject.dayPostedTotal[5] + classObject.dayPostedTotal[5]);
+                newClassObject.dayPostedTotal[6] = Number(newClassObject.dayPostedTotal[6] + classObject.dayPostedTotal[6]);
+                
+                console.log("AJH CONSOLIDATE DUP FROM THIS: ", JSON.parse(JSON.stringify(classObject)));
+                console.log("AJH CONSOLIDATE DUP TO THIS: ", JSON.parse(JSON.stringify(newClassObject)));
+
+
+           }
+        });
+        if (!blnMatch) {
+            //Not found, add it directly to the new array - MUST DO DEEP COPY - not by reference
+            let newClassificationObject = JSON.parse(JSON.stringify(classObject));
+            newClassificationArray.push(newClassificationObject);
+            console.log("AJH CONSOLIDATE ADDED THIS: ", JSON.parse(JSON.stringify(classObject)));
+        }
+    });
+
+    console.log("AJH RETURNNG ARRAY OF: ", JSON.parse(JSON.stringify(newClassificationArray)));
+    return newClassificationArray;
+
+}
+
+//Initialize new object - NOT CURRENTLY USED
+function createNewClassificationObject() {
+
+    var myReturnObject ={
+        "id": 0,
+        "userId": userToRun.userid,
+        "legacyPostTime": false, //What is this?
+        "weekOf": ISODate(firstDay),
+        "description": "",
+        "descriptionChild": "",
+        "dayTotal": 0,
+        "totalTotal": 0,
+        "parentClassTotal": 0,
+        "dayPostedTotal": [0, 0, 0, 0, 0, 0, 0], //For offset hours
+        "postedTotal": 0, //For offset hours
+        "timePriority": 0 //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
+    }
+
+    return myReturnObject();
+
+}
 
 /***************
 Helper functions 
@@ -4427,6 +4637,41 @@ function initializeApp() {
     });
 }
 
+//Find the capacity for this classifiction for this user on this date
+function loadCapacity(classificationObject) {
+
+    classificationObject.capacity = 0;
+    if (userToRun.capacities) {
+        userToRun.capacities.forEach(function(capacity) {
+  
+            //Load capacity for matching date
+            if (capacity.date == "default") {
+                capacity.classificationCapacities.forEach(function(classificationCapacity) {
+                    if (classificationObject.description.toUpperCase() == classificationCapacity.classification.toUpperCase()) {
+                        //This our user, default, classificiation seting.  Only use if not filled already
+                        if (!classificationObject.capacity) {
+                            console.log("Alvis Time: We have a default match. Capacity for  " + classificationCapacity.classification + " = " + classificationCapacity.hours);
+                            classificationObject.capacity = classificationCapacity.hours;
+                        }
+                    }
+                });
+            }
+            else {
+                if (capacity.date == classificationObject.weekOf) {
+                    capacity.classificationCapacities.forEach(function(classificationCapacity) {
+                        if (classificationObject.description.toUpperCase() == classificationCapacity.classification.toUpperCase()) {
+                            //This our user, date, classification setting
+                            console.log("Alvis Time: We have a match. Capacity for  " + classificationCapacity.classification + " = " + classificationCapacity.hours);
+                            classificationObject.capacity = classificationCapacity.hours;
+                        }
+                    });
+                }
+            }
+        });
+    }
+}
+
+
 //Update the column headers to be the right date
 function updateDateHeaders() {
     document.getElementById('issue-title-header').innerHTML = dateTitleHeaderSave.replace(/_SAT_/gi, makeMMDD(firstDay));
@@ -4636,12 +4881,41 @@ function postTime(inputCLassificationObject) {
 
     postedClassficationArray.push(inputCLassificationObject);
 
+    //Get Override of Classification Child if we have one to
+    loadClassificationChild(inputCLassificationObject);
+
     //Hold our data on local storage
     chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
         chrome.storage.local.set({"timeEntry": inputCLassificationObject}, function () {
             chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject});
         });
     });
+}
+
+/***************
+loadClassificationChild
+***************/
+function loadClassificationChild(inputCLassificationObject) {
+   
+    if (!userToRun.defaultChildClassification)
+        userToRun.defaultChildClassification = "Development";
+
+    //console.log("AJH LOADING SUB CLASS 1:" + inputCLassificationObject.description + " Child:" + inputCLassificationObject.descriptionChild);
+
+    //Lets fill in our default sub-classification if needed
+    if (inputCLassificationObject.descriptionChild.length <= 1) 
+        inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+    if (inputCLassificationObject.descriptionChild == "(no sub-project)") 
+        inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+    if (inputCLassificationObject.descriptionChild == "Process, Procedures, Standards") 
+        inputCLassificationObject.descriptionChild = "Processes, Procedures, and Standards";
+    if (inputCLassificationObject.descriptionChild == "Checkout") 
+        nputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+    if (inputCLassificationObject.descriptionChild == "Management & Supervision")
+        inputCLassificationObject.descriptionChild = "Supervision";
+
+    //console.log("AJH LOADING SUB CLASS 2:" + inputCLassificationObject.description + " Child:" + inputCLassificationObject.descriptionChild);
+
 }
 
 
