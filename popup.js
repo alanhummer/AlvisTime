@@ -777,7 +777,7 @@ function showTimeCardSummary() {
         });
     //}
 
-
+    var blnDidAllClassifications = true;
     //For each classification object, if hours > 0 show it to the grid AND we set posted time based on priority, show it here as second line
     classificationArray.forEach(function(classificationObject) {
 
@@ -871,7 +871,22 @@ function showTimeCardSummary() {
         //Reset our previous object
         prevClassificationObject = classificationObject;
 
+        //Assess if we are done
+        if (findClassificationInPostedArray(classificationObject)) {
+            //Found it - maybe done?
+        }
+        else {
+            //did not found it...not done
+            blnDidAllClassifications = false;
+        }
+
     })
+
+    if (blnDidAllClassifications) 
+        document.getElementById("post-all-summary").src = "images/red_go_button.png";
+
+    //AJH AJH RIGHT IN HERE IS WHERE WE WANT TO CAPTURE ALL CASS OBJECTS AND SEND TO BE SPOST _ ALL THAT ARE BLUE ANYUWAY
+    document.getElementById("post-all-summary").addEventListener ("click", function(){ doClassificationPostTimes(this, classificationArray)}); 
 
     //Final fill buffer
     row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-class", "fill", "#99b3ff;", "3");
@@ -895,7 +910,7 @@ function showTimeCardSummary() {
     row = generateTimecardSummaryRow(classificationTotalsNetObject, "timecard-summary-totals-net", "total");
 
     //And add it to our issue group table
-    document.getElementById("timecard-summary-details").appendChild(row);   
+    document.getElementById("timecard-summary-details").appendChild(row);  
 
 }
 
@@ -1589,6 +1604,18 @@ function onUserSuccess(response) {
             generateReport("teamTotal");
 
         }); 
+        document.getElementById("late-image").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            sendLateNotification();
+
+        }); 
+        document.getElementById("late-image-summary").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            sendLateNotification();
+
+        });
 
     }
     else {
@@ -4124,6 +4151,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
                 id:  issueClassification.id + "+posttime",
                 style: "float: right;"
             });
+
         }
         //Add checkbox to the cell
         postTimeCell.appendChild(classificationPostTime);
@@ -4132,6 +4160,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
 
     //Add the column
     row.appendChild(postTimeCell);
+
 
     return row;
 }
@@ -4146,6 +4175,16 @@ function doClassificationPostTime(inputImage, inputClassificationObject) {
     postTime(inputClassificationObject);
 
 }
+
+//Pushed button for all classification entries to post
+function doClassificationPostTimes(inputImage, inputClassificationObjects) {
+
+    console.log("AJH SHOW ARRAY: ", JSON.parse(JSON.stringify(inputClassificationObjects)));
+    inputImage.src = "images/red_go_button.png";
+    postTimes(inputClassificationObjects);
+
+}
+
 
 //Find classification in our posted array
 function findClassificationInPostedArray(inputClassification) {
@@ -4861,6 +4900,33 @@ function sendEmail(inputSubject, inputMessage, inputFrom, inputTo) {
 
 }
 
+//Send Late Notification
+function sendLateNotification() {
+ 
+    var sendSubject;
+    var sendMessage;
+    var sendWeekMessage
+
+    sendSubject = config.orgReminderNotice.subject;
+    sendMessage = config.orgReminderNotice.message;
+
+    if (lastDay > today) 
+        sendWeekMessage = " is almost due. "
+    else    
+        sendWeekMessage = " is past due. This is late";  
+
+    sendSubject = sendSubject.replace( /_WEEK_/g, document.getElementById('week-dates-description').innerHTML);
+    sendSubject = sendSubject.replace( /_DUEMESSAGE_/g, sendWeekMessage );
+    sendMessage = sendMessage.replace( /_WEEK_/g, document.getElementById('week-dates-description').innerHTML);
+    sendMessage = sendMessage.replace( /_DUEMESSAGE_/g, sendWeekMessage );
+
+    //sendEmail(sendSubject, sendMessage, config.orgReminderNotice.from, userToRun.email);
+    sendEmail(sendSubject, sendMessage, config.orgReminderNotice.from, userToRun.email);
+
+    notificationMessage("TO: " + userToRun.email + " SENT: " + sendSubject, "notification");
+}
+
+
 /***************
 Utilility - make it good case for reading
 ***************/
@@ -4884,12 +4950,72 @@ function postTime(inputCLassificationObject) {
     //Get Override of Classification Child if we have one to
     loadClassificationChild(inputCLassificationObject);
 
+    //Build up view of legacy time card to pass for lod after done posting
+    var URLtoLoad = "";
+    URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
+    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+
+    //Create screenshot object to pass along
+    var endPageObject = {
+        pageToLoad: URLtoLoad,
+        name: userToRun.name,
+        date: ISODate(firstDay),
+    };
+
     //Hold our data on local storage
     chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
-        chrome.storage.local.set({"timeEntry": inputCLassificationObject}, function () {
-            chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject});
-        });
+        chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject, endPage: endPageObject});
     });
+}
+function postTimes(inputClassificationObjects) {
+
+    console.log("Alvis Time: Class Objects - ", JSON.parse(JSON.stringify(inputClassificationObjects)));
+    inputClassificationObjects.forEach(function(classObj) {
+        console.log("DOING CLASS Object");
+        classObj.legacyPostTime = true;
+        loadClassificationChild(classObj);
+        var foundInPosted = false;
+        postedClassficationArray.forEach(function(postedClass) {
+            if (!foundInPosted) {
+                console.log("DOING POSTED CLASS Object");
+                if (classObj.description == postedClass.description && classObj.descriptionChild == postedClass.descriptionChild && classObj.id == postedClass.id) {
+                    classObj.legacyPostTime = false;
+                    console.log("ALREADY POSTED: " + classObj.description + " " + classObj.descriptionChild + " " + classObj.id);
+                    foundInPosted = true;
+                }
+                else {                
+                    console.log("GOING TO POST: " + classObj.description + " " + classObj.descriptionChild + " " + classObj.id);
+                }
+            }
+        });
+        if (!foundInPosted) {
+            //Did not find it, so add it now
+            postedClassficationArray.push(classObj);   
+        }
+    });
+
+
+    //Build up view of legacy time card to pass for lod after done posting
+    var URLtoLoad = "";
+    URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
+    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+
+    //Create screenshot object to pass along
+    var endPageObject = {
+        pageToLoad: URLtoLoad,
+        name: userToRun.name,
+        date: ISODate(firstDay),
+    };
+
+    //Hold our data on local storage
+    chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
+        console.log("SENDING MESSAGE: prepareposts", JSON.parse(JSON.stringify(inputClassificationObjects)));
+        chrome.runtime.sendMessage({action: "prepareposts", timeEntries: inputClassificationObjects, endPage: endPageObject});
+    });
+
+    console.log("Alvis Time: Done Post Times");
 }
 
 /***************

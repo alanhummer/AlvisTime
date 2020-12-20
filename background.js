@@ -10,7 +10,7 @@ var config;
 var workgroup;
 var user;
 var JIRA;
-var blnRemoteConfig = true;
+var blnRemoteConfig = false;
 //For legacy integration
 var ltimeEntryIndex = 0;
 var ltimeEntryArray = [];
@@ -19,6 +19,10 @@ var saveTab;
 var blnTabStatusComplete = false;
 var blnOrgKeyLoaded = false;
 var blnOrgKeyLoading = false;
+//Hold the global array of time entries
+var globalTimeEntries = [];
+var globalTimeEntry;
+var globalEndPage;
 
 console.log("Alvis Time: Is started and running");
 
@@ -33,35 +37,73 @@ function loadKeyAndOrg() {
     //Let folks know we are loading, so they dont do the same
     blnOrgKeyLoading = true;
 
-    //if we have the configuration laoded, use it.  Else abort, til next time
-    console.log("Alvis Time: Loading key from storage");
-    chrome.storage.local.get("keyStorage", function(response) {
+    if (blnRemoteConfig) {
+        //if we have the configuration laoded, use it.  Else abort, til next time
+        console.log("Alvis Time: Loading key from storage");
+        chrome.storage.local.get("keyStorage", function(response) {
 
-        //See if we got it or not
-        if (response) {
-            if (response.keyStorage) {
-                //We got it, let's d this
-                console.log("Alvis Time: Loading Org Key from cache");
-                config = response.keyStorage;
-                blnOrgKeyLoaded = true;
-                mainControlThread();  
-            }  
+            //See if we got it or not
+            if (response) {
+                if (response.keyStorage) {
+                    //We got it, let's d this
+                    console.log("Alvis Time: Loading Org Key from cache");
+                    config = response.keyStorage;
+                    blnOrgKeyLoaded = true;
+                    mainControlThread();  
+                }  
+                else {
+                //No dice, abort
+                console.log("Alvis Time: No org key storage yet defined.  Abort.");              
+                }                
+            }
             else {
-              //No dice, abort
-              console.log("Alvis Time: No org key storage yet defined.  Abort.");              
-            }                
-        }
-        else {
-            //No dice, abort
-            console.log("Alvis Time: No org key storage yet defined.  Abort.");
-        }
-        blnOrgKeyLoading = false;
-    });
+                //No dice, abort
+                console.log("Alvis Time: No org key storage yet defined.  Abort.");
+            }
+            blnOrgKeyLoading = false;
+        });
+    }
+    else {
+        console.log("Alvis Time: Loading key from file");
+        chrome.storage.local.get("orgKeya", function(data) {
+            console.log("Alvis Time: Loaded key from file:", JSON.parse(JSON.stringify(data)));
+            if (data) {
+                if (data.orgKeya) {
+                    if (data.orgKeya.length > 0) {
+                        console.log("Alvis Time: Loading org key:" + data.orgKeya); 
+                        loadConfig(data.orgKeya + ".json", function(response) { 
+                            //See if it was bogus
+                            if (response == null || typeof response === 'undefined' || response.length <= 0) {
+                                //Bogus
+                                console.log("Alvis Time: No org key could not find file.  Abort.");   
+                            }
+                            else {
+                                //Get all of our config parameters
+                                orgKey = data.orgKeya;
+                                config = JSON.parse(response); 
+                                console.log("Alvis Time: Loaded org key:" + orgKey); 
+                                
+                                //All done
+                                blnOrgKeyLoaded = true;
+
+                                //Get it, so put listner on DOM loaded event
+                                mainControlThread();
+                            }
+                            blnOrgKeyLoading = false;
+                        });
+                        blnOrgKeyLoading = false;
+                    }
+                    blnOrgKeyLoading = false;
+                }
+                blnOrgKeyLoading = false;
+            }
+            blnOrgKeyLoading = false;
+        });
+    }
 
     return true;
 
 }
-
 
 /****************
 Main control thread - When we are set, do this routine
@@ -456,13 +498,15 @@ function getConfig(url, callback) {
 
 //Sleep function, like what every other language has
 function sleep(inputMS) {
+    console.log("Alvis time waiting " + inputMS + " .....");
     let timeStart = new Date().getTime(); 
     while (true) { 
         let elapsedTime = new Date().getTime() - timeStart; 
         if (elapsedTime > inputMS) { 
         break; 
         } 
-    } 
+    }
+    console.log("Alvis time done waiting"); 
 }
 
 //************************************************
@@ -480,12 +524,13 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
     if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
         loadKeyAndOrg();
 
-    //We have recieved a message: If it is for posting time, off we go 
+    //We have recieved a message: If it is for loadURI time, off we go 
     if( requestMessage.action === "loadURI" ) {
         console.log("Loading URL: " + requestMessage.URI);
         chrome.tabs.create({ url: requestMessage.URI}, function(newTab) {
         });    
     };
+
 });
 
 
@@ -498,6 +543,42 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 //************************************************
 //************************************************
 
+//Add listener for ARRAY of message
+chrome.runtime.onMessage.addListener(function(requestMessage) {
+    
+    var blnDone = false;
+
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+  
+    //No config yet, exit
+    if (!config) 
+        return;
+  
+    //We have recieved a message: If it is for WE ARE DONE time, off we go 
+    if( requestMessage.action === "prepareposts" ) {
+        //We have an array to post..what to do?
+        globalTimeEntry = null;
+        globalEndPage = requestMessage.endPage;
+        console.log("Alvis Time: Got Message prepareposts");
+        if (requestMessage.timeEntries) {
+            globalTimeEntries = requestMessage.timeEntries;
+            globalTimeEntries.forEach(function(timeEntry) {
+                if (timeEntry.legacyPostTime && !blnDone) {
+                    console.log("Alvis Time: Prepare Post Message For Legacy Integration");
+                    createTabAndPostLegacyIntegration (timeEntry);
+                    blnDone = true;
+                    console.log("Alvis Time: Done with Relaying Message");
+                }
+                else {
+                    console.log("Alvis Time: Got but not posting");
+                }
+            });
+        }
+    };
+});
+
 //Add listener for messages from popup - relay to do the legacy integration
 chrome.runtime.onMessage.addListener(function(requestMessage) {
 
@@ -505,8 +586,15 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
     if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
         loadKeyAndOrg();
 
+    //No config yet, exit
+    if (!config) 
+        return;
+
     //We have recieved a message: If it is for posting time, off we go 
     if( requestMessage.action === "preparepost" ) {
+        globalTimeEntry = null;
+        globalTimeEntries.push(requestMessage.timeEntry);
+        globalEndPage = requestMessage.endPage;
         if (requestMessage.timeEntry.legacyPostTime) {
             console.log("Alvis Time: Prepare Post Message For Legacy Integration");
             createTabAndPostLegacyIntegration (requestMessage.timeEntry);
@@ -518,6 +606,9 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 //Function for opening tab/window to do legacy integration interaction
 function createTabAndPostLegacyIntegration (inputTimeEntry) {
 
+    console.log("Alvis Time: POSTING A TIME ENTRY:", JSON.parse(JSON.stringify(inputTimeEntry)));
+
+    //If we have an array, what to do?
     if (saveTab) {
         //Have existing tab - see if it is open
         chrome.tabs.remove(saveTab.id, function() {
@@ -539,14 +630,68 @@ function createTabAndPostLegacyIntegration (inputTimeEntry) {
 }
 
 
+//Add listener for WE ARE DONE message
+chrome.runtime.onMessage.addListener(function(requestMessage) {
+    
+    var iCount = 0;
+    var blnDone = false;
+
+    //If we dont have config yet, get it
+    if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
+        loadKeyAndOrg();
+
+    //We have recieved a message: If it is for WE ARE DONE time, off we go 
+    if( requestMessage.action === "postcompleted" ) {
+        globalTimeEntry = requestMessage.timeEntry;
+    };
+
+    if( requestMessage.action === "notice" ) {
+        console.log("Alvis Time: Notice: " + requestMessage.noticeMessage);
+        sleep(3000);
+        if (globalTimeEntry) {
+            globalTimeEntries.forEach(function(tEntry) {
+                iCount = iCount + 1;
+                if (tEntry.description == globalTimeEntry.description && tEntry.descriptionChild == globalTimeEntry.descriptionChild && tEntry.id == globalTimeEntry.id) {
+                    //remove it from array
+                    globalTimeEntries.splice(iCount-1, 1);  
+                    console.log("FOUND A MATCH AND REMOVED AT POS: " + iCount); 
+                }
+                else {
+                    console.log("NO MATCH AT POS: " + iCount);
+                }
+            });
+            console.log("Alvis Time: We have a time entry that is done:", JSON.parse(JSON.stringify(globalTimeEntry)));
+            //globalTimeEntries.remove();
+        }
+        //If there are any left, do them
+        globalTimeEntries.forEach(function(timeEntry) {
+            if (timeEntry.legacyPostTime && !blnDone) {
+                console.log("Alvis Time: Prepare Post Message For Legacy Integration");
+                createTabAndPostLegacyIntegration (timeEntry);
+                blnDone = true;
+                console.log("Alvis Time: Done with Relaying Message");
+            }
+        });
+        if (!blnDone) {
+            console.log("There are not more entries to post");
+
+            //Go off to end page
+            loadWindowForScreenshot (globalEndPage);
+        }        
+    }
+});
+
 //Function for posting to the legacy tab
 function legacyTabPost (inputTab, inputTimeEntry) {
 
-    console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
-    chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
-        //Success
-        console.log("Alvis Time: Script was susccessful");     
+    chrome.storage.local.set({"timeEntry": inputTimeEntry}, function () {
+        console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
+        chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
+            //Success
+            console.log("Alvis Time: Script was susccessful");     
+        });
     });
+
 }
 
 //************************************************
@@ -564,6 +709,10 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
     if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
         loadKeyAndOrg();
 
+    //No config yet, exit
+    if (!config) 
+        return;
+
     //We have recieved a message: If it is for screenshot, off we go 
     if( requestMessage.action === "screenshot" ) {
         loadWindowForScreenshot (requestMessage.screenshot);
@@ -578,8 +727,10 @@ chrome.runtime.onMessage.addListener(function(requestMessage, sender, sendRespon
     if (!blnOrgKeyLoaded && !blnOrgKeyLoading)
         loadKeyAndOrg();
 
-    console.log("Alvis Time: Got a message");
-    console.log(requestMessage);
+    //No config yet, exit
+    if (!config) 
+        return;
+
     if (requestMessage.action === "takescreenshot") {
         console.log("Alvis Time: Tells me to take screenshot");
 

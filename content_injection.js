@@ -3,6 +3,8 @@ This Script will take a time entry frm local storate and post into SN via the we
 ****************/ 
 console.log("Alvis Time: Content Injection Script is loaded");
 
+var inputTimeEntry;
+
 //Now get our data to poast
 chrome.storage.local.get("timeEntry", function(data) {
     console.log("Alvis Time: Got Time Entry Object from local storage");
@@ -10,6 +12,7 @@ chrome.storage.local.get("timeEntry", function(data) {
 
     if (data) {
         console.log("Alvis Time: Completing a post for: " + data.timeEntry.description + " = " + data.timeEntry.totalTotal);
+        inputTimeEntry = data.timeEntry;
         postTimeEntry(data.timeEntry);
     }
 
@@ -200,12 +203,19 @@ function postForm() {
                     console.error(error);
                 }
             });
-            //alert("WE DID IT!");
+            //Message back we are done.
+            chrome.runtime.sendMessage({action: "postcompleted", timeEntry: inputTimeEntry});
+            sleep(50);
             document.getElementById('sysverb_insert_bottom').click();
             sleep(1000);
         }
     }, 1000);
 }
+
+//Alternative way for leaving page
+window.onbeforeunload = function() {
+    chrome.runtime.sendMessage({action: "notice", noticeMessage: "We have left the page"});
+};
 
 
 /****************
