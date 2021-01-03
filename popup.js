@@ -2,12 +2,13 @@
 This JS is the main processing set - when DOM loaded, code is fired to get, display, process JIRA time entries
 ****************/ 
 var config;  //object that will hold all configuration options
+var configForShow; //for showing/managing config befure stuff gets added to it
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
 //Going to manage version, just by putting into code
-var version = "2020.11.01.1";
+var version = "2021.01.01.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -25,7 +26,7 @@ var dayOfWeekOffset = today.getDay() + 1;
 var orgKey = "";
 var blnAdmin = false; //Easy access to admin boolean
 var blnViewer = false; //Easy access to view only deignatin
-var blnRemoteConfig = false;
+var blnRemoteConfig = true;
 var blnDoProductPerctentages = false;
 var blnPostTimeSet = false; //So we only have post button loaded 1x
 
@@ -74,6 +75,20 @@ var blnParentLookupDone = false;
 var gCountOfParentLookupsSent = 0;
 var gCountOfParentLookupsDone = 0;
 
+//Configuration and user summary global display items
+var gConfigFieldRow = "";
+var gConfigDetailsDropDown = "";
+var gConfigSummary = "";
+var gChangeHandlers = [];
+var gConfigChanged = false;
+var gConfigChangedThisSession = false;
+var gUserFields = "";
+var gUserCapacities = "";
+var gUserCapacityDate = "";
+
+//For testing infiniate loop
+var totalDumps = 0;
+
 //Setup for our JIRA Object
 var JIRA;
 
@@ -100,6 +115,9 @@ function onDOMContentLoaded() {
     document.getElementById("setup-new-org").addEventListener ("click", function(){ setupNewOrg()}); 
     document.getElementById("close-image-orgkey").addEventListener ("click", function(){ closeit()}); 
     document.getElementById("help-image-orgkey").addEventListener ("click", function(){ openHelp()}); 
+    document.getElementById("close-image-orgkeysetup").addEventListener ("click", function(){ closeit()}); 
+    document.getElementById("help-image-orgkeysetup").addEventListener ("click", function(){ openHelp()}); 
+    document.getElementById("submit-orgkeysetup").addEventListener ("click", function(){alert("Not done with this yet. Sorry.")}); 
     document.getElementById("close-image-help").addEventListener ("click", function(){ 
 
         //Setup the view
@@ -145,9 +163,9 @@ function loadKeyAndOrg() {
                         //Get the JSON file and make sure it exists - need to figure out how to laod/host this
                         if (blnRemoteConfig) {
 
-                            var configURL = orgKeyLocation + data.orgKeya + ".json";
+                            var configURL = orgKeyLocation + data.orgKeya + "-" + encodeURIComponent(version) + ".json";
 
-                            getConfig("keyLocation", "get", configURL,  function(err, response) {
+                            getConfig("keyLocation", "get", false, configURL,  function(err, response) {
                 
                                 if (err != null) {
                                     console.log("Alvis Time: Get config error - ", JSON.parse(JSON.stringify(err)));
@@ -170,53 +188,61 @@ function loadKeyAndOrg() {
                                 } 
                                 else {
                                     //We ahve successfully gotten the orgkey pointer
-                                    if (response.orgKeyURI) {
-                                        console.log("Alvis Time: We have an org key location at:" + response.orgKeyURI);
-                                        //OK, lets get the Org Key configuraiton from its location
-                                        orgKeyLocationFile = response.orgKeyURI;
-                                        getConfig("keyStorage", "get", response.orgKeyURI,  function(keyErr, keyResponse) {
-                                            //See if it worked
-                                            if (keyErr != null) {
-                                                //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
-                                                console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
-                                                orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and access, and try again.<BR><BR>Or try a different organization key or contact your administrator.", "error")
-                                                getNewOrgKey(data.orgKeya, "true");
-                                            }
-                                            else {
-                                                if (!keyResponse) {
+                                    if (response) {
+                                        if (response.orgKeyURI) {
+                                            console.log("Alvis Time: We have an org key location at:" + response.orgKeyURI);
+                                            //OK, lets get the Org Key configuraiton from its location
+                                            orgKeyLocationFile = response.orgKeyURI;
+                                            getConfig("keyStorage", "get", false, response.orgKeyURI,  function(keyErr, keyResponse) {
+                                                //See if it worked
+                                                if (keyErr != null) {
                                                     //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
                                                     console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
                                                     orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and access, and try again.<BR><BR>Or try a different organization key or contact your administrator.", "error")
                                                     getNewOrgKey(data.orgKeya, "true");
                                                 }
                                                 else {
-
-                                                    //All good, lets do this
-                                                    orgKey = data.orgKeya;
-                                                    config = keyResponse;
-
-                                                    console.log("Alvis Time: Config is: ", JSON.parse(JSON.stringify(config)));
-
-                                                    //Compare versions
-                                                    if (version && config.AlvisTime && config.AlvisTime.version) {
-
-                                                        if (version < config.AlvisTime.version) {
-
-                                                            //Show our version upgrade emssage
-                                                            showPageView('version-intro');
-
-                                                            document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
-                                                            document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
-                                                            document.getElementById('version-message').innerHTML = document.getElementById('version-message').innerHTML.replace("_VERSION_MESSAGE_", config.AlvisTime.message);
-                                                            
-                                                            document.getElementById('version-link').addEventListener ("click", function(){ doVersionLink(this)}); 
-
-                                                            //Different versions, hwere we go
-                                                            if (config.AlvisTime.upgradeRequired) {
-                                                                document.getElementById("version-close").addEventListener ("click", function(){ closeit(this)});
+                                                    if (!keyResponse) {
+                                                        //BOGUS - HERE IS WHERE WHERE WE GRAB FROM LOCAL STORAGE
+                                                        console.log("Alvis Time: Get OrgKeyURI error: ", JSON.parse(JSON.stringify(keyErr)));
+                                                        orgKeyMessage("We have a valid organization key, but you do not have access to it.  <br><br>Check your network or Jira signin and access, and try again.<BR><BR>Or try a different organization key or contact your administrator.", "error")
+                                                        getNewOrgKey(data.orgKeya, "true");
+                                                    }
+                                                    else {
+    
+                                                        //All good, lets do this
+                                                        orgKey = data.orgKeya;
+                                                        config = keyResponse;
+    
+                                                        configForShow = JSON.parse(JSON.stringify(config));
+    
+                                                        console.log("Alvis Time: Config is: ", JSON.parse(JSON.stringify(config)));
+    
+                                                        //Compare versions
+                                                        if (version && config.AlvisTime && config.AlvisTime.version) {
+    
+                                                            if (version < config.AlvisTime.version) {
+    
+                                                                //Show our version upgrade emssage
+                                                                showPageView('version-intro');
+    
+                                                                document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_LINK_", config.AlvisTime.downloadLocation);
+                                                                document.getElementById('version-link').innerHTML = document.getElementById('version-link').innerHTML.replace("_VERSION_NUMBER_", config.AlvisTime.version);
+                                                                document.getElementById('version-message').innerHTML = document.getElementById('version-message').innerHTML.replace("_VERSION_MESSAGE_", config.AlvisTime.message);
+                                                                
+                                                                document.getElementById('version-link').addEventListener ("click", function(){ doVersionLink(this)}); 
+    
+                                                                //Different versions, hwere we go
+                                                                if (config.AlvisTime.upgradeRequired) {
+                                                                    document.getElementById("version-close").addEventListener ("click", function(){ closeit(this)});
+                                                                }
+                                                                else {
+                                                                    document.getElementById("version-close").addEventListener ("click", function(){ mainControlThread()});
+                                                                }
                                                             }
                                                             else {
-                                                                document.getElementById("version-close").addEventListener ("click", function(){ mainControlThread()});
+                                                                //Get it, so put listner on DOM loaded event
+                                                                mainControlThread();                                                    
                                                             }
                                                         }
                                                         else {
@@ -224,20 +250,22 @@ function loadKeyAndOrg() {
                                                             mainControlThread();                                                    
                                                         }
                                                     }
-                                                    else {
-                                                        //Get it, so put listner on DOM loaded event
-                                                        mainControlThread();                                                    
-                                                    }
-                                                }
-                                             }                                            
-                                        });
+                                                }                                            
+                                            });
+                                        }
+                                        else {
+                                            //Bogus - start over
+                                            console.log("Alvis Time: We have gotten an org key location but it FAILS to have orgKeyURI:", JSON.parse(JSON.stringify(response)));
+                                            orgKeyMessage("Could not retrieve organization key at this time. Please check your key and try again or try back later.", "error")
+                                            getNewOrgKey(data.orgKeya, "true");
+                                        }
                                     }
                                     else {
-                                        console.log("Alvis Time: We have gotten an org key location but it FAILS to have orgKeyURI:", JSON.parse(JSON.stringify(response)));
+                                        console.log("Alvis Time: We have gotten an org key location but it having trouble. Please try again.");
                                         orgKeyMessage("Could not retrieve organization key at this time. Please check your key and try again or try back later.", "error")
                                         getNewOrgKey(data.orgKeya, "true");
 
-                                   }
+                                    }
                                 }
                             });
                         }
@@ -253,6 +281,7 @@ function loadKeyAndOrg() {
                                     //Get all of our config parameters
                                     orgKey = data.orgKeya;
                                     config = JSON.parse(response); 
+                                    configForShow = JSON.parse(JSON.stringify(config));
                                     
                                     //Get it, so put listner on DOM loaded event
                                     mainControlThread();
@@ -304,8 +333,8 @@ function updateOrgKey() {
     //Let's make sure it is valid
     if (document.getElementById("orgkey").value.length > 0) {
         if (blnRemoteConfig)  {
-            var configURL = orgKeyLocation + document.getElementById("orgkey").value + ".json";
-            getConfig("keyLocation", "update", configURL,  function(err, response) {
+            var configURL = orgKeyLocation + document.getElementById("orgkey").value + "-" + encodeURIComponent(version) + ".json";
+            getConfig("keyLocation", "update", true, configURL,  function(err, response) {
                 if (err != null) {
                     //BogusM
                     orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
@@ -316,7 +345,6 @@ function updateOrgKey() {
                         orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
                     }
                     else {
-                        //All good
                         chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
                         window.location.reload(false); 
                         //loadKeyAndOrg();             
@@ -332,7 +360,8 @@ function updateOrgKey() {
                     orgKeyMessage("Enter a valid organization key. " + document.getElementById("orgkey").value + " is not valid", "error")
                 }
                 else {
-                    //All good
+                    //All good - flush storage
+                    chrome.storage.local.clear(function(result){console.log("Alvis Time: New Org Key - Flushed Storage:" + result)});
                     chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
                     window.location.reload(false); 
                     //loadKeyAndOrg();
@@ -674,15 +703,13 @@ function showTimeCardSummary() {
                         if (issue.classificationArray && blnDoProductPerctentages) {
                             issue.classificationArray.forEach(function(issueClassObj) {
                                 classificationArray.forEach(function(classObj) {
-                                    console.log("Alvis Time Project Percentage: We have '" + issue.fields.summary + " Class: " + issueClassObj.description + "' looking to match class array entry '" + classObj.description + "' RATE: " + issueClassObj.projectPercentage);
                                     if (classObj.description == issueClassObj.description) {
                                         //Found one - do the math and add tot the total
                                         var issueAmountToAdd = issue.worklogDisplayObjects[dayIndex].worklogTimeSpent * issueClassObj.projectPercentage;
                                         classObj.dayTotal[dayIndex] =  classObj.dayTotal[dayIndex] + issueAmountToAdd;
                                         classificationTotalsObject.dayTotal[dayIndex] =  classificationTotalsObject.dayTotal[dayIndex] + issueAmountToAdd;
                                         classificationObject.totalTotal = classificationObject.totalTotal + issue.issueAmountToAdd;
-                                        console.log("Alvis Time Project Percentage: matched '" + issue.fields.summary + "' Calculated from " + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + " to use " + issueClassObj.projectPercentage + " X " + issue.worklogDisplayObjects[dayIndex].worklogTimeSpent + " = " + issueAmountToAdd);
-                                    }
+                                     }
                                 })                       
                             });
                         }
@@ -762,16 +789,13 @@ function showTimeCardSummary() {
         hoursToDrawDown = userToRun.maxHoursToSubmit;
         classificationArray.forEach(function(classificationObject) {
             for (var dayIndex=0; dayIndex < 7; dayIndex++) {
-                console.log("AJH LOOKING TO DRAW DOWN - ", JSON.parse(JSON.stringify(classificationObject)));
                 if (hoursToDrawDown >=  classificationObject.dayTotal[dayIndex]) {
                     classificationObject.dayPostedTotal[dayIndex] = classificationObject.dayTotal[dayIndex];
                 }
                 else {
                     classificationObject.dayPostedTotal[dayIndex] = hoursToDrawDown;                   
                 }
-                console.log("AJH 39 TEST 2A = " + classificationObject.postedTotal + " DAY INDEX " + classificationObject.dayPostedTotal[dayIndex]);
                 classificationObject.postedTotal = Number(classificationObject.postedTotal + classificationObject.dayPostedTotal[dayIndex]);
-                console.log("AJH 39 TEST 2B = " + classificationObject.postedTotal);
                 hoursToDrawDown = hoursToDrawDown - classificationObject.dayPostedTotal[dayIndex];
             }
         });
@@ -782,8 +806,6 @@ function showTimeCardSummary() {
     classificationArray.forEach(function(classificationObject) {
 
         //See if this is mucked:
-        console.log("AJH SHOWING OFF CLASSIFICATION AFTER OFFSET - ", JSON.parse(JSON.stringify(classificationObject)));
-
         if (classificationObject.description == prevClassificationObject.description) {
             //Same main class, don't show the main class name
         }
@@ -1153,7 +1175,7 @@ function showReportLines(inputReportObject) {
 
         myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, issue.key + " - " + titleCase(issue.fields.summary)); 
         
-        var myLink = config.orgJiraBaseURI + "/browse/" + issue.key;
+        var myLink = config.orgSettings.jiraBaseURI + "/browse/" + issue.key;
         myOutputRow = myOutputRow.replace(/_ISSUELINK_/gi, myLink); 
 
         myOutputRow = myOutputRow.replace(/_REPORTISSUEKEY_/gi, issue.key);         
@@ -1257,7 +1279,7 @@ function showReportLines(inputReportObject) {
     myOutputRow = document.getElementById('report-total').innerHTML;
     myOutputRow = myOutputRow.replace(/report-summary/gi, "report-title"); 
     myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
-    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "TOTALS FOR THE WEEK:"); 
+    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "TOTALS FOR THE TIME PERIOD:"); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, totalWeek[0]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, totalWeek[1]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY2_/gi, totalWeek[2]); 
@@ -1280,7 +1302,7 @@ function showReportLines(inputReportObject) {
     inputReportObject.issues.forEach(function (issue) {
 
         //And add our listerners
-        document.getElementById("Report-Link-" + issue.key).addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
+        document.getElementById("Report-Link-" + issue.key).addEventListener ("click", function(){ jiraIssuelink(config.orgSettings.jiraBaseURI + "/browse/" + issue.key) }); 
 
     });
     
@@ -1311,10 +1333,10 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     togglePageBusy(true);
 
     //Log where we are at
-    console.log("Alvis Time: API Endpoint: " + config.orgJiraBaseURI + config.orgJiraAPIExtension);
+    console.log("Alvis Time: API Endpoint: " + config.orgSettings.jiraBaseURI + config.orgSettings.jiraAPIExtension);
 
     //Setup our JIRA object
-    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
+    JIRA = JiraAPI(config.orgSettings.jiraBaseURI, config.orgSettings.jiraAPIExtension, "");
 
     //Set up UI Element for Close Button
     document.getElementById('closeLink').href = "nowhere";
@@ -1389,7 +1411,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
         $('input[name="daterange"]').daterangepicker({
             opens: 'left'
           }, function(start, end, label) {
-            console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
             reportFirstDay = new Date(start);
             reportLastDay = new Date(end);
             //Now shoudl also fire off the report
@@ -1428,6 +1449,63 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //And for summary table
     summaryTable = document.getElementById('timecard-summary-wrapper').innerHTML;
     document.getElementById('timecard-summary-wrapper').innerHTML = "";
+
+    //User Buttons
+    document.getElementById("help-image-user").addEventListener ("click", function(){ 
+        //Setup the view
+        showPageView('help-text');
+    }); 
+    document.getElementById("help-image-config").addEventListener ("click", function(){ 
+        //Setup the view
+        showPageView('help-text');
+    }); 
+    document.getElementById("close-image-config").addEventListener ("click", function(){ 
+        //If did update, restart
+        if (gConfigChangedThisSession) {
+            gConfigChangedThisSession = false; //reset back
+            loadMainDisplayPage();
+        }
+
+        //Clear out our user display
+        document.getElementById('config-details').innerHTML = "";
+
+        //Setup the view
+        showPageView('everything');
+    }); 
+    document.getElementById("close-image-user").addEventListener ("click", function(){ 
+        //If did update, restart
+        if (gConfigChangedThisSession) {
+            gConfigChangedThisSession = false; //reset back
+            loadMainDisplayPage();
+        }
+        
+        //Clear out our user display
+        document.getElementById('user-details').innerHTML = "";
+        
+        //Setup the view
+        showPageView('everything');
+    }); 
+    //Configuration changed button
+    document.getElementById("config-update").addEventListener ("click", function(){ 
+            saveConfigChange(configForShow)
+    }); 
+    document.getElementById("config-update-config").addEventListener ("click", function(){ 
+        saveConfigChange(configForShow)
+    }); 
+    document.getElementById("config-update-summary").addEventListener ("click", function(){ 
+        saveConfigChange(configForShow)
+    }); 
+    document.getElementById("config-update-user").addEventListener ("click", function(){ 
+        saveConfigChange(configForShow)
+    }); 
+
+    if (gConfigChanged) {
+        document.getElementById("configUpdate-user").style.display = 'inline-block';
+        document.getElementById("configUpdate-config").style.display = 'inline-block';
+        document.getElementById("configUpdate-summary").style.display = 'inline-block';
+        document.getElementById("configUpdate").style.display = 'inline-block';
+        notificationMessage("You have unsaved config updates - red gear icon to save them", "error");
+    }
 
     //Get User info
     JIRA.getUser()
@@ -1567,7 +1645,7 @@ function onUserSuccess(response) {
     updateDateHeaders();
 
     //And logo
-    document.getElementById('logoimage').src = config.orgLogo;        
+    document.getElementById('logoimage').src = config.orgSettings.logo;        
 
     //Close link
     document.getElementById("closeLink").innerHTML = document.getElementById("closeLink").innerHTML.replace(/_CLOSE_/gi, workgroup.titles.close);
@@ -1616,7 +1694,36 @@ function onUserSuccess(response) {
             sendLateNotification();
 
         });
+        document.getElementById("user-image-config").addEventListener ("click", function(){ 
 
+            //Toggle the button an value
+            showUserInfo();
+
+        }); 
+        document.getElementById("user-image-summary").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            showUserInfo();
+
+        });
+        document.getElementById("user-image").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            showUserInfo();
+
+        });
+        document.getElementById("configuration-image").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            showConfiguration();
+
+        }); 
+        document.getElementById("configuration-image-summary").addEventListener ("click", function(){ 
+
+            //Toggle the button an value
+            showConfiguration();
+
+        });
     }
     else {
         document.getElementById("summary-info-image").remove();
@@ -1721,14 +1828,14 @@ function onUserError(error) {
     //Put it to you window instead
     if (error.status == 401) {
         alert("You are not logged into Jira.  Please login to resolve");
-        notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
-        openLink(config.orgJiraBaseURI);
+        notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgSettings.jiraBaseURI + "'>" + config.orgSettings.jiraBaseURI + "</a>", "error");
+        openLink(config.orgSettings.jiraBaseURI);
         closeit();
         //Load JIR URL!
     }
     else if (error.statusText == 'Unknown Error') {
         alert("You are not on the network.  Please connect to the network and try again.");
-        notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgJiraBaseURI + "'>" + config.orgJiraBaseURI + "</a>", "error");
+        notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgSettings.jiraBaseURI + "'>" + config.orgSettings.jiraBaseURI + "</a>", "error");
         closeit();
     }
     else {
@@ -1782,8 +1889,13 @@ function processIssueGroups(inputMessageType) {
     togglePageBusy(true);
 
     //Setup intro message
-    if (inputMessageType != "addedissue" && inputMessageType != "previousweek" && inputMessageType != "nextweek") {
-        notificationMessage(workgroup.messages.intro, "notification");
+    if (gConfigChanged) {
+        notificationMessage("You have unsaved config updates - red gear icon to save them", "error");
+    }
+    else {
+        if (inputMessageType != "addedissue" && inputMessageType != "previousweek" && inputMessageType != "nextweek") {
+            notificationMessage(workgroup.messages.intro, "notification");
+        }
     }
 
     //Before we get any issues, let's start fresh and initalize everything
@@ -2148,13 +2260,11 @@ function generateReport(inputReport) {
     //Initialize dates, if not already initialized
     if (reportFirstDay) {
         //Already set
-        console.log("AJH DATE SET - ", JSON.parse(JSON.stringify(reportFirstDay)));
-    }
+   }
     else {
         //Initialize these
         reportFirstDay = firstDay;
         reportLastDay = lastDay;
-        console.log("AJH DATE NOT SET - ", JSON.parse(JSON.stringify(reportFirstDay)));
     }
 
     //We are busy
@@ -2442,8 +2552,6 @@ function loadWorkgroupTimeCards() {
     var myJQL = "";
     var myUserQUery = "";
 
-
-
     //Initialize our tracker to know when done
     tcIssueCountTracker = 0;
 
@@ -2463,7 +2571,7 @@ function loadWorkgroupTimeCards() {
     }       
 
     //Starting fresh
-    doUserSelect();
+    loadMainDisplayPage();
 
     //Only do this break out of people and time card status if it is enabled
     if (!blnDoUserTimecardSummaryView) {
@@ -2566,7 +2674,7 @@ function onTimecardWorklogFetchSuccess(responseObject) {
 
     if (tcIssueCountTracker == tcIssueCount) {
         //Done - Build users selection list
-        doUserSelect();
+        loadMainDisplayPage();
     }
 }
 
@@ -2580,9 +2688,9 @@ function onTimecardWorklogFetchError(error) {
 }
 
 /****************
-doUserSelect -
+loadMainDisplayPage -
 ****************/    
-function doUserSelect() {
+function loadMainDisplayPage() {
 
     var userOptions = "";
     var saveColor = "black";
@@ -3185,7 +3293,7 @@ function drawIssueGroupTable(issueGroup, issueGroupIndex) {
 
     //Create our HTML - replace is goofy, only replaces first occurrence lest you /gi 
     issueGroup.name = issueGroup.name.replace(/_JIRAPROJECTKEY_/gi, issueGroup.JiraProjectKey); 
-    issueGroup.name = issueGroup.name.replace(/_GOIMAGE_/gi, "<img id='issue-search' src='" + config.orgGoLogo + "' height='33' style='display: inline-block; vertical-align:middle'>");
+    issueGroup.name = issueGroup.name.replace(/_GOIMAGE_/gi, "<img id='issue-search' src='" + config.orgSettings.goLogo + "' height='33' style='display: inline-block; vertical-align:middle'>");
 
     var myIssueGroupHTML = issueGroupHTML.replace(/issueGroup.name/gi, issueGroup.name);
     myIssueGroupHTML = myIssueGroupHTML.replace(/issueGroup.key/gi, issueGroup.key);
@@ -3390,7 +3498,7 @@ function generateIssueRow(issueGroup, issueGroupIndex, issue, issueIndex) {
         class: "jira-issue-link"
     });
 
-    jiraLink.addEventListener ("click", function(){ jiraIssuelink(config.orgJiraBaseURI + "/browse/" + issue.key) }); 
+    jiraLink.addEventListener ("click", function(){ jiraIssuelink(config.orgSettings.jiraBaseURI + "/browse/" + issue.key) }); 
     jiraLink.appendChild(idText);
     idCell.appendChild(jiraLink);
     row.appendChild(idCell);
@@ -3511,7 +3619,7 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
     var blnMatch = false;
 
     //Grab parent from array and use its classification/child
-    //console.log("AJH TRYING TO MATCH: " + inputIssue.key);
+
     if (inputIssueGroup) {
         for(var issue of inputIssueGroup.issues) {
             if (inputParent.key == issue.key) {
@@ -4018,15 +4126,14 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     //Add the final total cell - Here is whwere we could ahve some rules to flag/id things out of or ranges
     if (inputType == "head") {
         if (issueClassification.capacity) {
-            var capacityPercentage = Number((100 * issueClassification.parentClassTotal / issueClassification.capacity).toFixed(0));
-            var timeInputTotal = buildHTML('th', "<font color='red'>" + issueClassification.capacity + "&#8594;" + capacityPercentage + "%</font>", {
+            var timeInputTotal = buildHTML('th', "<font color='red'>Cap: " + issueClassification.capacity + "%</font>", {
                 //style: "display: inline-block",
                 class: inputClass  
             });
         }
         else {
             if (userToRun.capacities) {
-                var timeInputTotal = buildHTML('th', "<font color='red'>0</font>", {
+                var timeInputTotal = buildHTML('th', "<font color='red'>Cap:0 %</font>", {
                     //style: "display: inline-block",
                     class: inputClass  
                 });
@@ -4179,7 +4286,6 @@ function doClassificationPostTime(inputImage, inputClassificationObject) {
 //Pushed button for all classification entries to post
 function doClassificationPostTimes(inputImage, inputClassificationObjects) {
 
-    console.log("AJH SHOW ARRAY: ", JSON.parse(JSON.stringify(inputClassificationObjects)));
     inputImage.src = "images/red_go_button.png";
     postTimes(inputClassificationObjects);
 
@@ -4189,15 +4295,11 @@ function doClassificationPostTimes(inputImage, inputClassificationObjects) {
 //Find classification in our posted array
 function findClassificationInPostedArray(inputClassification) {
     for (i=0;i<postedClassficationArray.length;i++) {
-        //console.log("AJH TRYING MATCH: ", JSON.parse(JSON.stringify(inputClassification)));
-        //console.log("AJH TO: ", JSON.parse(JSON.stringify(postedClassficationArray[i])));
         if (postedClassficationArray[i].description == inputClassification.description && postedClassficationArray[i].descriptionChild == inputClassification.descriptionChild &&
             postedClassficationArray[i].userId == inputClassification.userId && postedClassficationArray[i].weekOf == inputClassification.weekOf) {
-            //console.log("AJH FOUND POSTED TRUE: ", JSON.parse(JSON.stringify(inputClassification)));
             return true;
         }
     }
-    //console.log("AJH FOUND POSTED FALSE: ", JSON.parse(JSON.stringify(inputClassification)));
     return false;
 }
 
@@ -4223,7 +4325,6 @@ function consolidateDuplicateEntries(classificationArray) {
                 newClassObject.totalTotal = Number(newClassObject.totalTotal + classObject.totalTotal);
                 newClassObject.parentClassTotal = Number(newClassObject.parentClassTotal + classObject.parentClassTotal);
                 newClassObject.postedTotal = Number(newClassObject.postedTotal + classObject.postedTotal);
-                console.log("AJH 39 TEST 1 = " + newClassObject.postedTotal);
 
                 //And the daily numbers    
                 newClassObject.dayTotal[0] = Number(newClassObject.dayTotal[0] + classObject.dayTotal[0]);
@@ -4242,21 +4343,15 @@ function consolidateDuplicateEntries(classificationArray) {
                 newClassObject.dayPostedTotal[5] = Number(newClassObject.dayPostedTotal[5] + classObject.dayPostedTotal[5]);
                 newClassObject.dayPostedTotal[6] = Number(newClassObject.dayPostedTotal[6] + classObject.dayPostedTotal[6]);
                 
-                console.log("AJH CONSOLIDATE DUP FROM THIS: ", JSON.parse(JSON.stringify(classObject)));
-                console.log("AJH CONSOLIDATE DUP TO THIS: ", JSON.parse(JSON.stringify(newClassObject)));
-
-
            }
         });
         if (!blnMatch) {
             //Not found, add it directly to the new array - MUST DO DEEP COPY - not by reference
             let newClassificationObject = JSON.parse(JSON.stringify(classObject));
             newClassificationArray.push(newClassificationObject);
-            console.log("AJH CONSOLIDATE ADDED THIS: ", JSON.parse(JSON.stringify(classObject)));
         }
     });
 
-    console.log("AJH RETURNNG ARRAY OF: ", JSON.parse(JSON.stringify(newClassificationArray)));
     return newClassificationArray;
 
 }
@@ -4315,18 +4410,11 @@ function doVersionLink(inputObject) {
 //Open the help window
 function openHelp(){
 
+    document.getElementById('help-version').outerHTML = document.getElementById('help-version').outerHTML.replace("_VERSION_", version);
+
     //Initialize the view
     showPageView('help-text'); 
-    
-    //chrome.windows.create ({
-    //   url: config.orgHelpPage,
-    //    type: "popup"
-    //});
-    //window.open(inputURI);
     return false;
-
-    //window.open(config.orgHelpPage, "_help", "scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,width=800px,height=600px,left=0,top=0");
-    //return false; //This causes the href to not get invoked
 }
 
 //Toggle the summary botton
@@ -4386,7 +4474,391 @@ function showPageView(inputView) {
     document.getElementById('welcome-intro').style.display =  'none';
     document.getElementById('version-intro').style.display =  'none';
     document.getElementById('report').style.display =  'none';
+    document.getElementById('config-editor').style.display =  'none';
+    document.getElementById('user-editor').style.display =  'none';
     document.getElementById(inputView).style.display =  'block';
+
+}
+
+//Show Configuration Page
+function showConfiguration() {
+
+    //Clear out our user display
+    document.getElementById('user-details').innerHTML = "";
+
+    //Clear out our config display
+    document.getElementById('config-details').innerHTML = "";
+
+    //Hold our elements to have lsiteners on
+    gChangeHandlers = [];
+
+    //Hold the path of the object int the tree
+    var configKey = {};
+    configKey.path = "config";
+
+    //Get our HTML snippets - if we havent already
+    if (gConfigFieldRow == "") {
+        gConfigFieldRow = document.getElementById("config-field-values").outerHTML;
+    }
+
+    if (gConfigDetailsDropDown == "") {
+        gConfigDetailsDropDown = document.getElementById("config-details-object").outerHTML;
+    }
+    
+    if (gConfigSummary == "") {
+        gConfigSummary = document.getElementById("config-summary-object").outerHTML; 
+    }
+
+    //Show the page, unshow the others
+    showPageView("config-editor");
+
+    //Grab out HTML element to feed and uncork our config object
+    var configDetails = document.getElementById('config-details');
+    configDetails.innerHTML = "Unloading the configuration object....";
+    configDetails.innerHTML = jsonUnpack(configForShow, configKey);
+
+    //Now should put in all of our change handlers for the fields we added
+    gChangeHandlers.forEach(function (changeToHandle) {
+        if (document.getElementById(changeToHandle))
+            document.getElementById(changeToHandle).addEventListener ("change", function(){ handleConfigChange(this)});  
+    });
+       
+}
+//Uncork the object
+function jsonUnpack(inputObject, configKey) {
+
+    //Build our HTML to return
+    var myResponse = "";
+    var arrayKey = "";
+    var arrayIndex = -1;
+
+    //Given the object, parse out all of the fields - name/value pairs
+    for (let [key, value] of Object.entries(inputObject)) {
+        if (Array.isArray(value)) {
+            //For arrays, handle each element
+            arrayIndex = -1;
+            value.forEach(function(valueArrayEntry) {
+                //Key for array elements will include the brakets/number
+                arrayIndex = arrayIndex + 1;
+                arrayKey = key + "[" + arrayIndex + "]";
+                //Call routine the will be the HTML for this entry and add it on
+                myResponse = myResponse + displayConfig(arrayKey, valueArrayEntry, configKey);
+           });
+        }
+        else {
+            //Call routine the will be the HTML for this entry and add it on
+            myResponse = myResponse + displayConfig(key, value, configKey);
+        }
+    }
+
+    return myResponse;
+}
+
+//Build the HTML do to display our configuration element
+function displayConfig(inputKey, inputValue, configKey) {
+
+    var myResponse = "";
+    var fieldRowToShow = "";
+    var summaryToShow = "";
+    var objectDetails = "";
+    var detailsToShow = "";
+    var saveKey = "";
+
+    //Object or Fields - differen run for each
+    if (typeof inputValue === "object" ) {
+        if (!inputValue) {
+            //Bogus
+            myResponse = "";
+        }
+        else {
+            //Save the current keep for when we come back out of drilling down
+            saveKey = configKey.path;
+            configKey.path = configKey.path + "." + inputKey; //Drill down to next level
+            
+            //Now uncork this next object as we continue to drill down
+            objectDetails = jsonUnpack(inputValue, configKey);
+
+            //Render it in our HTML snippets
+            detailsToShow = gConfigDetailsDropDown.replace(/_OBJECTDETAILS_/gi, objectDetails); 
+            detailsToShow = detailsToShow.replace(/display: none;/gi, "display: inline-block;");  
+
+            //And put it in the summary HTML Object
+            var summaryKey = "";
+            if (inputValue.name) {
+                summaryKey = inputKey + " - " + inputValue.name;
+            }
+            else {
+                if (inputValue.classification) {
+                    summaryKey = inputKey + " - " + inputValue.classification;
+                }
+                else {
+                    summaryKey = inputKey;
+                }
+            }
+
+            summaryToShow = gConfigSummary.replace(/_OBJECTNAME_/gi, summaryKey); //Name that shows in the HTML detial summary thing
+            summaryToShow = summaryToShow.replace(/_OBJECTSUMMARY_/gi, detailsToShow); //The details to display - all of the fields
+            summaryToShow = summaryToShow.replace(/display: none;/gi, "display: inline-block;");
+            myResponse = summaryToShow;
+
+            //Done drilling down, so rever back
+            configKey.path = saveKey;
+
+        }
+    }
+    else {
+        //This is just a field display - at the root of the config tree are fields - name/values pairs
+
+        //Save the current keep for when we come back out of drilling down
+        var saveKey = configKey.path;
+        configKey.path = configKey.path + "." + inputKey;
+
+        //Render the field in our HTML snippets
+        fieldRowToShow = gConfigFieldRow.replace(/_FIELDNAME1_/gi, inputKey);
+        fieldRowToShow = fieldRowToShow.replace(/_FIELDVALUE1_/gi, inputValue);
+        fieldRowToShow = fieldRowToShow.replace(/_CONFIGPATH_/gi, configKey.path); //This is the ID we will reference for updates
+        fieldRowToShow = fieldRowToShow.replace(/display: none;/gi, "display: inline-block;"); 
+        
+        //Add key to our list of stuff to add handler for
+        var blnFoundIt = false;
+        gChangeHandlers.forEach(function (changeHandler) {
+            if (changeHandler == configKey.path)
+                blnFoundIt = true;
+        });
+        if (!blnFoundIt) {
+            gChangeHandlers.push(configKey.path);
+        }
+
+            
+        //Peel pack to object we are on and return 
+        configKey.path = saveKey;
+
+        //And our response HTML is set
+        myResponse = fieldRowToShow;
+    }
+
+    return myResponse;
+
+}
+
+//Handle add capacity
+function updateCapacity(inputItem) {
+
+    var arrayConfigLevels = inputItem.id.split("."); //refernece is object drill will dots as delimeter. ex: user.name
+    
+    var workgroupsArray = arrayConfigLevels[1].replace("]", "[").split("[");
+    var usersArray = arrayConfigLevels[2].replace("]", "[").split("[");;
+    var capacitiesArray = arrayConfigLevels[3].replace("]", "[").split("[");;
+    var iWorkgroups = workgroupsArray[1];
+    var iUsers = usersArray[1];
+    var iCapacities = capacitiesArray[1];
+
+    if (inputItem.id.includes(".delete")) {
+        //It is a delete
+        var classifictionCapacitiesArray = arrayConfigLevels[4].replace("]", "[").split("[");;
+        var iclassifictionCapacities = classifictionCapacitiesArray[1];
+        configForShow.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.splice(iclassifictionCapacities, 1);
+        config.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.splice(iclassifictionCapacities, 1);
+
+    }
+    else {
+        //Get the values
+        var newClassificationValue = document.getElementById(inputItem.id + ".classification").value;
+        var newClassificationHours = document.getElementById(inputItem.id + ".hours").value;
+
+        var newClassificationCapacity = {"classification": newClassificationValue, "hours": newClassificationHours}
+        configForShow.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.push(newClassificationCapacity);
+        config.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.push(newClassificationCapacity);
+    }   
+
+    
+    //Show Refresh the page
+    showUserInfo();
+    //We are all done with the change
+    configUpdateDisplay();
+
+}
+
+//Handle a change to configuration here
+function handleConfigChange(inputItem) {
+
+    var blnDidUpdate = false;
+    var blnDidaConfig = false;
+    var configKey = {};
+    configKey.path = "config";
+   
+    var arrayConfigLevels = inputItem.id.split("."); //refernece is object drill will dots as delimeter. ex: user.name
+    var myConfigForShowObject = configForShow; //Using the unchanged config for doing updates here, with the idea to burn to disk when done
+    var myRunningObject = config;
+
+    for (var i = 0; i < arrayConfigLevels.length; i++) {
+        if (i == 0) {
+            //Skip it - is config
+        }
+        else {
+            //See if array or not
+            if (arrayConfigLevels[i].includes("[")) {
+                //Is an array - parse it out into field and index
+                var splitString = arrayConfigLevels[i].replace("[", "]");
+                var splitArray = splitString.split("]");
+                var splitField = splitArray[0];
+                var splitIndex = parseInt(splitArray[1]);
+
+                 //We have our pices, now drill down to the array and then into the index
+                if (blnDidaConfig) {
+                    myObject = myObject[splitField];
+                }
+                else {
+                    blnDidaConfig = true;
+                    myObject = myConfigForShowObject[splitField];                 
+                }
+
+                myObject = myObject[splitIndex];
+
+                //And do our main config
+                myRunningObject = myRunningObject[splitField];
+                myRunningObject = myRunningObject[splitIndex];
+            }
+            else {
+                if (i == arrayConfigLevels.length - 1) {
+                    //Last entry, this is our field
+                    var setValue = inputItem.value;
+                    if (!isNaN(inputItem.value)) {
+                        //Is a number, make it anumber
+                        if (inputItem.value.includes(".")) {
+                            setValue = parseFloat(inputItem.value);
+                        }
+                        else {
+                            setValue = parseInt(inputItem.value);
+                        }
+                    }
+                    else {
+                        if (inputItem.value == "true") {
+                            setValue = true;
+                        }
+                        else {
+                            if (inputItem.value == "false") {
+                                setValue = false;
+                            }
+                        }
+                    }
+                    if (myObject[arrayConfigLevels[i]] != setValue) {
+                        myObject[arrayConfigLevels[i]] = setValue;
+                        blnDidUpdate = true;
+
+                        //Also lets update the core config, not just the copy for saving
+                        myRunningObject[arrayConfigLevels[i]] = setValue;
+                    }
+                }
+                else {
+                    //Drill down a level in our object
+                    if (blnDidaConfig) {
+                        myObject = myObject[arrayConfigLevels[i]];
+                    }
+                    else {
+                        blnDidaConfig = true;
+                        myObject = myConfigForShowObject[arrayConfigLevels[i]];
+                    }                    
+                    myRunningObject = myRunningObject[arrayConfigLevels[i]];
+                }
+            }
+        }
+    }
+    
+    //We are all done with the change
+    if (blnDidUpdate) {
+
+        configUpdateDisplay();
+
+    }
+
+    return;
+    
+}
+
+// Save off our config change
+function saveConfigChange(inputConfig) {
+
+
+
+    //When click save button, invoke write contents to page and hidden download link gets clicked - like eamil download
+    downloadConfigFile(inputConfig);
+
+    //Send user over to JIRA tix that has the attachment config jsons
+    gotoUploadpage();
+
+    //drag/drop downloaded file to that loc
+
+    //snag the new attachment url
+
+    //post update to Github config locations to be new attachmet location
+
+    //relaod the config from there...done
+
+    //We are done with the change, reset
+    gConfigChanged = false;
+    chrome.storage.local.set({"config-updated": false}, function () {});
+    document.getElementById("configUpdate-user").style.display = 'none';
+    document.getElementById("configUpdate-config").style.display = 'none';
+    document.getElementById("configUpdate-summary").style.display = 'none';
+    document.getElementById("configUpdate").style.display = 'none';
+
+}
+
+// Do wht we need to for config change
+function configUpdateDisplay() {
+
+    //We did a configuration change
+    gConfigChanged = true;
+    gConfigChangedThisSession = true;
+
+    //Set local storge flag as changed AND save config to local storage
+    chrome.storage.local.set({"config-updated": true}, function () {});
+    chrome.storage.local.set({"keyStorage": configForShow}, function () {});
+    //Make a copy configForShow = JSON.parse(JSON.stringify(config));
+
+    //Enable a post button
+    document.getElementById("configUpdate-user").style.display = 'inline-block';
+    document.getElementById("configUpdate-config").style.display = 'inline-block';
+    document.getElementById("configUpdate-summary").style.display = 'inline-block';
+    document.getElementById("configUpdate").style.display = 'inline-block';
+
+}
+
+
+// Simple Jira api error handling
+function downloadConfigFile(inputConfig) {
+
+    var formattedJSON = JSON.stringify(inputConfig, null, "\t"); // Indented with tab
+    var encodedUri = "data:text/plain;charset=utf-8," + encodeURIComponent(formattedJSON); //encode spaces etc like a url
+    var a = document.createElement('a'); //make a link in document
+    var linkText = document.createTextNode("fileLink");
+    a.appendChild(linkText);
+    a.href = encodedUri;
+    a.id = 'fileLink';
+    a.download = orgKey + "-" + TimeStamp(Date()) + ".json";
+    a.style = "display:none;"; //hidden link
+    document.body.appendChild(a);
+    document.getElementById('fileLink').click(); //click the link
+    document.body.removeChild(a);
+
+}
+
+function gotoUploadpage() {
+
+    //Create screenshot object to pass along
+    var screenshotObject = {
+        pageToLoad: config.AlvisTime.configUploadLocation,
+        takeScreenshot: false,
+    };
+
+    //Hold our data on local storage
+    chrome.storage.local.set({"screenshotData": screenshotObject}, function () {
+        chrome.runtime.sendMessage({action: "screenshot", screenshot: screenshotObject});
+        console.log("Alvis Time: Sent Message to go to config upload page");
+    });
+
+    return false;
 
 }
 
@@ -4521,6 +4993,35 @@ function ShortDate(inputDate) {
     return (lMonth + '/' + lDay + '/' + lYear);
 }
 
+//Return the timestamp as YYYY-MM-DD-HH-MM-SS
+function TimeStamp(inputDate) {
+
+    inputDate = new Date(inputDate);
+    var lYear = inputDate.getFullYear();
+    var lMonth = inputDate.getMonth()+1;
+    var lDay = inputDate.getDate();
+    var lHour = inputDate.getHours();
+    var lMinute = inputDate.getMinutes();
+    var lSecond = inputDate.getSeconds();
+    
+    if (lDay < 10) {
+        lDay = '0' + lDay;
+    }
+    if (lMonth < 10) {
+        lMonth = '0' + lMonth;
+    }
+    if (lHour < 10) {
+        lHour = '0' + lHour;
+    }
+    if (lMinute < 10) {
+        lMinute = '0' + lMinute;
+    }
+    if (lSecond < 10) {
+        lSecond = '0' + lSecond;
+    }
+    return (lYear + "-" + lMonth + "-" + lDay + "-" + lHour + "-" + lMinute + "-" + lSecond);
+}
+
 
 //Why do you have to have your own rounding function? Very lame
 function round(value, decimals) {
@@ -4568,7 +5069,7 @@ function loadConfig(inputFileName, callback) {
 }    
 
 //For loading JSON file remotely - download a file
-function getConfig(inputType, inputAction, url, callback) {
+function getConfig(inputType, inputAction, deleteCacheOnValid, url, callback) {
 
     
     try {
@@ -4582,12 +5083,30 @@ function getConfig(inputType, inputAction, url, callback) {
                 //Got it, store it
                 //Need to store key and the value, not just URL = 
 
-                var urlObject = {};
-                urlObject[inputType] = xhr.response;
+                if (inputType == "keyStorage" && gConfigChanged) {
+                    //Pending config change, grab it
+                    chrome.storage.local.get(inputType, function(response) {
+                        if (response) {
+                            callback(null, response.keyStorage);
+                        }
+                        else {
+                            //No dice, do error
+                            callback(status);
+                        }
+                    });
+                }
+                else {
+                    var urlObject = {};
+                    urlObject[inputType] = xhr.response;
+                    if (deleteCacheOnValid) {
+                        //All good - flush storage and startFresh
+                        chrome.storage.local.clear(function(result){console.log("Alvis Time: New Org Key - Flushed Storage:" + result)});
+                     }
+                    chrome.storage.local.set(urlObject, function () {});
+                    //And call back
+                    callback(null, xhr.response);
+                }
 
-                chrome.storage.local.set(urlObject, function () {});
-                //And call back
-                callback(null, xhr.response);
             } else {
                 if (inputAction == "update") {
                     //Attempting to load a new org key and it didnt work, so reject..don't go back to old
@@ -4648,6 +5167,15 @@ function getConfig(inputType, inputAction, url, callback) {
 //Now is time to put is back where we were - user, week, page
 function initializeApp() {
 
+    chrome.storage.local.get("config-updated", function(data) {
+        if (data) {
+            if (data["config-updated"]) {
+                //Updated but not saved, do alert
+                gConfigChanged = true;
+            }
+        }
+    });
+
     //Grab most recent user, use it if we have one - THIS NEEDS WORK AJH - LOAD USER/DATE/PAGE AT STARTUP
     chrome.storage.local.get("recentUserName", function(data) {
         if (data) {
@@ -4689,7 +5217,6 @@ function loadCapacity(classificationObject) {
                     if (classificationObject.description.toUpperCase() == classificationCapacity.classification.toUpperCase()) {
                         //This our user, default, classificiation seting.  Only use if not filled already
                         if (!classificationObject.capacity) {
-                            console.log("Alvis Time: We have a default match. Capacity for  " + classificationCapacity.classification + " = " + classificationCapacity.hours);
                             classificationObject.capacity = classificationCapacity.hours;
                         }
                     }
@@ -4700,7 +5227,6 @@ function loadCapacity(classificationObject) {
                     capacity.classificationCapacities.forEach(function(classificationCapacity) {
                         if (classificationObject.description.toUpperCase() == classificationCapacity.classification.toUpperCase()) {
                             //This our user, date, classification setting
-                            console.log("Alvis Time: We have a match. Capacity for  " + classificationCapacity.classification + " = " + classificationCapacity.hours);
                             classificationObject.capacity = classificationCapacity.hours;
                         }
                     });
@@ -4926,6 +5452,193 @@ function sendLateNotification() {
     notificationMessage("TO: " + userToRun.email + " SENT: " + sendSubject, "notification");
 }
 
+//Show User Info
+function showUserInfo() {
+    
+    var fieldDisplay = "";
+    var fieldsDisplay = "";
+    var capacityDisplay = "";
+    var capacityDisplays = "";
+    var capacityDateDisplay = "";
+    var changeHandlers = [];
+    var changeCapacityHandlers = [];
+    var configPathForUser;
+    var capacityPath;
+    var wgcount = -1;
+    var usercount = -1;
+    var capacitiesIndex = -1;
+    var capacityIndex = -1;
+    var capacityID;
+    var saveAddCapacity = "";
+
+    //Clear out our user display
+    document.getElementById('user-details').innerHTML = "";
+
+    //Clear out our config display
+    document.getElementById('config-details').innerHTML = "";
+
+    document.getElementById('user-header').innerHTML = "User Editor - " + userToRun.name;
+    
+    //Rip thru config until user = user tor un
+    for (let [key, value] of Object.entries(config)) {
+        if (key == "workgroups") {
+            wgcount = -1;
+            value.forEach(function(workgroup) {
+                wgcount = wgcount + 1;
+                for (let [wgkey, wgvalue] of Object.entries(workgroup)) {
+                    if (wgkey == "users") {
+                        usercount = -1;
+                        wgvalue.forEach(function(user) {
+                            usercount = usercount + 1;
+                            if (user.userid == userToRun.userid) {
+                                //we have our match
+                                configPathForUser = "config.workgroups[" + wgcount + "].users[" + usercount + "]";
+                            }
+                        });
+                    }
+                };
+            })
+        }
+    }
+
+    //Get our HTML snippets - if we havent already
+    if (gUserFields == "") {
+        gUserFields = document.getElementById("user-field-values").outerHTML;
+    }
+    if (gUserCapacities == "") {
+        gUserCapacities = document.getElementById("user-capacities").outerHTML;
+    }
+    if (gUserCapacityDate == "") {
+        gUserCapacityDate = document.getElementById("user-capacity-date").outerHTML;
+    }
+    
+    //Load our data into it
+    for (let [key, value] of Object.entries(userToRun)) {
+        if (Array.isArray(value)) {
+            value.forEach(function (capacity) {
+                capacitiesIndex = capacitiesIndex + 1;
+                if (capacity.date) {
+                    //Build the capacity display
+                    capacityPath = configPathForUser + "." + key + "[" + capacitiesIndex + "]";
+                    capacityID = capacityPath + ".date";
+                    capacityDateDisplay = gUserCapacityDate;
+                    capacityDateDisplay = capacityDateDisplay.replace(/_CAPACITYDATE_/g, capacity.date);
+                    capacityDateDisplay = capacityDateDisplay.replace(/_CAPACITYDATEPATH_/g, capacityPath);
+                    capacityDateDisplay = capacityDateDisplay.replace(/display:none/g, "display:inline-block");
+
+                    //Add key to our list of stuff to add handler for
+                    var blnFoundItHandler = false;
+                    changeCapacityHandlers.forEach(function (changeHandler) {
+                        if (changeHandler == capacityID)
+                            blnFoundItHandler = true;
+                    });
+                    if (!blnFoundItHandler) {
+                        changeCapacityHandlers.push(capacityID);
+                    }
+
+                    capacityIndex = -1;
+                    capacity.classificationCapacities.forEach(function (classCapacity) {
+                        capacityIndex = capacityIndex + 1;
+                        capacityID = capacityPath + ".classificationCapacities[" + capacityIndex + "].hours";
+                        capacityDisplay = gUserCapacities;
+                        capacityDisplay = capacityDisplay.replace(/_CAPACITYCLASS_/g, classCapacity.classification)
+                        capacityDisplay = capacityDisplay.replace(/_CAPACITYHOURS_/g, classCapacity.hours);
+                        capacityDisplay = capacityDisplay.replace(/_CAPACITYPATH_/g, capacityID);
+                        capacityDisplays = capacityDisplays + capacityDisplay;
+
+                        //Add key to our list of stuff to add handler for
+                        var blnFoundItHandler = false;
+                        changeCapacityHandlers.forEach(function (changeHandler) {
+                            if (changeHandler == capacityID)
+                                blnFoundItHandler = true;
+                        });
+                        if (!blnFoundItHandler) {
+                            changeCapacityHandlers.push(capacityID);
+                        }
+
+                        capacityDisplays = capacityDisplays.replace(/display:none/g, "display:inline-block");
+                    })
+
+                    //Here
+
+
+                    //Add new capacity option
+                    //config.workgroups[0].users[16].capacities[0].classificationCapacities
+                    //config.workgroups[0].users[16].capacities
+                    capacityDisplay = document.getElementById("user-capacity-new").outerHTML;;
+                    capacityDisplay = capacityDisplay.replace(/_CAPACITYCLASS_/g, "NEW")
+                    capacityDisplay = capacityDisplay.replace(/_CAPACITYHOURS_/g, "0");
+                    capacityDisplay = capacityDisplay.replace(/_CAPACITYPATH_/g, capacityPath + ".classificationCapacities");
+                    capacityDisplays = capacityDisplays + capacityDisplay;
+
+                    capacityDisplays = capacityDisplays.replace(/display:none/g, "display:inline-block");
+
+                    //And our new handler
+                    saveAddCapacity = capacityPath + ".classificationCapacities";
+                }
+            })
+        }
+        else {
+            if (typeof value === "object" ) {
+                if (!value) {
+                    //Bogus
+                }
+                else {
+                    //Skip this object?
+                    console.log("Alvis Time: Skipping Object - ", JSON.parse(JSON.stringify(value)));
+                }
+            }
+            else {
+                var fieldPath = configPathForUser + "." + key;
+                fieldDisplay = gUserFields;
+                fieldDisplay = fieldDisplay.replace(/_NAME_/g, key)
+                fieldDisplay = fieldDisplay.replace(/_VALUE_/g, value);
+                fieldDisplay = fieldDisplay.replace(/_CONFIGPATH_/g, fieldPath);
+                fieldsDisplay = fieldsDisplay + fieldDisplay;
+                
+                //Add key to our list of stuff to add handler for
+                var blnFoundIt = false;
+                changeHandlers.forEach(function (changeHandler) {
+                    if (changeHandler == fieldPath)
+                        blnFoundIt = true;
+                });
+                if (!blnFoundIt) {
+                    changeHandlers.push(fieldPath);
+
+                }
+            }
+        }
+    }
+
+    fieldsDisplay = fieldsDisplay.replace(/display:none/g, "display:inline-block");
+
+    //Grab out HTML element to feed and uncork our config object
+    var userDetails = document.getElementById('user-details');
+    userDetails.innerHTML = fieldsDisplay;
+    userDetails.innerHTML = userDetails.innerHTML + "<hr>" + capacityDateDisplay + capacityDisplays;
+
+    //Add our handlers
+    //Now should put in all of our change handlers for the fields we added
+    changeHandlers.forEach(function (changeToHandle) {
+        if (document.getElementById(changeToHandle))
+            document.getElementById(changeToHandle).addEventListener ("change", function(){ handleConfigChange(this);});  
+    });
+
+    //Add our handlers cor capacities
+    //Now should put in all of our change handlers for the fields we added
+    changeCapacityHandlers.forEach(function (changeToHandle) {
+        if (document.getElementById(changeToHandle)) {
+            document.getElementById(changeToHandle).addEventListener ("change", function(){ handleConfigChange(this);});  
+            document.getElementById(changeToHandle + ".delete").addEventListener ("click", function(){ updateCapacity(this);});  
+        }
+    });
+
+    document.getElementById(saveAddCapacity).addEventListener ("click", function(){ updateCapacity(this);}); 
+
+    //Show the page, unshow the others
+    showPageView("user-editor");
+
+}
 
 /***************
 Utilility - make it good case for reading
@@ -4972,20 +5685,14 @@ function postTimes(inputClassificationObjects) {
 
     console.log("Alvis Time: Class Objects - ", JSON.parse(JSON.stringify(inputClassificationObjects)));
     inputClassificationObjects.forEach(function(classObj) {
-        console.log("DOING CLASS Object");
         classObj.legacyPostTime = true;
         loadClassificationChild(classObj);
         var foundInPosted = false;
         postedClassficationArray.forEach(function(postedClass) {
             if (!foundInPosted) {
-                console.log("DOING POSTED CLASS Object");
                 if (classObj.description == postedClass.description && classObj.descriptionChild == postedClass.descriptionChild && classObj.id == postedClass.id) {
                     classObj.legacyPostTime = false;
-                    console.log("ALREADY POSTED: " + classObj.description + " " + classObj.descriptionChild + " " + classObj.id);
                     foundInPosted = true;
-                }
-                else {                
-                    console.log("GOING TO POST: " + classObj.description + " " + classObj.descriptionChild + " " + classObj.id);
                 }
             }
         });
@@ -5011,11 +5718,8 @@ function postTimes(inputClassificationObjects) {
 
     //Hold our data on local storage
     chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
-        console.log("SENDING MESSAGE: prepareposts", JSON.parse(JSON.stringify(inputClassificationObjects)));
         chrome.runtime.sendMessage({action: "prepareposts", timeEntries: inputClassificationObjects, endPage: endPageObject});
     });
-
-    console.log("Alvis Time: Done Post Times");
 }
 
 /***************
@@ -5025,8 +5729,6 @@ function loadClassificationChild(inputCLassificationObject) {
    
     if (!userToRun.defaultChildClassification)
         userToRun.defaultChildClassification = "Development";
-
-    //console.log("AJH LOADING SUB CLASS 1:" + inputCLassificationObject.description + " Child:" + inputCLassificationObject.descriptionChild);
 
     //Lets fill in our default sub-classification if needed
     if (inputCLassificationObject.descriptionChild.length <= 1) 
@@ -5039,9 +5741,6 @@ function loadClassificationChild(inputCLassificationObject) {
         nputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
     if (inputCLassificationObject.descriptionChild == "Management & Supervision")
         inputCLassificationObject.descriptionChild = "Supervision";
-
-    //console.log("AJH LOADING SUB CLASS 2:" + inputCLassificationObject.description + " Child:" + inputCLassificationObject.descriptionChild);
-
 }
 
 
@@ -5057,8 +5756,6 @@ function legacyView(blnTakeScreenshot, inputPageLoadType) {
         alert("No Legacy Time ID - Cant laod this report");
         return false;
     }
-
-    console.log("Alvis Time: Taking screenshot For Legacy ID: " + userToRun.legacyTimeID);
 
     //Build URL to laod from our pieces
     switch(inputPageLoadType) {

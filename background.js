@@ -10,7 +10,7 @@ var config;
 var workgroup;
 var user;
 var JIRA;
-var blnRemoteConfig = false;
+var blnRemoteConfig = true;
 //For legacy integration
 var ltimeEntryIndex = 0;
 var ltimeEntryArray = [];
@@ -112,7 +112,7 @@ function mainControlThread() {
 
     console.log("Alvis Time: Config loaded and we are running. Config;", JSON.parse(JSON.stringify(config)));
     
-    JIRA = JiraAPI(config.orgJiraBaseURI, config.orgJiraAPIExtension, "");
+    JIRA = JiraAPI(config.orgSettings.jiraBaseURI, config.orgSettings.jiraAPIExtension, "");
 
     //Get User info - may want this in a loop/interval.  This starts when browser opens, and if not already logged into Jira, will fail
     //Idea is, to have it try again...then when you are logged in to Jira, it works

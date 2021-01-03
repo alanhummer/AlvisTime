@@ -81,6 +81,35 @@
 					vertical-align: middle;
 				}
 
+				.config-details-layout {
+					width:100%;
+					background: #ffffff;
+					border: 0px;
+				}
+
+				.config-row {
+					vertical-align: top;
+					background: #ffffff;
+					border: 0px;
+					font-weight: bold;	
+					font-size: 12px;
+					display: inline-block;
+				}
+
+				.config-summary {
+					height: 30px;	
+					padding: 10px;
+					color: blue;
+					font-weight: bold;	
+					font-size: 16px;
+					background: #f3f3f3;
+					width: 100%;		
+				}
+
+				.issue-group-name:hover {
+					cursor: pointer;
+				}
+
 				.issue-group-name {
 					height: 20px;	
 					padding: 10px;
@@ -688,6 +717,15 @@
 				  }
 				}
 
+			.user-info {
+				float: left;
+				border-right: 15px solid rgba(255, 255, 255, 0.2);
+				padding: 0px;
+				color: blue;
+				font-size: 15px;
+				font-weight: bold;
+			}
+
 		</style>
 	</head>
 	<body>
@@ -702,6 +740,52 @@
 			<div id="version-message">_VERSION_MESSAGE_<br><br></div><div id="version-link"><a href="_VERSION_LINK_">_VERSION_NUMBER_ - Click Here</a></div><br><br>
 			<a  id="version-close" target="_blank"><img id="version-close-image" class="enabled-image" src="images/click-to-close.png" height="33" title="Close"/></a>
 		</div>
+		<!--The Configuration Editor Presentation-->
+		<div id="config-editor" style="display: inline;" class="summary-display">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-config" target="_blank"><img id="close-image-config" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-config" target="_blank"><img id="help-image-config" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
+				<a id="userLink-config"  target="_blank"><img id="user-image-config" class="enabled-image" style="float: right;" src="images/user.png" height="33" title="User Info" /></a>
+				<a id="configUpdate-config" target="_blank" style="display: none;"><img id="config-update-config" class="enabled-image" style="float: right;" src="images/config_update.png" height="33" title="Post Config Change" /></a>
+			</div>
+			<div id="config-header" class="summary-class">Configuration Editor</div><br>
+			<div id="config-details" style="text-align:left; vertical-align:bottom;width:100%"></div>
+
+			<details closed class="config-summary" id="config-summary-object" style="display: none;">
+				<summary class="config-summary">_OBJECTNAME_</summary>
+				_OBJECTSUMMARY_
+			</details>
+			<div id="config-details-object" class="config-details-layout" style="display: none;">
+					_OBJECTDETAILS_
+			</div>
+			<div id="config-field-values" class="config-row" style="display: none;width:100%">
+				<div class="config-row" style="text-align:right;width:24%;">_FIELDNAME1_</div><div class="config-row" style="text-align:center;width:1%;">:</div><div class="config-row" style="text-align:left;width:75%;"><input id="_CONFIGPATH_" type="text" name="_FIELDNAME1_" value="_FIELDVALUE1_"></div>
+			</div>
+		</div>
+		<!--The User Presentation-->
+		<div id="user-editor" style="display: none;" class="summary-display">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-user" target="_blank"><img id="close-image-user" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-user" target="_blank"><img id="help-image-user" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
+				<a id="configUpdate-user" target="_blank" style="display: none;"><img id="config-update-user" class="enabled-image" style="float: right;" src="images/config_update.png" height="33" title="Post Config Change" /></a>
+			</div>
+			<div id="user-header" class="summary-class"></div><br>
+			<div id="user-details" style="text-align:left; vertical-align:bottom;width:100%"></div>
+			<div id="user-field-values" class="config-row" style="width:100%;display:none">
+				<div class="config-row" style="text-align:right;width:49%;">_NAME_</div><div class="config-row" style="text-align:center;width:1%;">:</div><div class="config-row" style="text-align:left;"><input id="_CONFIGPATH_" type="text" size="50" name="_NAME_" value="_VALUE_"></div><br>
+			</div>
+			<div id="user-capacity-date" class="config-row" style="width:100%;display:none">
+				<div class="config-row" style="text-align:right;width:49%;">Date:</div><div class="config-row" style="text-align:center;width:1%;">:</div><div class="config-row" style="text-align:left;"><input id="_CAPACITYDATEPATH_" type="text" size="50" name="_CAPACITYDATEPATH_" value="_CAPACITYDATE_"></div><br>
+			</div>
+			<div id="user-capacities" class="config-row" style="width:100%;display:none">
+				<div class="config-row" style="text-align:right;width:49%;">_CAPACITYCLASS_</div><div class="config-row" style="text-align:center;width:1%;">:</div><div class="config-row" style="text-align:left;"><input id="_CAPACITYPATH_" type="text" size="40" name="_CAPACITYCLASS_" value="_CAPACITYHOURS_"></div><div class="config-row" style="text-align:left;"><img src="images/close_button.png" height="25px" id="_CAPACITYPATH_.delete"></img></div><br>
+			</div>
+			<div id="user-capacity-new" class="config-row" style="width:100%;display:none">
+				<div class="config-row" style="text-align:right;width:49%;"><input id="_CAPACITYPATH_.classification" type="text" size="50" name="new" value="_CAPACITYCLASS_"></div><div class="config-row" style="text-align:center;width:1%;">:</div><div class="config-row" style="text-align:left;"><input id="_CAPACITYPATH_.hours" type="text" size="50" name="new" value="_CAPACITYHOURS_"></div><br>
+				<div style="text-align:center;"><br><img src="images/add_capacity.png" id="_CAPACITYPATH_"></div>
+			</div>
+		</div>
+
 		<!--The Time card summary presentation -->
 		<div id="timecard-summary" class="summary-display" style="display: none;">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
@@ -711,6 +795,9 @@
 				<a id="screenshotlink-summary" target="_blank"><img id="screenshot-image-summary" class="enabled-image" style="float: right;" src="images/screenshot_button.png" height="33" title="Screenshot of SN Approved Card" /></a>
 				<a id="viewcard-approved-summary" target="_blank"><img id="viewcard-approved-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_approved_button.png" height="33" title="Vew SN Approved Card" /></a>
 				<a id="lateNoticeLink-summary" target="_blank"><img id="late-image-summary" class="enabled-image" style="float: right;" src="images/late_button.png" height="33" title="Send Late Notice"/></a>
+				<a id="userLink-summary"  target="_blank"><img id="user-image-summary" class="enabled-image" style="float: right;" src="images/user.png" height="33" title="User Info" /></a>
+				<a id="configUpdate-summary" target="_blank" style="display: none;"><img id="config-update-summary" class="enabled-image" style="float: right;" src="images/config_update.png" height="33" title="Post Config Change" /></a>
+				<a id="configurationLink-summary" target="_blank"><img id="configuration-image-summary" class="enabled-image" style="float: right;" src="images/gear_button.png" height="33" title="Configuration Info"/></a>
 			</div>
 			<div id="timecard-summary-name"></div><div id="timecard-summary-range"></div>
 			<br>
@@ -811,7 +898,7 @@
 				</table>
 			</div>
 		</div>
-		<!--The Orge Key presentation-->
+		<!--The Org Key presentation-->
 		<div id="orgkeyrequest" style="color:green;display: none; text-align:left; vertical-align:bottom;" class="instructions">
 			<div style="text-align:right;float:right;width: 200;" id="nav">
 				<a  id="closeLink-orgkey" target="_blank"><img id="close-image-orgkey" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
@@ -835,6 +922,7 @@
 				<a id="helpLink-help" target="_blank"><img id="help-image-help" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 			</div>
 			<ul>
+				<div id="help-version"><b>Version: _VERSION_</b><br><br></div>
 				Welcome to <b>Alvis Time!</b>  Time card entry integrated with Jira.
 				We believe Alvis Time is simple and easy to learn and use.  3 simple steps:<br><br>
 				<ol>
@@ -969,6 +1057,9 @@
 			<a id="reportSingleInfoLink" target="_blank"><img id="report-single-image" class="enabled-image" style="float: right;" src="images/report_single_button.png" height="33" title="Individual Work Item Report"/></a>
 			<a id="reportInfoLink" target="_blank"><img id="report-image" class="enabled-image" style="float: right;" src="images/report_button.png" height="33" title="Everybody Work Item Report"/></a>
 			<a id="lateNoticeLink" target="_blank"><img id="late-image" class="enabled-image" style="float: right;" src="images/late_button.png" height="33" title="Send Late Notice"/></a>
+			<a id="userLink"  target="_blank"><img id="user-image" class="enabled-image" style="float: right;" src="images/user.png" height="33" title="User Info" /></a>
+			<a id="configUpdate" target="_blank" style="display: none;"><img id="config-update" class="enabled-image" style="float: right;" src="images/config_update.png" height="33" title="Post Config Change" /></a>
+			<a id="configurationLink" target="_blank"><img id="configuration-image" class="enabled-image" style="float: right;" src="images/gear_button.png" height="33" title="Configuration Info"/></a>
 		</div>
 		<div id="date-range">
 			<table class="positioning-table">
@@ -1049,6 +1140,7 @@
 				</table>
 			</div>
 		</div>
+		<!-- Brand Presentations-->
 		<div id="brand">
 			<table class="positioning-table">
 				<tr class="positioning-row">
