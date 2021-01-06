@@ -56,8 +56,9 @@
 				}
 
 				#date-range {
+					height: 50px;	
 					text-align: center;
-					vertical-align: middle;
+					vertical-align: top;
 					width: 770px;
 					display: inline-block;
 				}
@@ -333,9 +334,12 @@
 
 				#notice {
 					height: 20px;	
-					padding: 10px;
+					padding: 0px;
 					color: red;
 					font-weight: bold;
+					font-size: 14px;
+					vertical-align: top;
+					text-align: center;
 				}
 
 				#loader-container {
@@ -343,7 +347,7 @@
 				}
 
 				.week-description {
-					font-size: 22px;
+					font-size: 20px;
 					color: #666666;
 					font-weight: bold;
 					margin: 3px;
@@ -1064,16 +1068,16 @@
 		<div id="date-range">
 			<table class="positioning-table">
 				<tr class="positioning-row">
-					<td width="100" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="64" height="64" class="week-images" title="Prior Week"></a></td>
+					<td width="100" class="positioning-cell" style="text-align: right;"><a tabindex="1" target="_blank" id="previousWeek"><img src="images/previous.png" width="50" height="50" class="week-images" title="Prior Week"></a></td>
 					<td width="300" class="positioning-cell"><div id="week-dates-description" class="week-description"></div></td>
-					<td width="100" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="64" height="64" class="week-images" title="Next Week"></a></td>
+					<td width="100" class="positioning-cell" style="text-align: left;"><a tabindex="2" target="_blank" id="nextWeek"><img src="images/next.png" width="50" height="50" class="week-images" title="Next Week"></a></td>
 					<td width="100" class="positioning-cell"><div id="loader-container"><div class="loader" id="loader"></div></div></td>
 				</tr>
-			</table> 
+			</table>		
 		</div>
-		<div id="notice"></div>
+		<div id="notice"></div>	
 		<div id="table-container">
-			<table class="issueTitle" class="border-bottom: 0px solid #dddddd;" id="issue-title-header">
+			<table class="issueTitle" style="border-bottom: 0px solid #dddddd;" id="issue-title-header">
 				<thead>
 					<tr>
 						<th width="30%"></th>

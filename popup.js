@@ -1729,6 +1729,13 @@ function onUserSuccess(response) {
         document.getElementById("summary-info-image").remove();
         document.getElementById("report-single-image").remove();
         document.getElementById("report-image").remove();
+        document.getElementById("late-image").remove();
+        document.getElementById("late-image-summary").remove();
+        document.getElementById("user-image-config").remove();
+        document.getElementById("user-image-summary").remove();
+        document.getElementById("user-image").remove();
+        document.getElementById("configuration-image").remove();
+        document.getElementById("configuration-image-summary").remove();
     }
 
 
@@ -5683,7 +5690,6 @@ function postTime(inputCLassificationObject) {
 }
 function postTimes(inputClassificationObjects) {
 
-    console.log("Alvis Time: Class Objects - ", JSON.parse(JSON.stringify(inputClassificationObjects)));
     inputClassificationObjects.forEach(function(classObj) {
         classObj.legacyPostTime = true;
         loadClassificationChild(classObj);
