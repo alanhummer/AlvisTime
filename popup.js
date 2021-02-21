@@ -8,7 +8,7 @@ var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
 
 //Going to manage version, just by putting into code
-var version = "2021.01.01.1";
+var version = "2021.02.21.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -2508,11 +2508,21 @@ convertToCentralTime -
 ****************/ 
 function convertToCentralTime(inputTimeStarted) {
 
-    var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000); //Current time
-    var offset = inputTimeStarted.getTimezoneOffset() / 60; //Now hours time zeon diff from UTC
-    var newTime = new Date(utc + (3600000*offset));
+    var newTime = new Date((typeof inputTimeStarted === "string" ? new Date(inputTimeStarted) : inputTimeStarted).toLocaleString("en-US", {timeZone: "America/Chicago"}));   
+
+    //console.log("Alvis Time: Converting to central time from: " + inputTimeStarted + " to " + newTime);
+
+    //var utc = inputTimeStarted.getTime() + (inputTimeStarted.getTimezoneOffset() * 60000); //Current time
+    //console.log("Alvis Time: UTC IS:" + Date(utc));
+
+    //var offset = inputTimeStarted.getTimezoneOffset() / 60; //Now hours time zeon diff from UTC
+    //console.log("Alvis Time: Offset IS:" + offset);
+
+    //var newTime = new Date(utc + (3600000*offset));
+    //console.log("Alvis Time: New Time IS:" + newTime);
     
-    console.log("Alvis Time: Converting to central time: " + inputTimeStarted + " TIME ZONE OFFSET IS: " + inputTimeStarted.getTimezoneOffset()  + " UTC IS: " + Date(utc) + " OFFSET IS: " + offset + " to " + newTime);
+
+    //console.log("TIME ZONE OFFSET IS: " + inputTimeStarted.getTimezoneOffset()  + " UTC IS: " + Date(utc) + " OFFSET IS: " + offset + " to " + newTime);
 
     return newTime;
 
@@ -4551,6 +4561,7 @@ function jsonUnpack(inputObject, configKey) {
                 //Call routine the will be the HTML for this entry and add it on
                 myResponse = myResponse + displayConfig(arrayKey, valueArrayEntry, configKey);
            });
+           //Did array...nwo need
         }
         else {
             //Call routine the will be the HTML for this entry and add it on
