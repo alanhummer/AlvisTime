@@ -267,6 +267,24 @@
 					text-align: center;
 					padding: 2px;
 				}
+
+				.report-total-green-line {
+					font-size: 14px;
+					width: 40px;
+					color: green;
+					border: 1px solid black;
+					text-align: center;
+					padding: 2px;
+				}
+
+				.report-total-black-line {
+					font-size: 14px;
+					width: 40px;
+					color: black;
+					border: 1px solid black;
+					text-align: center;
+					padding: 2px;
+				}
 				.report-title {
 					font-size: 14px;
 					width: 210px;
@@ -320,6 +338,64 @@
 				.report-shade-2 {
 					background: #B9D3EE;
 					border-bottom: 0px;
+				}
+
+				.legacy-queue-line {
+					font-size: 14px;
+					width: 40px;
+					color:blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: center;
+					padding: 2px;
+				}
+
+				.legacy-queue-total-line {
+					font-size: 14px;
+					width: 40px;
+					color: black;
+					border: 1px solid black;
+					text-align: center;
+					padding: 2px;
+				}
+				
+				.legacy-queue-text-line {
+					font-size: 14px;
+					width: 40px;
+					color:blue;
+					border-bottom: 0px solid #dddddd;
+					text-align: left;
+					vertical-align: top;
+					padding: 2px;
+				}
+				
+				.legacy-queue-text-line-started {
+					font-size: 14px;
+					width: 40px;
+					color:red;
+					border-bottom: 0px solid #dddddd;
+					text-align: left;
+					vertical-align: top;
+					padding: 2px;
+				}
+				
+				.legacy-queue-text-line-finished {
+					font-size: 14px;
+					width: 40px;
+					color:green;
+					border-bottom: 0px solid #dddddd;
+					text-align: left;
+					vertical-align: top;
+					padding: 2px;
+				}
+
+				.legacy-queue-text-total-line {
+					font-size: 14px;
+					width: 40px;
+					color: black;
+					border: 1px solid black;
+					text-align: left;
+					vertical-align: top;
+					padding: 2px;
 				}
 
 				.totals-title {
@@ -789,6 +865,59 @@
 				<div style="text-align:center;"><br><img src="images/add_capacity.png" id="_CAPACITYPATH_"></div>
 			</div>
 		</div>
+		<!--The Queue of Legacy entries to post Presentation-->
+		<div id="legacyqueue-editor" style="display: inline;" class="summary-display">
+			<div style="text-align:right;float:right;width: 200;" id="nav">
+				<a  id="closeLink-legacyqueue" target="_blank"><img id="close-image-legacyqueue" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
+				<a id="helpLink-legacyqueue" target="_blank"><img id="help-image-legacyqueue" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
+			</div>
+			<div id="legacyqueue-header" class="summary-class">Legacy Queue Review - _QUEUEDITEMCOUNT_ = _QUEUEESTTIME_</div><br>
+			<div id="legacyqueue-record-templates" style="display:none">
+				<div id="legacyqueue-report-details">
+					<table style="display:none">
+						<tbody style="display:none" id="legacyqueue-colheaders">
+							<tr class="report-shade-entry">
+								<td class="report-header" style="width:100px"></td>
+								<td class="report-header" style="width:191px"></td>
+								<td class="report-header" style="width:191px"></td>
+								<td class="report-header" style="width:33px">Sat</td>
+								<td class="report-header" style="width:33px">Sun</td>
+								<td class="report-header" style="width:33px">Mon</td>
+								<td class="report-header" style="width:33px">Tues</td>
+								<td class="report-header" style="width:33px">Wed</td>						
+								<td class="report-header" style="width:33px">Thur</td>
+								<td class="report-header" style="width:33px">Fri</td>						
+								<td class="report-header" style="color:black;width:33px">Tot</td>
+							</tr>
+						</tbody>
+						<tbody style="display:none" id="legacyqueue-row">
+							<tr class="report-shade-entry">
+								<td class="_QUEUEENTRYCOLOR_" style="width:100px">_QUEUEUSERID_</td>
+								<td class="_QUEUEENTRYCOLOR_" style="width:191px">_QUEUEDESCRIPTION_</td>
+								<td class="_QUEUEENTRYCOLOR_" style="width:191px">_QUEUECHILDDESCRIPTION_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY0_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY1_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY2_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY3_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY4_</td>
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY5_</td>						
+								<td class="legacy-queue-line" style="width:33px">_QUEUEHOURSDAY6_</td>
+								<td class="legacy-queue-total-line" style="width:33px">_QUEUEINFOTOTAL_</td>	
+							</tr>
+						</tbody>
+					</table>
+				</div>		
+				<table>
+					<tr style="display:inline">
+						<td class="legacy-queue-line">_USERID_</td><td class="legacy-queue-line">_WEEKOF_</td><td class="legacy-queue-line">_DESCRIPTION_</td><td>_SATURDAY_</td><td>_SUNDAY_</td><td>_MONDAY_</td><td>_TUESDAY_</td><td>_WEDNESDAY_</td><td>_THURSDAY_</td><td>_FRIDAY_</td>
+					</tr>
+				</table>
+			</div>
+
+			<div id="legacyqueue-details" style="text-align:left; vertical-align:bottom;width:100%"></div>
+			<div id="legacyqueue-postall" target="_blank"><img id="legacyqueue-postall-image" class="enabled-image" style="float: right;" src="images/go_button.png" height="50" title="Post All" /></div>
+			<div id="legacyqueue-deleteall" target="_blank"><img id="legacyqueue-deleteall-image" class="enabled-image" style="float: right;" src="images/red_back_button.png" height="50" title="Remove All" /></div>
+		</div>
 
 		<!--The Time card summary presentation -->
 		<div id="timecard-summary" class="summary-display" style="display: none;">
@@ -796,6 +925,7 @@
 				<a id="closeLink-summary" target="_blank"><img id="close-image-summary" class="enabled-image" style="float: right;" src="images/close_button.png" height="33" title="Close" /></a>
 				<a id="helpLink-summary" target="_blank"><img id="help-image-summary" class="enabled-image" style="float: right;" src="images/help_button.png" height="33" title="Help" /></a>
 				<a id="viewcard-summary" target="_blank"><img id="viewcard-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_button.png" height="33" title="View SN Working Card" /></a>
+				<a id="posttimes-summary" target="_blank"><img id="posttimes-image-summary" class="enabled-image" style="float: right;" src="images/posttimes_button.png" height="33" title="Post Time to SN" /></a>
 				<a id="screenshotlink-summary" target="_blank"><img id="screenshot-image-summary" class="enabled-image" style="float: right;" src="images/screenshot_button.png" height="33" title="Screenshot of SN Approved Card" /></a>
 				<a id="viewcard-approved-summary" target="_blank"><img id="viewcard-approved-image-summary" class="enabled-image" style="float: right;" src="images/viewcard_approved_button.png" height="33" title="Vew SN Approved Card" /></a>
 				<a id="lateNoticeLink-summary" target="_blank"><img id="late-image-summary" class="enabled-image" style="float: right;" src="images/late_button.png" height="33" title="Send Late Notice"/></a>
@@ -846,7 +976,7 @@
 					</body>
 					<tbody id="report-row">
 						<tr class="report-shade-entry">
-							<td class="report-summary" style="border: 1px solid white;"><a id="Report-Link-_REPORTISSUEKEY_" href="_ISSUELINK_">_REPORTISSUE_</a></td>
+							<td class="report-summary" style="border: 1px solid white;"><a id="Report-Link-_REPORTISSUEKEY_" href="_ISSUELINK_" style="color:_REPORTISSUECOLOR_">_REPORTISSUE_</a></td>
 							<td class="report-line">_REPORTDAY0_</td>
 							<td class="report-line">_REPORTDAY1_</td>
 							<td class="report-line">_REPORTDAY2_</td>

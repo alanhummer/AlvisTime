@@ -68,6 +68,8 @@ var reportObject = {};
 var reportIssues = [];
 var reportIssueWorklogs = [];
 var reportSavedReport;
+var saveReportName = "";
+var saveReportJQL = "";
 
 //Show user summaries or not
 var blnDoUserTimecardSummaryView = false;
@@ -424,6 +426,13 @@ function showTimeCardSummary() {
     //4) Clean it up, sort it
     //5) Figure out offsets
 
+    //AJH #5 - Start with a fresh for testing
+    console.log("DEBUG: Started with this posted array", postedClassficationArray);
+    //chrome.storage.local.remove("postedArray", function() {
+    //    postedClassficationArray = [];
+    //    console.log("DEBUG: Started with this posted array", postedClassficationArray);
+    //});
+
     //Save our page laoded
     if (blnAdmin) {
         chrome.storage.local.set({"recentPage": "timecard-summary"}, function () {});  
@@ -447,15 +456,18 @@ function showTimeCardSummary() {
     if (user.legacyViewCard) {
         if (typeof userToRun.legacyTimeID  === 'undefined') {
             document.getElementById('viewcard-summary').style.display =  'none';
+            document.getElementById('posttimes-summary').style.display =  'none';
             document.getElementById('viewcard-approved-summary').style.display =  'none';
         }
         else {
             document.getElementById('viewcard-summary').style.display =  '';
+            document.getElementById('posttimes-summary').style.display =  '';
             document.getElementById('viewcard-approved-summary').style.display =  '';
         }
     }
     else {
         document.getElementById('viewcard-summary').style.display =  'none';
+        document.getElementById('posttimes-summary').style.display =  'none';
         document.getElementById('viewcard-approved-summary').style.display =  'none';
     }
 
@@ -495,6 +507,9 @@ function showTimeCardSummary() {
             if (issueGroup.isProject) {
                 issueGroup.issues.forEach(function(issue) {
                                     
+                    //Let set our classifiation/childClassification if we need to
+                    issueLoadClassificationChild(issue);
+
                     if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
                         //Skip what we are trying to override
                     }
@@ -529,10 +544,10 @@ function showTimeCardSummary() {
                             }
 
                             //Get Override of Classifcation Child if we have one to
-                            loadClassificationChild(classificationObject);
+                            // - Not needed loadClassificationChild(classificationObject);
 
                             loadCapacity(classificationObject);
-                            classificationArray.push(classificationObject);
+                            classificationArray.push(classificationObject); //AJHPOST
 
                         }
 
@@ -563,40 +578,47 @@ function showTimeCardSummary() {
                 if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
 
                     //See if user has an override
-                    if (userToRun.defaultClassification) {
-                        //Use this one
-                        issue.classification = userToRun.defaultClassification;
+                    if (issue.fields.summary.toUpperCase() == "002 - ENVIRONMENT / STACK DEPLOYS / ISSUES" || issue.classification.toUpperCase() == "004 - COMPUTER / SIGNIN / SECURITY / APP ISSUES") {
+                        issue.classification = "10705 - LandsEnd.com Support";
+                        issue.classificationChild = "19461 - Problems/Incidents";
                     }
                     else {
-
-                        //Assigne to the biggest of our projects from the save list
-                        issue.classification = saveClassObj.description;
-
-                        //AJH SOMEWHERE HERE IS WHERE WE SPLIT BY % classObj.projectPercentage - multiple time classes for one issue
-                        if (blnDoProductPerctentages) {
-
-                            if (!issue.classificationArray) {
-                                issue.classificationArray = [];
-                            }
-
-                            //Add dlassification objects for this match
-                            classificationArray.forEach(function(classObj) {
-                                if (classObj.totalTotal > 0) {
-                                    issue.classificationArray.push(classObj);
-                                    console.log("Alvis Time Project Percentage: Overriding issue '" + issue.fields.summary + "' classifiction of '" + workgroup.settings.classificationToCalculate + "' with caluclated value '" + classObj.projectPercentage + "' for " + issue.issueTotalTime + " hours");
-                                }
-                            })  
+                        if (issue.fields.summary.toUpperCase() == "001 - LECOM DEPLOYMENT" && userToRun.defaultDeployClassification) {
+                            issue.classification = userToRun.defaultDeployClassification;
                         }
-
+                        else {
+                            if (userToRun.defaultClassification) {
+                                //Use this one
+                                issue.classification = userToRun.defaultClassification;
+                            }
+                            else {
+    
+                                //Assigne to the biggest of our projects from the save list
+                                issue.classification = saveClassObj.description;
+    
+                                //AJH SOMEWHERE HERE IS WHERE WE SPLIT BY % classObj.projectPercentage - multiple time classes for one issue
+                                if (blnDoProductPerctentages) {
+    
+                                    if (!issue.classificationArray) {
+                                        issue.classificationArray = [];
+                                    }
+    
+                                    //Add dlassification objects for this match
+                                    classificationArray.forEach(function(classObj) {
+                                        if (classObj.totalTotal > 0) {
+                                            issue.classificationArray.push(classObj);
+                                            console.log("Alvis Time Project Percentage: Overriding issue '" + issue.fields.summary + "' classifiction of '" + workgroup.settings.classificationToCalculate + "' with caluclated value '" + classObj.projectPercentage + "' for " + issue.issueTotalTime + " hours");
+                                        }
+                                    })  
+                                }
+                            }
+                        }
                     }
-
                 }
             })
         });
     }
  
-    //We have our calculted entries loaded - start fresh
-
     //Re-initialize this
     classificationArray = [];
 
@@ -604,7 +626,10 @@ function showTimeCardSummary() {
     workgroup.issueGroups.forEach(function(issueGroup) {
         issueGroup.issues.forEach(function(issue) {
             if (issue.issueTotalTime > 0) {
-    
+
+                //Let set our classifiation/childClassification if we need to
+                issueLoadClassificationChild(issue);
+
                 //Our classification display
                 classificationDisplay = "";
 
@@ -639,10 +664,10 @@ function showTimeCardSummary() {
                         "timePriority": issueGroup.timePriority //Initially, match issueGroup time priority.  May have addtl definitions by project at some point - thos would go here
                     }
                     //Get Override of Classifcation Child if we have one to
-                    loadClassificationChild(classificationObject);
+                    // - Not needed loadClassificationChild(classificationObject);
 
                     loadCapacity(classificationObject);
-                    classificationArray.push(classificationObject);
+                    classificationArray.push(classificationObject); //AJHPOST
 
                 }
 
@@ -679,7 +704,7 @@ function showTimeCardSummary() {
                             loadCapacity(classificationObject);
 
                             //Now add the object to the array
-                            classificationArray.push(classificationObject);
+                            classificationArray.push(classificationObject); //AJHPOST
                            
                             console.log("Alvis Time: We added class from array - ", JSON.parse(JSON.stringify(classificationObject)));
 
@@ -738,6 +763,9 @@ function showTimeCardSummary() {
         })
 
     })
+
+    //We have our calculted entries loaded - start fresh
+    debugShowClassifications();
 
     //We have done all the muckety muck, result may have duplicates...let fix em
     classificationArray = consolidateDuplicateEntries(classificationArray);
@@ -907,8 +935,8 @@ function showTimeCardSummary() {
     if (blnDidAllClassifications) 
         document.getElementById("post-all-summary").src = "images/red_go_button.png";
 
-    //AJH AJH RIGHT IN HERE IS WHERE WE WANT TO CAPTURE ALL CASS OBJECTS AND SEND TO BE SPOST _ ALL THAT ARE BLUE ANYUWAY
-    document.getElementById("post-all-summary").addEventListener ("click", function(){ doClassificationPostTimes(this, classificationArray)}); 
+    //Post times to legacy system
+    document.getElementById("post-all-summary").addEventListener ("click", function(){ doAddToClassificationPostTimes(this, classificationArray)}); 
 
     //Final fill buffer
     row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-class", "fill", "#99b3ff;", "3");
@@ -934,6 +962,17 @@ function showTimeCardSummary() {
     //And add it to our issue group table
     document.getElementById("timecard-summary-details").appendChild(row);  
 
+}
+
+/****************
+debugShowClassifications
+****************/
+function debugShowClassifications() {
+    workgroup.issueGroups.forEach(function(issueGroup) {
+        issueGroup.issues.forEach(function(issue) {
+            console.log("AJH DEBUG ISSUE: " + issue.fields.summary + " = " + issue.classification + "-->" + issue.classificationChild);
+        });
+    });
 }
 
 
@@ -1173,12 +1212,37 @@ function showReportLines(inputReportObject) {
         myOutputRow = document.getElementById('report-row').innerHTML;
         myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
 
+        issue.isDone = false;
+        if(issue.fields.status.name) {
+            console.log("STATUS: " + issue.fields.status.name);
+            switch(issue.fields.status.name.toUpperCase()) {
+                case "DELIVERED":
+                case "RESOLVED":
+                case "BANKED":
+                case "CLOSED":
+                case "DONE":
+                case "Q:RELEASE":
+                    issue.isDone = true;
+                    myOutputRow = myOutputRow.replace(/_REPORTISSUECOLOR_/gi, "black");
+                    break;
+                default:        
+                    //issue is Resolved	
+                    myOutputRow = myOutputRow.replace(/_REPORTISSUECOLOR_/gi, "blue"); 		
+                    break;
+            }             	
+        } 
+        else {
+            //issue is Resolved	
+            myOutputRow = myOutputRow.replace(/_REPORTISSUECOLOR_/gi, "green"); 				
+        }
+
+
         myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, issue.key + " - " + titleCase(issue.fields.summary)); 
         
         var myLink = config.orgSettings.jiraBaseURI + "/browse/" + issue.key;
         myOutputRow = myOutputRow.replace(/_ISSUELINK_/gi, myLink); 
 
-        myOutputRow = myOutputRow.replace(/_REPORTISSUEKEY_/gi, issue.key);         
+         myOutputRow = myOutputRow.replace(/_REPORTISSUEKEY_/gi, issue.key);         
         myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, dayOfWeek[0]); 
         myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, dayOfWeek[1]); 
         myOutputRow = myOutputRow.replace(/_REPORTDAY2_/gi, dayOfWeek[2]); 
@@ -1189,6 +1253,13 @@ function showReportLines(inputReportObject) {
         myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, weekTotal); 
         
         //Fill in estimate presentations
+        if (issue.isDone) {
+            if (issue.fields.timeestimate) 
+                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, 0); 
+            else
+                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "-"); 
+        }
+
         if (issue.fields.timeoriginalestimate) {
             if (issue.fields.timeoriginalestimate == 0 && issue.fields.timeestimate == 0) {
                 myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
@@ -1198,10 +1269,22 @@ function showReportLines(inputReportObject) {
                 myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, issue.fields.timeoriginalestimate/3600); 
                 myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, issue.fields.timeestimate/3600); 
 
-                //Red if over, else leave it be
-                if (issue.fields.timespent > issue.fields.timeoriginalestimate) {
-    
-                    myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-red-line"); 
+                //Red if over, else maybe green
+                if (issue.isDone) {
+                    if (issue.fields.timespent > issue.fields.timeoriginalestimate) {        
+                        myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-red-line"); 
+                    }
+                    else {
+                        myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-green-line");                         
+                    }
+                }
+                else {
+                    if (issue.fields.timespent > issue.fields.timeoriginalestimate) {        
+                        myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-red-line"); 
+                    }
+                    else {
+                        myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-black-line");                         
+                    }                   
                 }
             }
         }
@@ -1342,6 +1425,18 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     document.getElementById('closeLink').href = "nowhere";
     document.getElementById('closeLink').onclick = closeit;
    
+    //Set up the legacy queue
+    document.getElementById('helpLink-legacyqueue').href = "nowhere";
+    document.getElementById('helpLink-legacyqueue').onclick = openHelp;
+    document.getElementById('legacyqueue-postall').onclick = postThemAll;
+    document.getElementById('legacyqueue-deleteall').onclick = deleteThemAll;
+    document.getElementById("closeLink-legacyqueue").addEventListener ("click", function(){ 
+        //Setup the view
+        showPageView('everything');
+    }); 
+
+
+
     //Set up UI Element for Help Button
     document.getElementById('helpLink').href = "nowhere";
     document.getElementById('helpLink').onclick = openHelp;
@@ -1353,7 +1448,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Set up UI Element for Help Button
     document.getElementById('helpLink-orgkey').href = "nowhere";
     document.getElementById('helpLink-orgkey').onclick = openHelp;
-
 
     //Set up UI Element for Previous and next buttons
     document.getElementById('previousWeek').href = "nowhere";
@@ -1440,6 +1534,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //document.getElementById('viewcard-summary').href = "nowhere";
     //document.getElementById('viewcard-summary').onclick = legacyView;    
     document.getElementById("viewcard-image-summary").addEventListener ("click", function(){ legacyView(false, "pending")}); 
+    document.getElementById("posttimes-image-summary").addEventListener ("click", function(){ doThePostTimes()}); 
     document.getElementById("viewcard-approved-image-summary").addEventListener ("click", function(){ legacyView(false, "approved")}); 
 
     //Grab our HTML blocks
@@ -1873,6 +1968,12 @@ function changeuser(inputUsername) {
     
     //Grab our stored classification posts, if we have them
     if (blnAdmin) {
+        //AJH #3 - DONE We do not want to wipe this out anymore on change of user
+
+        //Get the issues - need to reset everything since we changed user
+        processIssueGroups("userchange");
+        return;
+
         postedClassficationArray = [];
         chrome.storage.local.remove("postedArray", function() {
             //Get the issues - need to reset everything since we changed user
@@ -2285,6 +2386,8 @@ function generateReport(inputReport) {
             //Add report to our hold hobject
             reportObject.report = report;
 
+            //Save these off
+            saveReportName = document.getElementById('report-name').innerHTML;
 
             //Add report header
             document.getElementById('report-name').innerHTML = "Running....:&nbsp;&nbsp;";
@@ -2315,12 +2418,20 @@ function generateReport(inputReport) {
             var dateToUseEnd = new Date(reportLastDay);
             dateToUseEnd.setDate(dateToUseEnd.getDate() + 1);
             myJQL = myJQL.replace(/_TIMECARDEND_/gi, ISODate(dateToUseEnd));      
+                
+            //Save for Error Display
+            saveReportJQL = myJQL;
             
             myJQL = myJQL + "&maxResults=500"
+
+            //Save for Error Display
+            saveReportJQL = myJQL;
 
             //Load current selected ates to report
             document.getElementById("daterange").value = ShortDate(dateToUseStart) + " - " + ShortDate(dateToUseEnd);
             //01/01/2018 - 01/15/2018
+
+            console.log("GETTING REPORT ISSUES");
 
             //Let run it and get the issues
             JIRA.getReportIssues(myJQL, report)
@@ -2346,7 +2457,16 @@ onIssueReportSuccess -
 ****************/ 
 function onIssueReportSuccess(responseObject) {
 
-      //Let's process each issue
+    //Let's process each issue
+
+    if (responseObject.issues.length == 0) {
+        //Didnt get any - we are done
+        document.getElementById('report-name').innerHTML = saveReportName;
+        notificationMessage(saveReportJQL, "error");
+        togglePageBusy(false);
+        alert("No issues found for this query");
+    }
+
     reportIssueCount = responseObject.issues.length;
     responseObject.issues.forEach(function(issue) {
 
@@ -3145,6 +3265,8 @@ Pushing time card thru the process by updating all of the status on the worlogs
 function updateWorklogStatuses(inputAction) {
 
     //If we are already busy, get out to avoid multiple clicks
+    console.log("AJH DEBUG: Doing Status update");
+
     if (!blnInteractive)
         return;
 
@@ -3164,6 +3286,10 @@ function updateWorklogStatuses(inputAction) {
                 else {
                     //Here is where we updates status to approved
                     updateTimecardStatus("submitted", "approved");
+
+                    //Lets send an email
+                    sendEmail(workgroup.settings.emailOnSubmitForApproval.subject + "Approved!", workgroup.settings.emailOnSubmitForApproval.message, workgroup.settings.emailOnSubmitForApproval.from, workgroup.settings.emailOnSubmitForApproval.to);
+ 
                 }
 
                 //Changed status, so reset everything
@@ -3232,6 +3358,14 @@ function updateTimecardStatus(fromStatus, toStatus) {
 
                 if (workLogObject.worklogComment.includes(fromStatus) && Number(workLogObject.worklogId) > 0) {                                                       
                     workLogObject.worklogComment = workLogObject.worklogComment.replace(fromStatus, toStatus);
+
+                    //And if approved, add the proj/sub-project
+                    if (toStatus == "approved") {
+                        //add proj/sub-proj to the end on APPROVAL
+                        if (workLogObject.worklogComment.split("|").length > 2) {
+                            workLogObject.worklogComment = workLogObject.worklogComment.split("|")[0] + "|" + workLogObject.worklogComment.split("|")[1] + "|" + toStatus + "|" + issue.classification + "|" + issue.classificationChild;
+                        }
+                    }
  
                     JIRA.updateWorklog(workLogObject.worklogIssueId, workLogObject.worklogId, workLogObject.worklogComment, workLogObject.worklogTimeSpent, getStartedTime(workLogObject.worklogTimeStarted))
                     .then(function(data) {
@@ -3606,8 +3740,8 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
     inputIssue.classificationChild = trim(inputIssue.classificationChild);
 
 
-   //Gotta fix our bogus classification's (for "problemes", there is none) AJH
-   if (inputIssue.classification == "No classification defined") {
+    //Gotta fix our bogus classification's (for "problemes", there is none)
+    if (inputIssue.classification == "No classification defined") {
         if (inputIssue.fields["issuetype"].name == "Problem") { //Hardcoding for now
             inputIssue.classification = "10705 - LandsEnd.com Support";
             inputIssue.classificationChild = "19461 - Problems/Incidents"
@@ -3628,9 +3762,20 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
         //Problems with SN and Jira out of sync - checkout is a not a sub-project
         inputIssue.classificationChild = "";
     }
+    else if (inputIssue.classificationChild == "10705 - LandsEnd.com Support") {
+        //Support override is problems/incidents
+        if (!inputIssue.classificationChild || inputIssue.classificationChild == "") {
+            inputIssue.classificationChild = "19461 - Problems/Incidents";
+        }
+        else {
+            if (inputIssue.classificationChild == "Development") {
+                inputIssue.classificationChild = "19461 - Problems/Incidents";
+            }
+        }
+    }
 }
 
-//Child does not have classificaiton, so inhereit from paernt AJHAJH
+//Child does not have classificaiton, so inhereit from paernt
 function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
 
     var blnMatch = false;
@@ -4026,7 +4171,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         });       
     }
     else if (inputType == "detail" || inputType == "offset-total") {
-        if (issueClassification.descriptionChild.length > 0) //AJH I do not know?
+        if (issueClassification.descriptionChild.length > 0) 
             descToDisplay = issueClassification.descriptionChild;
         else
             descToDisplay = "(no sub-project)"
@@ -4036,7 +4181,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         });
     }
     else { //Offset
-        if (issueClassification.descriptionChild.length > 0) //AJH I do not know?
+        if (issueClassification.descriptionChild.length > 0) 
             descToDisplay = issueClassification.descriptionChild;
         else
             descToDisplay = "(no sub-project)"
@@ -4301,10 +4446,15 @@ function doClassificationPostTime(inputImage, inputClassificationObject) {
 }
 
 //Pushed button for all classification entries to post
-function doClassificationPostTimes(inputImage, inputClassificationObjects) {
+function doAddToClassificationPostTimes(inputImage, inputClassificationObjects) {
+
+    //We are busy
+    togglePageBusy(true);
 
     inputImage.src = "images/red_go_button.png";
-    postTimes(inputClassificationObjects);
+    addToPostTimes(inputClassificationObjects);
+    
+    togglePageBusy(false);
 
 }
 
@@ -4493,6 +4643,7 @@ function showPageView(inputView) {
     document.getElementById('report').style.display =  'none';
     document.getElementById('config-editor').style.display =  'none';
     document.getElementById('user-editor').style.display =  'none';
+    document.getElementById('legacyqueue-editor').style.display =  'none';
     document.getElementById(inputView).style.display =  'block';
 
 }
@@ -5194,7 +5345,7 @@ function initializeApp() {
         }
     });
 
-    //Grab most recent user, use it if we have one - THIS NEEDS WORK AJH - LOAD USER/DATE/PAGE AT STARTUP
+    //Grab most recent user, use it if we have one
     chrome.storage.local.get("recentUserName", function(data) {
         if (data) {
             if (data["recentUserName"]) {
@@ -5676,18 +5827,18 @@ Posting functions
 ***************/
 function postTime(inputCLassificationObject) {
 
-    postedClassficationArray.push(inputCLassificationObject);
+    postedClassficationArray.push(inputCLassificationObject); //AJHPOST
 
     //Get Override of Classification Child if we have one to
-    loadClassificationChild(inputCLassificationObject);
+    //Not Needed - loadClassificationChild(inputCLassificationObject);
 
     //Build up view of legacy time card to pass for lod after done posting
     var URLtoLoad = "";
     URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
-    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
-    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/g, userToRun.legacyTimeID);
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/g, ISODate(firstDay));
 
-    //Create screenshot object to pass along
+    //Create screenshot object to pass along - Only used for where to land when done
     var endPageObject = {
         pageToLoad: URLtoLoad,
         name: userToRun.name,
@@ -5699,17 +5850,30 @@ function postTime(inputCLassificationObject) {
         chrome.runtime.sendMessage({action: "preparepost", timeEntry: inputCLassificationObject, endPage: endPageObject});
     });
 }
-function postTimes(inputClassificationObjects) {
-
+function addToPostTimes(inputClassificationObjects) { //AJHPOST
+     
+    //We should set the proj/sub-project on each issue here.  And also approve them.
+    //updateWorklogStatuses("approve");
+    
+    workgroup.issueGroups.forEach(function(issueGroup) {
+         issueGroup.issues.forEach(function(issue) {
+             console.log("DOING ISSUE: " + issue.fields.summary + " = " + issue.classification + " --> " + issue.classificationChild)
+         });
+     });
+    
+    //Add the entries to the collection for posting - no dups
     inputClassificationObjects.forEach(function(classObj) {
         classObj.legacyPostTime = true;
-        loadClassificationChild(classObj);
+        //Not needed - loadClassificationChild(classObj);
         var foundInPosted = false;
         postedClassficationArray.forEach(function(postedClass) {
             if (!foundInPosted) {
+                //AJH #1 DONE - Need USER ID and DATE included in this check - we will be building an array for all users
                 if (classObj.description == postedClass.description && classObj.descriptionChild == postedClass.descriptionChild && classObj.id == postedClass.id) {
-                    classObj.legacyPostTime = false;
-                    foundInPosted = true;
+                    if (classObj.userId == postedClass.userId && classObj.weekOf == postedClass.weekOf) {
+                        classObj.legacyPostTime = false;
+                        foundInPosted = true;
+                    }
                 }
             }
         });
@@ -5719,14 +5883,174 @@ function postTimes(inputClassificationObjects) {
         }
     });
 
+    //AJH #4 DONE -  we want to store the array....but then stop
+    chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
+        console.log("DEBUG: Stored the posted array", postedClassficationArray);
+    });
+
+    return;
+}
+
+/***************
+doThePostTimes - send the array off to be processed
+***************/
+function doThePostTimes() {
+
+    //Firs setup our header with time estimate
+    var countToRun = 0;
+    postedClassficationArray.forEach(function(classObj) {
+        if (!classObj.blnStarted)
+            countToRun = countToRun + 1;
+    });
+    var headerHTML = "";
+    var totalSeconds = countToRun * 20;
+    var totalMinutes = Math.floor(totalSeconds / 60);
+    var remSeconds = totalSeconds - (totalMinutes * 60);
+    headerHTML = "Legacy Queue Review - " + countToRun + " entries tun run. Est Time To Post: " + totalMinutes + ":" + remSeconds;
+    document.getElementById("legacyqueue-header").innerHTML = headerHTML;
+
+    //Show the page, unshow the others
+    showPageView("legacyqueue-editor");
+
+    console.log("DEBUG: Sending array off ", postedClassficationArray);
+  
+    var myHTML = "";
+    var myRow = "";
+    var myHeader = "";
+    var userDayTotal0 = 0;
+    var userDayTotal1 = 0;
+    var userDayTotal2 = 0;
+    var userDayTotal3 = 0;
+    var userDayTotal4 = 0;
+    var userDayTotal5 = 0;
+    var userDayTotal6 = 0;
+    var userDayTotalTotal = 0;
+    var arrayIndex = -1;
+    var blnDoTotal = false;
+    var saveShade = "report-shade-1";
+
+    myHTML = document.getElementById("legacyqueue-report-details").innerHTML;
+    myHeader = document.getElementById("legacyqueue-colheaders").innerHTML;
+    myHeader = myHeader.replace(/display:none/gi, "display:block");
+    myRow = document.getElementById("legacyqueue-row").innerHTML;
+    myRow = myRow.replace(/display:none/gi, "display:block");
+    varRows = "";
+    postedClassficationArray.forEach(function(classObj) {
+        arrayIndex = arrayIndex + 1;
+        varRows = varRows + myRow;        
+        if (classObj.blnFinished) {
+            varRows = varRows.replace(/_QUEUEENTRYCOLOR_/gi, "legacy-queue-text-line-finished"); 
+        }
+        else {
+            if (classObj.blnStarted) {
+                varRows = varRows.replace(/_QUEUEENTRYCOLOR_/gi, "legacy-queue-text-line-started"); 
+            }
+            else {
+                varRows = varRows.replace(/_QUEUEENTRYCOLOR_/gi, "legacy-queue-text-line"); 
+            }
+        }
+  
+        varRows = varRows.replace("_QUEUEUSERID_", classObj.userId);        
+        varRows = varRows.replace("_QUEUEDESCRIPTION_", classObj.description);
+        varRows = varRows.replace("_QUEUECHILDDESCRIPTION_", classObj.descriptionChild);
+        varRows = varRows.replace("_QUEUEHOURSDAY0_", classObj.dayTotal[0]);
+        varRows = varRows.replace("_QUEUEHOURSDAY1_", classObj.dayTotal[1]);
+        varRows = varRows.replace("_QUEUEHOURSDAY2_", classObj.dayTotal[2]);
+        varRows = varRows.replace("_QUEUEHOURSDAY3_", classObj.dayTotal[3]);
+        varRows = varRows.replace("_QUEUEHOURSDAY4_", classObj.dayTotal[4]);
+        varRows = varRows.replace("_QUEUEHOURSDAY5_", classObj.dayTotal[5]);
+        varRows = varRows.replace("_QUEUEHOURSDAY6_", classObj.dayTotal[6]);      
+        varRows = varRows.replace("_QUEUEINFOTOTAL_", classObj.totalTotal);    
+
+        varRows = varRows.replace(/report-shade-entry/gi, saveShade); 
+
+        userDayTotal0 = userDayTotal0 + classObj.dayTotal[0];
+        userDayTotal1 = userDayTotal1 + classObj.dayTotal[1];
+        userDayTotal2 = userDayTotal2 + classObj.dayTotal[2];
+        userDayTotal3 = userDayTotal3 + classObj.dayTotal[3];
+        userDayTotal4 = userDayTotal4 + classObj.dayTotal[4];
+        userDayTotal5 = userDayTotal5 + classObj.dayTotal[5];
+        userDayTotal6 = userDayTotal6 + classObj.dayTotal[6];
+        userDayTotalTotal = userDayTotalTotal + classObj.totalTotal;
+
+        blnDoTotal = false;
+        if (arrayIndex == postedClassficationArray.length - 1)
+            blnDoTotal = true;
+        else {
+            if (classObj.userId != postedClassficationArray[arrayIndex+1].userId)
+                blnDoTotal = true;
+        }
+            
+        if (blnDoTotal) {
+            varRows = varRows + myRow;        
+            varRows = varRows.replace("_QUEUEUSERID_", "");        
+            varRows = varRows.replace("_QUEUEDESCRIPTION_", "");
+            varRows = varRows.replace("_QUEUECHILDDESCRIPTION_", "User Total");
+            varRows = varRows.replace("_QUEUEHOURSDAY0_", userDayTotal0);
+            varRows = varRows.replace("_QUEUEHOURSDAY1_", userDayTotal1);
+            varRows = varRows.replace("_QUEUEHOURSDAY2_", userDayTotal2);
+            varRows = varRows.replace("_QUEUEHOURSDAY3_", userDayTotal3);
+            varRows = varRows.replace("_QUEUEHOURSDAY4_", userDayTotal4);
+            varRows = varRows.replace("_QUEUEHOURSDAY5_", userDayTotal5);
+            varRows = varRows.replace("_QUEUEHOURSDAY6_", userDayTotal6);      
+            varRows = varRows.replace("_QUEUEINFOTOTAL_", userDayTotalTotal);   
+            varRows = varRows.replace(/report-shade-entry/gi, saveShade); 
+
+            varRows = varRows + myRow;        
+            varRows = varRows.replace("_QUEUEUSERID_", "<hr>");        
+            varRows = varRows.replace("_QUEUEDESCRIPTION_", "<hr>");
+            varRows = varRows.replace("_QUEUECHILDDESCRIPTION_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY0_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY1_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY2_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY3_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY4_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY5_", "<hr>");
+            varRows = varRows.replace("_QUEUEHOURSDAY6_", "<hr>");      
+            varRows = varRows.replace("_QUEUEINFOTOTAL_", "<hr>");   
+            varRows = varRows.replace(/report-shade-entry/gi, saveShade);           
+            
+            userDayTotal0 = 0;
+            userDayTotal1 = 0;
+            userDayTotal2 = 0;
+            userDayTotal3 = 0;
+            userDayTotal4 = 0;
+            userDayTotal5 = 0;
+            userDayTotal6 = 0;
+            userDayTotalTotal = 0;
+
+            if (saveShade == "report-shade-1") {
+                saveShade = "report-shade-2";
+            }
+            else {
+                saveShade = "report-shade-1";              
+            }
+
+        }
+
+       //classObj.userId + " " + classObj.weekOf + " " + classObj.description + "-" + classObj.descriptionChild + "-" + classObj.dayTotal[0] + "-" + classObj.dayTotal[1] + "-" + classObj.dayTotal[2] + "-" + classObj.dayTotal[3] + "-" + classObj.dayTotal[4] + "-" + classObj.dayTotal[5] + "-" + classObj.dayTotal[6] + "<br>";
+    });
+    //myHTML= myHTML.replace("_LEGACYHEADER_", myHeader);
+    //myHTML= myHTML.replace("_LEGACYQUEUELIST_", varRows);
+    
+    console.log("HEADER is " + myHeader);
+    console.log("ROWS is " + varRows);
+    document.getElementById("legacyqueue-details").innerHTML = '<table style="display:block"><tbody style="display:block">' + myHeader + varRows + '</tbody></table>';
+    console.log("DEBUG HTML FINAL is " + document.getElementById("legacyqueue-details").innerHTML);
+    return;
+}
+
+/***************
+postThemAll - send them all off to be processed
+***************/
+function postThemAll() {
 
     //Build up view of legacy time card to pass for lod after done posting
     var URLtoLoad = "";
-    URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
-    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
-    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+    URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURIAll;
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/g, ISODate(firstDay));
 
-    //Create screenshot object to pass along
+    //Create screenshot object to pass along - Only used for when to go whewn done
     var endPageObject = {
         pageToLoad: URLtoLoad,
         name: userToRun.name,
@@ -5734,10 +6058,60 @@ function postTimes(inputClassificationObjects) {
     };
 
     //Hold our data on local storage
-    chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
-        chrome.runtime.sendMessage({action: "prepareposts", timeEntries: inputClassificationObjects, endPage: endPageObject});
-    });
+    chrome.runtime.sendMessage({action: "prepareposts", timeEntries: postedClassficationArray, endPage: endPageObject});
 }
+
+/***************
+deleteThemAll - delete the whole array
+***************/
+function deleteThemAll() {
+
+    chrome.storage.local.remove("postedArray", function() {
+        postedClassficationArray = [];
+        console.log("DEBUG: Started with this posted array", postedClassficationArray);
+        //Setup the view
+        showPageView('everything');
+    });
+
+}
+
+/***************
+issueLoadClassificationChild
+***************/
+function issueLoadClassificationChild(inputIssueObject) {
+   
+    if (!userToRun.defaultChildClassification)
+        userToRun.defaultChildClassification = "Development";
+
+    //Lets fill in our default sub-classification if needed
+    if (inputIssueObject.classificationChild.length <= 1) {
+        if (inputIssueObject.classification.toUpperCase() == "10705 - LANDSEND.COM SUPPORT") {
+            inputIssueObject.classificationChild =  "19461 - Problems/Incidents";
+        }
+        else {
+            inputIssueObject.classificationChild =  userToRun.defaultChildClassification;
+        }
+    }
+    if (userToRun.defaultChildClassification == "Testing") {
+        if (inputIssueObject.classificationChild ==  "Development") {
+            inputIssueObject.classificationChild =  userToRun.defaultChildClassification;
+        }
+    }
+    if (inputIssueObject.classificationChild == "(no sub-project)") 
+        inputIssueObject.classificationChild =  userToRun.defaultChildClassification;
+    if (inputIssueObject.classificationChild == "Process, Procedures, Standards") 
+        inputIssueObject.classificationChild = "Processes, Procedures, and Standards";
+    if (inputIssueObject.classificationChild == "Checkout") 
+        inputIssueObject.classificationChild =  userToRun.defaultChildClassification;
+    if (inputIssueObject.classificationChild == "Management & Supervision")
+        inputIssueObject.classificationChild = "Supervision";
+
+    if (inputIssueObject.classification.toUpperCase() == "10705 - LANDSEND.COM SUPPORT" && inputIssueObject.classificationChild == "Development") {
+        inputIssueObject.classificationChild = "19461 - Problems/Incidents";
+    }
+
+}
+
 
 /***************
 loadClassificationChild
@@ -5748,8 +6122,19 @@ function loadClassificationChild(inputCLassificationObject) {
         userToRun.defaultChildClassification = "Development";
 
     //Lets fill in our default sub-classification if needed
-    if (inputCLassificationObject.descriptionChild.length <= 1) 
-        inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+    if (inputCLassificationObject.descriptionChild.length <= 1) {
+        if (inputCLassificationObject.description.toUpperCase() == "10705 - LANDSEND.COM SUPPORT") {
+            inputCLassificationObject.descriptionChild =  "19461 - Problems/Incidents";
+        }
+        else {
+            inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+        }
+    }
+    if (userToRun.defaultChildClassification == "Testing") {
+        if (inputCLassificationObject.descriptionChild ==  "Development") {
+            inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
+        }
+    }
     if (inputCLassificationObject.descriptionChild == "(no sub-project)") 
         inputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
     if (inputCLassificationObject.descriptionChild == "Process, Procedures, Standards") 
@@ -5758,6 +6143,11 @@ function loadClassificationChild(inputCLassificationObject) {
         nputCLassificationObject.descriptionChild =  userToRun.defaultChildClassification;
     if (inputCLassificationObject.descriptionChild == "Management & Supervision")
         inputCLassificationObject.descriptionChild = "Supervision";
+
+    if (inputCLassificationObject.description.toUpperCase() == "10705 - LANDSEND.COM SUPPORT" && inputCLassificationObject.descriptionChild == "Development") {
+        inputCLassificationObject.descriptionChild = "19461 - Problems/Incidents";
+    }
+
 }
 
 
@@ -5783,8 +6173,8 @@ function legacyView(blnTakeScreenshot, inputPageLoadType) {
             URLtoLoad = config.orgLegacyTimeIntegration.legacyTimePendingURI;
     }
 
-    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/, userToRun.legacyTimeID);
-    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/, ISODate(firstDay));
+    URLtoLoad = URLtoLoad.replace(/_LEGACYUSERID_/g, userToRun.legacyTimeID);
+    URLtoLoad = URLtoLoad.replace(/_STARTDAY_/g, ISODate(firstDay));
 
     //Create screenshot object to pass along
     var screenshotObject = {

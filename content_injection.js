@@ -13,7 +13,17 @@ chrome.storage.local.get("timeEntry", function(data) {
     if (data) {
         console.log("Alvis Time: Completing a post for: " + data.timeEntry.description + " = " + data.timeEntry.totalTotal);
         inputTimeEntry = data.timeEntry;
-        postTimeEntry(data.timeEntry);
+        if (data.timeEntry.blnStarted) {
+            //Already started once - skip it
+            console.log("Alvis Time: Post already started  so skipping: " + data.timeEntry.description + " = " + data.timeEntry.totalTotal);
+        }
+        else {
+            //Set the start flag and off we go
+            data.timeEntry.blnStarted = true;
+            chrome.storage.local.set({"timeEntry": data.timeEntry}, function () {
+                postTimeEntry(data.timeEntry);
+            });
+        }
     }
 
 });
@@ -197,24 +207,30 @@ function postForm() {
             clearInterval(submitInterval);
 
             //Remove the local storage object - we are done with it
+            /*
             chrome.storage.local.remove(["timeEntry"], function() {
                 var error = chrome.runtime.lastError;
                 if (error) {
                     console.error(error);
                 }
             });
-            //Message back we are done.
-            chrome.runtime.sendMessage({action: "postcompleted", timeEntry: inputTimeEntry});
-            sleep(50);
-            document.getElementById('sysverb_insert_bottom').click();
-            sleep(1000);
+            */
+            inputTimeEntry.blnFinished = true;
+            chrome.storage.local.set({"timeEntry": inputTimeEntry}, function () {
+                //Message back we are done.
+                console.log("DEBUG: We sending one postcompleted");
+                chrome.runtime.sendMessage({action: "postcompleted", timeEntry: inputTimeEntry});
+                sleep(50);
+                document.getElementById('sysverb_insert_bottom').click();
+                sleep(1000);
+            }); 
         }
     }, 1000);
 }
 
 //Alternative way for leaving page
 window.onbeforeunload = function() {
-    chrome.runtime.sendMessage({action: "notice", noticeMessage: "We have left the page"});
+    chrome.runtime.sendMessage({action: "notice", noticeMessage: "We have left the page", timeEntry: inputTimeEntry});
 };
 
 

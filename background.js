@@ -565,14 +565,15 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
         if (requestMessage.timeEntries) {
             globalTimeEntries = requestMessage.timeEntries;
             globalTimeEntries.forEach(function(timeEntry) {
-                if (timeEntry.legacyPostTime && !blnDone) {
+                if (timeEntry.legacyPostTime && !timeEntry.blnStarted && !blnDone) {
                     console.log("Alvis Time: Prepare Post Message For Legacy Integration");
                     createTabAndPostLegacyIntegration (timeEntry);
+                    //WE actually just want the next one in line
                     blnDone = true;
                     console.log("Alvis Time: Done with Relaying Message");
                 }
                 else {
-                    console.log("Alvis Time: Got but not posting");
+                    console.log("Alvis Time: Got but not posting", timeEntry);
                 }
             });
         }
@@ -642,12 +643,18 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 
     //We have recieved a message: If it is for WE ARE DONE time, off we go 
     if( requestMessage.action === "postcompleted" ) {
+        console.log("DEBUG: We got one postcompleted");
         globalTimeEntry = requestMessage.timeEntry;
+        //Post completed, update our local storage
+        updateTimeEntryStorage(globalTimeEntry);
     };
 
     if( requestMessage.action === "notice" ) {
         console.log("Alvis Time: Notice: " + requestMessage.noticeMessage);
         sleep(3000);
+        globalTimeEntry = requestMessage.timeEntry;
+        //Post completed, update our local storage
+        updateTimeEntryStorage(globalTimeEntry);
         if (globalTimeEntry) {
             globalTimeEntries.forEach(function(tEntry) {
                 iCount = iCount + 1;
@@ -665,7 +672,7 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
         }
         //If there are any left, do them
         globalTimeEntries.forEach(function(timeEntry) {
-            if (timeEntry.legacyPostTime && !blnDone) {
+            if (timeEntry.legacyPostTime && !timeEntry.blnStarted && !blnDone) {
                 console.log("Alvis Time: Prepare Post Message For Legacy Integration");
                 createTabAndPostLegacyIntegration (timeEntry);
                 blnDone = true;
@@ -684,15 +691,74 @@ chrome.runtime.onMessage.addListener(function(requestMessage) {
 //Function for posting to the legacy tab
 function legacyTabPost (inputTab, inputTimeEntry) {
 
-    chrome.storage.local.set({"timeEntry": inputTimeEntry}, function () {
-        console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
-        chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
-            //Success
-            console.log("Alvis Time: Script was susccessful");     
+    //Here we will see if this was started alread and failed - if so skip it.  Or if done already. Also skip it.
+    if (inputTimeEntry.blnStarted || inputTimeEntry.blnFinished) {
+        //Skip this one - it was done or tried already
+    }
+    else {
+        chrome.storage.local.set({"timeEntry": inputTimeEntry}, function () {
+            console.log("Alvis Time: Posting = " + inputTimeEntry.description + " - " + inputTimeEntry.descriptionChild);
+            chrome.tabs.executeScript(inputTab.id, {file:config.orgLegacyTimeIntegration.legacyIngegrationScript}, function(results) {
+                //Success
+                console.log("Alvis Time: Script was susccessful");
+            });
         });
+    }
+}
+
+//Update our storage array for time entries so started/finished fields are updated
+function updateTimeEntryStorage(globalTimeEntry) {
+
+    var postedClassficationArray;
+    var blnDoneWithUpdate = false;
+
+    //Get storage array
+    chrome.storage.local.get("postedArray", function(data) {
+        if (data) {
+            if (data["postedArray"]) {
+                postedClassficationArray = data["postedArray"];
+            
+                //Find this in the array
+                postedClassficationArray.forEach(function(classObj) {
+                    if (classObj.description == globalTimeEntry.description && classObj.descriptionChild == globalTimeEntry.descriptionChild && classObj.id == globalTimeEntry.id) {
+                        if (classObj.userId == globalTimeEntry.userId && classObj.weekOf == globalTimeEntry.weekOf) {
+                            //found it so update it
+                            if (globalTimeEntry.blnStarted)
+                                classObj.blnStarted = true;
+                            if (globalTimeEntry.blnFinished)
+                            classObj.blnFinished = true;
+                        }
+                    }
+                });
+                //Save back to array
+                chrome.storage.local.set({"postedArray": postedClassficationArray}, function () {
+                    //Done with updating he local storage
+                    globalTimeEntries = postedClassficationArray;
+                    blnDoneWithUpdate = true;
+                });           
+            }
+            else 
+                blnDoneWithUpdate = true;
+        }
+        else 
+            blnDoneWithUpdate = true;
     });
 
+    //Don't return til done with update
+    var loopCount = 0;
+    while (!blnDoneWithUpdate) 
+    {
+        sleep(250);
+        loopCount = loopCount + 1;
+        if (loopCount > 3)
+            blnDoneWithUpdate = true;
+
+        console.log("Waiting to be done...");
+    }
+
 }
+
+
 
 //************************************************
 //************************************************
