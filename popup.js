@@ -6,9 +6,10 @@ var configForShow; //for showing/managing config befure stuff gets added to it
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
+var userIssueGroups = []; //used to store the selected set of issue groups the user has
 
 //Going to manage version, just by putting into code
-var version = "2021.02.21.1";
+var version = "2021.05.01.1";
 var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocationFile = "";
 
@@ -272,7 +273,8 @@ function loadKeyAndOrg() {
                             });
                         }
                         else {
-                            loadConfig(data.orgKeya + ".json", function(response) { 
+                            //recent addition, put the orgkeys under the OrgKeys directory
+                            loadConfig("OrgKeys/" + data.orgKeya + ".json", function(response) { 
                                 //See if it was bogus
                                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
                                     //Bogus
@@ -502,7 +504,7 @@ function showTimeCardSummary() {
     }
     else {
         //Get the main or most used classification
-        workgroup.issueGroups.forEach(function(issueGroup) {
+        userIssueGroups.forEach(function(issueGroup) {
             //Only if it is a project do we care
             if (issueGroup.isProject) {
                 issueGroup.issues.forEach(function(issue) {
@@ -573,7 +575,7 @@ function showTimeCardSummary() {
         })   
 
         //See if we cna find our classification already - here is where we calculate the from the calculation set
-        workgroup.issueGroups.forEach(function(issueGroup) {
+        userIssueGroups.forEach(function(issueGroup) {
             issueGroup.issues.forEach(function(issue) {
                 if (issue.classification.toUpperCase() == workgroup.settings.classificationToCalculate.toUpperCase()) {
 
@@ -623,7 +625,7 @@ function showTimeCardSummary() {
     classificationArray = [];
 
     //For each issue, if > 0 hours, add hours for each day to classificationObject set for each day - incl total
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
         issueGroup.issues.forEach(function(issue) {
             if (issue.issueTotalTime > 0) {
 
@@ -968,7 +970,7 @@ function showTimeCardSummary() {
 debugShowClassifications
 ****************/
 function debugShowClassifications() {
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
         issueGroup.issues.forEach(function(issue) {
             console.log("AJH DEBUG ISSUE: " + issue.fields.summary + " = " + issue.classification + "-->" + issue.classificationChild);
         });
@@ -1024,7 +1026,13 @@ function showReportLines(inputReportObject) {
     var totalWeek = [0, 0, 0, 0, 0, 0, 0];
     var weekTotal = 0;
     var weekTotalClassification = 0;
+    var classEstimateTotal = 0;
+    var classRemEstimateTotal = 0;
+    var classTotalTotal = 0;
     var totalWeekTotal = 0;
+    var totalEstimateTotal = 0;
+    var totalRemEstimateTotal = 0;
+    var totalTotalTotal = 0;
     var saveClassification = "";
     var saveShade = "report-shade-1";
     var blnShowIt = false;
@@ -1155,10 +1163,11 @@ function showReportLines(inputReportObject) {
                 loadCapacity(classificationObject);
 
                 //Classification Row - total from prior
+                hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
                 myOutputRow = document.getElementById('report-total').innerHTML;
                 myOutputRow = myOutputRow.replace(/report-summary/gi, "report-title"); 
                 myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
-                myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "TOTAL:"); 
+                myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "<font color='red'>TOTAL: " + Math.round(hoursPercent) + "%</font>"); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, dayOfWeekClassification[0]); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, dayOfWeekClassification[1]); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY2_/gi, dayOfWeekClassification[2]); 
@@ -1167,11 +1176,10 @@ function showReportLines(inputReportObject) {
                 myOutputRow = myOutputRow.replace(/_REPORTDAY5_/gi, dayOfWeekClassification[5]); 
                 myOutputRow = myOutputRow.replace(/_REPORTDAY6_/gi, dayOfWeekClassification[6]); 
                 myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, "<font color='red'>" + weekTotalClassification + "</font>"); 
-                myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classificationObject.capacity + "</font>"); 
-                myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-                hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
-                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='red'>" + Math.round(hoursPercent) + "%</font>"); 
-
+                myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "<font color='red'>" + classEstimateTotal + "</font>"); 
+                myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='red'>" + classRemEstimateTotal + "%</font>"); 
+                myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classTotalTotal + "</font>"); 
+ 
                 //Add it to the rest
                 myOutputRows = myOutputRows + myOutputRow;
 
@@ -1189,6 +1197,9 @@ function showReportLines(inputReportObject) {
             //Initialize class counters
             dayOfWeekClassification = [0, 0, 0, 0, 0, 0, 0];
             weekTotalClassification = 0;
+            classEstimateTotal = 0;
+            classRemEstimateTotal = 0;
+            classTotalTotal = 0;
 
             //Classification Row
             myOutputRow = document.getElementById('report-header-row').innerHTML;
@@ -1266,6 +1277,12 @@ function showReportLines(inputReportObject) {
                 myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "-");  
             }
             else {
+
+                classEstimateTotal = classEstimateTotal + (issue.fields.timeoriginalestimate/3600);
+                totalEstimateTotal = totalEstimateTotal + (issue.fields.timeoriginalestimate/3600);
+                classRemEstimateTotal = classRemEstimateTotal + (issue.fields.timeestimate/3600);
+                totalRemEstimateTotal = totalRemEstimateTotal + (issue.fields.timeestimate/3600);
+
                 myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, issue.fields.timeoriginalestimate/3600); 
                 myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, issue.fields.timeestimate/3600); 
 
@@ -1300,8 +1317,9 @@ function showReportLines(inputReportObject) {
         }
         //If not already red, replace this
         myOutputRow = myOutputRow.replace(/report-total-black-red-line/gi, "report-total-line"); 
-        myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, issue.fields.timespent/3600);        
-
+        myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, issue.fields.timespent/3600);
+        classTotalTotal = classTotalTotal + (issue.fields.timespent/3600);   
+        totalTotalTotal = totalTotalTotal + (issue.fields.timespent/3600);   
 
         //Add it to the rest
         myOutputRows = myOutputRows + myOutputRow;
@@ -1331,10 +1349,11 @@ function showReportLines(inputReportObject) {
 
 
     //Final classification total
+    hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
     myOutputRow = document.getElementById('report-total').innerHTML;
     myOutputRow = myOutputRow.replace(/report-summary/gi, "report-title"); 
     myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
-    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "TOTAL:"); 
+    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "<font color='red'>TOTAL: " + Math.round(hoursPercent) + "%</font>"); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, dayOfWeekClassification[0]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, dayOfWeekClassification[1]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY2_/gi, dayOfWeekClassification[2]); 
@@ -1343,10 +1362,10 @@ function showReportLines(inputReportObject) {
     myOutputRow = myOutputRow.replace(/_REPORTDAY5_/gi, dayOfWeekClassification[5]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY6_/gi, dayOfWeekClassification[6]); 
     myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, "<font color='red'>" + weekTotalClassification + "</font>"); 
-    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classificationObject.capacity + "</font>"); 
-    myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-    hoursPercent = (weekTotalClassification / calculatedTotalHours) * 100;
-    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi,  "<font color='red'>" + Math.round(hoursPercent) + "%</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "<font color='red'>" + classEstimateTotal + "</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='red'>" + classRemEstimateTotal + "%</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + classTotalTotal + "</font>"); 
+
 
     //Add it to the rest
     myOutputRows = myOutputRows + myOutputRow;
@@ -1359,10 +1378,11 @@ function showReportLines(inputReportObject) {
         saveShade = "report-shade-1";              
     }
 
+    hoursPercent = (totalWeekTotal / calculatedTotalHours) * 100;
     myOutputRow = document.getElementById('report-total').innerHTML;
     myOutputRow = myOutputRow.replace(/report-summary/gi, "report-title"); 
     myOutputRow = myOutputRow.replace(/report-shade-entry/gi, saveShade); 
-    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "TOTALS FOR THE TIME PERIOD:"); 
+    myOutputRow = myOutputRow.replace(/_REPORTISSUE_/gi, "<font color='red'>TOTALS FOR THE TIME PERIOD: " + Math.round(hoursPercent) + "%</font>"); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY0_/gi, totalWeek[0]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY1_/gi, totalWeek[1]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY2_/gi, totalWeek[2]); 
@@ -1371,10 +1391,10 @@ function showReportLines(inputReportObject) {
     myOutputRow = myOutputRow.replace(/_REPORTDAY5_/gi, totalWeek[5]); 
     myOutputRow = myOutputRow.replace(/_REPORTDAY6_/gi, totalWeek[6]); 
     myOutputRow = myOutputRow.replace(/_REPORTWEEKTOTAL_/gi, totalWeekTotal); 
-    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "-"); 
-    myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "-"); 
-    hoursPercent = (totalWeekTotal / calculatedTotalHours) * 100;
-    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='white'>" + Math.round(hoursPercent) + "%</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTESTIMATE_/gi, "<font color='red'>" + totalEstimateTotal + "</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTREMAINING_/gi, "<font color='red'>" + totalRemEstimateTotal + "%</font>"); 
+    myOutputRow = myOutputRow.replace(/_REPORTTOTALTOTAL_/gi, "<font color='red'>" + totalTotalTotal + "</font>"); 
+
 
     //Add it to the rest
     myOutputRows = myOutputRows + myOutputRow;
@@ -2024,7 +2044,7 @@ function processIssueGroups(inputMessageType) {
         document.getElementById("totals-issue-id").parentNode.removeChild(document.getElementById("totals-issue-id"));
 
     //Now run each issue group query from the workgroup
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
         //Run Isssue Group quer and load the issues.
         loadGroupIssues(issueGroup);
     })
@@ -2287,7 +2307,7 @@ function onWorklogFetchSuccess(responseObject) {
     responseObject.issue.worklogsLoaded = true;
 
     //Now lets see if we are done - go thru all issues groups and issues, issues processed = total for the issue group and worklogs processeed = total for each issue
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
         
         //For each work group, did we process the issues?
         if (issueGroup.issuesLoaded) {
@@ -2867,7 +2887,7 @@ function timecardPageLoad() {
     togglePageBusy(true);
 
     //For each issue group, for each issue, for each work log
-    workgroup.issueGroups.forEach(function(issueGroup, issueGroupIndex) {
+    userIssueGroups.forEach(function(issueGroup, issueGroupIndex) {
 
         //Draw the issue group - it is the dropdown sub-grouping
         drawIssueGroupTable(issueGroup, issueGroupIndex);
@@ -2880,7 +2900,7 @@ function timecardPageLoad() {
     })
     
     //Now have to do the total row
-    var row = generateTotalsRow(workgroup.issueGroups);
+    var row = generateTotalsRow(userIssueGroups);
 
     //And add it to our issue group table
     document.getElementById("total-issue-group-table").appendChild(row);   
@@ -2951,18 +2971,18 @@ function issueExists(inputIssueKey) {
     var locationKey;
 
     //Go thru each issue group, each issue and find it
-    for (var g=0;g<workgroup.issueGroups.length;g++) {
-        for (var i=0;i<workgroup.issueGroups[g].issues.length;i++) {
+    for (var g=0;g<userIssueGroups.length;g++) {
+        for (var i=0;i<userIssueGroups[g].issues.length;i++) {
             //See if this issue matches
-            if (workgroup.issueGroups[g].issues[i].key == inputIssueKey) {
+            if (userIssueGroups[g].issues[i].key == inputIssueKey) {
                 //we have a match
-                locationKey = workgroup.issueGroups[g].key + "+" + g + "+" + workgroup.issueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
+                locationKey = userIssueGroups[g].key + "+" + g + "+" + userIssueGroups[g].issues[i].id + "+" + i + "+" + 2; //2 for Monday
                 //alert("LOCATION KEY IS: " + locationKey);
                 
                 //Expand if not already expanded
-                if (!workgroup.issueGroups[g].expandGroup) {
-                    workgroup.issueGroups[g].expandGroup = true;
-                    document.getElementById(workgroup.issueGroups[g].key + "-details").open = workgroup.issueGroups[g].expandGroup;
+                if (!userIssueGroups[g].expandGroup) {
+                    userIssueGroups[g].expandGroup = true;
+                    document.getElementById(userIssueGroups[g].key + "-details").open = userIssueGroups[g].expandGroup;
                 }
                 document.getElementById(locationKey).focus(); 
                 document.getElementById(locationKey).select();
@@ -3092,9 +3112,9 @@ function postWorklogTimeChange(worklogChangeItem) {
     var issueIndex = idParts[3];
     var workLogIndex = idParts[4];
 
-    var issueGroupObject = workgroup.issueGroups[issueGroupIndex];
-    var issueObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex];
-    var workLogObject = workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex];
+    var issueGroupObject = userIssueGroups[issueGroupIndex];
+    var issueObject = userIssueGroups[issueGroupIndex].issues[issueIndex];
+    var workLogObject = userIssueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex];
 
     var worklogDisplayObject = {
         "worklogIssueId": issueObject.id,
@@ -3183,7 +3203,7 @@ function postWorklogTimeChange(worklogChangeItem) {
             }
 
             //Update our objects collection with the new worklog entry
-            workgroup.issueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex] = worklogDisplayObject;
+            userIssueGroups[issueGroupIndex].issues[issueIndex].worklogDisplayObjects[workLogIndex] = worklogDisplayObject;
 
             //Update our totals by how much we changed = timespent/seconds
             var deltaTimeSpent = worklogDisplayObject.worklogTimeSpent - workLogObject.worklogTimeSpent;
@@ -3206,7 +3226,7 @@ function postWorklogTimeChange(worklogChangeItem) {
                 document.getElementById("total+total+total").style.backgroundColor = "red"; 
 
             //Gotta update issue group messages
-            workgroup.issueGroups.forEach(function(issueGroup) {
+            userIssueGroups.forEach(function(issueGroup) {
                 //Issue Group totals
                 if (issueGroup.timeTotal > 0) {
                     var issueGroupPercentage = (100 * issueGroup.timeTotal / totalTotal).toFixed(0);
@@ -3352,7 +3372,7 @@ Update the status of all of the worklogs for this time card
 ****************/   
 function updateTimecardStatus(fromStatus, toStatus) {
 
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
         issueGroup.issues.forEach(function(issue) {
             issue.worklogDisplayObjects.forEach(function(workLogObject) {
 
@@ -3388,7 +3408,7 @@ Set all of the worklog entry fields enabled/disabled based on status
 function setWorklogEnabled(inputEnabled) {
 
     //For each worklog we have in our set, disable/enable the data entry
-    workgroup.issueGroups.forEach(function (issueGroup, issueGroupIndex) {
+    userIssueGroups.forEach(function (issueGroup, issueGroupIndex) {
 
         issueGroup.issues.forEach(function(issue, issueIndex) {
             for (var w = 0; w < 7; w++) {
@@ -5215,6 +5235,8 @@ function getUrlParameter(name) {
 //For loading JSON file locally - simulate REST API till we get one
 function loadConfig(inputFileName, callback) {   
 
+    console.log("GETTING:" + inputFileName);
+
     try {
         var xobj = new XMLHttpRequest();
 
@@ -5855,7 +5877,7 @@ function addToPostTimes(inputClassificationObjects) { //AJHPOST
     //We should set the proj/sub-project on each issue here.  And also approve them.
     //updateWorklogStatuses("approve");
     
-    workgroup.issueGroups.forEach(function(issueGroup) {
+    userIssueGroups.forEach(function(issueGroup) {
          issueGroup.issues.forEach(function(issue) {
              console.log("DOING ISSUE: " + issue.fields.summary + " = " + issue.classification + " --> " + issue.classificationChild)
          });
@@ -6216,6 +6238,28 @@ function userDefaults(inputUser) {
     if (typeof inputUser.daysToHangOntoPriorWeek === 'undefined') {
         inputUser.daysToHangOntoPriorWeek = workgroup.settings.daysToHangOntoPriorWeek;
     }
+
+    //New feature is user has specific list of issue groups, as defined in their object.  Set issueGroup list to that - AJHAJH
+    userIssueGroups = [];
+    if (inputUser.issueGroups) {
+        workgroup.issueGroups.forEach(function(issueGroupW) {
+            inputUser.issueGroups.forEach(function(issueGroupU) {
+                if (issueGroupW.key == issueGroupU) {
+                    //We have match, include it
+                    console.log("AJH ADDING IG:" + issueGroupW.key);
+                    userIssueGroups.push(issueGroupW);
+                }
+
+            });
+
+        });
+
+    }
+    else {
+        userIssueGroups = workgroup.issueGroups;
+    }
+
+
 
 }
 
