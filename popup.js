@@ -88,6 +88,7 @@ var gConfigChangedThisSession = false;
 var gUserFields = "";
 var gUserCapacities = "";
 var gUserCapacityDate = "";
+var defaultNoClassificationMessage = "No Classification Defined!";
 
 //For testing infiniate loop
 var totalDumps = 0;
@@ -357,7 +358,7 @@ function updateOrgKey() {
             });
         }
         else {
-            loadConfig(document.getElementById("orgkey").value + ".json", function(response) { 
+            loadConfig("OrgKeys/" + document.getElementById("orgkey").value + ".json", function(response) { 
                 //See if it was bogus
                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
                     //BogusM
@@ -872,7 +873,7 @@ function showTimeCardSummary() {
         document.getElementById("timecard-summary-details").appendChild(row);   
 
         //If admin, dd listener to checkbox
-        if (user.legacyPostTime && classificationObject.description != "No classification defined") {
+        if (user.legacyPostTime && classificationObject.description != defaultNoClassificationMessage) {
             document.getElementById(classificationObject.id + "+posttime").addEventListener ("click", function(){ doClassificationPostTime(this, classificationObject)}); 
         }
         else {
@@ -3508,7 +3509,7 @@ function drawIssueGroupTable(issueGroup, issueGroupIndex) {
 
         //Override classification, if we have one
         if (!issue.classification) {
-            issue.classification = "No classification defined";
+            issue.classification = loadDefaultClassification();
         }
         else {
             if (blnAdmin) {
@@ -3605,6 +3606,19 @@ function drawIssueGroupTable(issueGroup, issueGroupIndex) {
 
     //I think this does nothing - document.getElementById(issueGroup.key + "-details").addEventListener("click", function () { });
     
+}
+
+//Fill in our defautl classification
+function loadDefaultClassification() {
+
+    //hardcode sergey for now
+    if (userToRun.userid == "sbobche") {
+        return "11164 Intl eComm Enh Q1";
+    }
+    else {
+        return defaultNoClassificationMessage;
+    }
+
 }
 
 //Create our issue row - part of the issueGroup
@@ -3749,7 +3763,7 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
             }
         }
         else {
-            inputIssue.classification = "No classification defined";
+            inputIssue.classification = loadDefaultClassification();
         }
     }
     else {
@@ -3761,7 +3775,7 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
 
 
     //Gotta fix our bogus classification's (for "problemes", there is none)
-    if (inputIssue.classification == "No classification defined") {
+    if (inputIssue.classification == defaultNoClassificationMessage) {
         if (inputIssue.fields["issuetype"].name == "Problem") { //Hardcoding for now
             inputIssue.classification = "10705 - LandsEnd.com Support";
             inputIssue.classificationChild = "19461 - Problems/Incidents"
@@ -3774,7 +3788,7 @@ function setIssueClassification(inputIssue, inputIssueGroup) {
                 setClassificationFromParent(inputIssue.fields["parent"], inputIssue, inputIssueGroup);
             }
             else {
-                inputIssue.classification = "No classification defined";
+                inputIssue.classification = loadDefaultClassification();
             }
         }
     }
@@ -3843,7 +3857,7 @@ function setClassificationFromParent(inputParent, inputIssue, inputIssueGroup) {
                     updateJiraClassification(inputIssue, parentIssue);
                 }
                 else {
-                    inputIssue.classification = "No classification defined";
+                    inputIssue.classification = loadDefaultClassification();
                 }
             }
             else {
@@ -4170,7 +4184,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         else
             descToDisplay = "(no project)"
 
-        if (issueClassification.description == "No classification defined") {
+        if (issueClassification.description == defaultNoClassificationMessage) {
             var summaryCell = buildHTML('th', descToDisplay, {  
                 class: inputClass + '-description',
                 style: "text-align:left;color:red"
@@ -4416,14 +4430,14 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
     if (inputType == "detail" && user.legacyPostTime) {
 
         //If no classificaiton, disable the posting
-        if (issueClassification.description == "No classification defined") {
+        if (issueClassification.description == defaultNoClassificationMessage) {
             imageClass = "disabled-image";
         }
         else {
             imageClass = "enabled-image";
         }
 
-        if (findClassificationInPostedArray(issueClassification) || issueClassification.description == "No classification defined") {
+        if (findClassificationInPostedArray(issueClassification) || issueClassification.description == defaultNoClassificationMessage) {
             var classificationPostTime = buildHTML('img', "", {
                 class: imageClass,
                 src: "images/red_go_button.png",
@@ -6129,6 +6143,9 @@ function issueLoadClassificationChild(inputIssueObject) {
         inputIssueObject.classificationChild = "Supervision";
 
     if (inputIssueObject.classification.toUpperCase() == "10705 - LANDSEND.COM SUPPORT" && inputIssueObject.classificationChild == "Development") {
+        inputIssueObject.classificationChild = "19461 - Problems/Incidents";
+    }
+    if (inputIssueObject.classification.toUpperCase() == "10705 - LANDSEND.COM SUPPORT" && inputIssueObject.classificationChild == "Testing") {
         inputIssueObject.classificationChild = "19461 - Problems/Incidents";
     }
 
