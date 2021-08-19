@@ -243,7 +243,7 @@
 
 				.report-line {
 					font-size: 14px;
-					width: 40px;
+					width: 35px;
 					color:blue;
 					border-bottom: 0px solid #dddddd;
 					text-align: center;
@@ -935,7 +935,16 @@
 			</div>
 			<div id="timecard-summary-name"></div><div id="timecard-summary-range"></div>
 			<br>
-			<div id="timecard-summary-wrapper">
+			<div id="timecard-summary-wrapper">				
+				<div id="nextuser">
+					<a id="next-user" target="_blank"><img id="next-user-image" class="enabled-image" style="float: right;" src="images/click-next-user.png" height="25" title="Next User" /></a>
+				</div>
+				<div id="postheader">
+					<a id="post-all" target="_blank"><img id="post-all-summary" class="enabled-image" style="float: right;" src="images/click-to-post.png" height="25" title="Post All" /></a>
+				</div>
+				<div id="postapprove">
+					<a id="approve-all" target="_blank"><img id="approve-image" class="enabled-image" style="float: right;" src="images/click-to-approve.png" height="25" title="Approve" /></a>&nbsp;&nbsp;
+				</div>
 				<table id="timecard-summary-details">
 					<thead>
 						<tr>
@@ -948,7 +957,7 @@
 							<th width="7%" class="timecard-summary-class">Thur</th>
 							<th width="7%" class="timecard-summary-class">Fri</th>						
 							<th width="11%" class="timecard-summary-class">Total</th>	
-							<th width="5%" class="timecard-summary-class"><div id="postheader"><a id="post-all" target="_blank"><img id="post-all-summary" class="enabled-image" style="float: right;" src="images/go_button.png" height="50" title="Post All" /></a>
+							<th width="5%" class="timecard-summary-class"></th>
 							</div></th>	
 						</tr>
 					</thead>
@@ -971,7 +980,7 @@
 				<table>
 					<tbody id="report-header-row">
 						<tr class="report-shade-entry">
-							<td width="750px" colspan="12" class="report-summary" style="color:black;">_REPORTISSUE_</td>
+							<td width="725px" colspan="12" class="report-summary" style="color:black;">_REPORTISSUE_</td>
 						</tr>
 					</body>
 					<tbody id="report-row">
@@ -1278,11 +1287,14 @@
 		<div id="brand">
 			<table class="positioning-table">
 				<tr class="positioning-row">
-					<td width="300" class="positioning-cell" style="text-align: left;">
+					<td width="200" class="positioning-cell" style="text-align: left;">
 						<div id="logo"><img id="logoimage" src="" width="140" height="25" title="Org Logo" /><a id="change-org" target="_blank"><img id="change-org-image" class="enabled-image" src="images/change-org.png" height="33" title="Change Org" /></a></div>
 					</td>
 					<td width="100" class="positioning-cell">
-						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" title="Time Card Summary" /></a>
+						<a id="summary-button" target="_blank"><img id="summary-image" class="enabled-image" src="images/time-card-summary.png" height="33" title="Time Card Summary" /></a>						
+					</td>
+					<td width="100" class="positioning-cell">
+						<a id="submit-next-user-button" target="_blank"><img id="submit-next-user-image" class="enabled-image" src="images/click-next-user.png" height="25"  title="Next User"/></a>
 					</td>
 					<td width="370" class="positioning-cell">
 						<a id="submit-button" target="_blank"><img id="submit-image" class="disabled-image" src="images/log-weekly-hours-to-submit.png" height="33"  title="Log-Submit-Approved Time"/></a>

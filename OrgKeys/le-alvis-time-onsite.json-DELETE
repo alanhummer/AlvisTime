@@ -1,0 +1,1715 @@
+{
+	"AlvisTime": {
+		"configUploadLocation": "http://issues.landsend.com/jira/browse/LEIN-32",
+		"downloadLocation": "https://github.com/alanhummer/AlvisTime/archive/master.zip",
+		"message": "We have a new version of Alvis Time! Do you want to download and update new version?<BR><BR>This version contains reports and fix for daylight savings time.",
+		"upgradeRequired": false,
+		"version": "2021.05.01.1",
+		"configTimestamp": "2021.05.30.16.40.32"
+	},
+	"orgEmailConfig": {
+		"emailEndpoint": "http://uslt103301/sendmail.asp",
+		"emailFrom": "from",
+		"emailMessage": "message",
+		"emailMethod": "POST",
+		"emailSubject": "subject",
+		"emailTo": "to"
+	},
+	"orgLegacyTimeIntegration": {
+		"legacyIngegrationScript": "content_injection.js",
+		"legacyIntegrationURI": "https://landsend.service-now.com/time_card.do?sys_id=-1&sys_is_list=true&sys_target=time_card&sysparm_checked_items=&sysparm_fixed_query=&sysparm_group_sort=&sysparm_list_css=&sysparm_query=user.u_timecard_team_lead%3djavascript%3ags.getUserID()%5eORuser.u_timecard_manager%3djavascript%3ags.getUserID()%5estate%3dSubmitted%5eGROUPBYuser&sysparm_referring_url=time_card_list.do%3fsysparm_query%3duser.u_timecard_team_lead%253Djavascript%253Ags.getUserID%2528%2529%255EORuser.u_timecard_manager%253Djavascript%253Ags.getUserID%2528%2529%255Estate%253DSubmitted%255EEQ%255EGROUPBYuser&sysparm_target=&sysparm_view=",
+		"legacyPostTime": true,
+		"legacyScreenshotScript": "screenshot_injection.js",
+		"legacyTimeApprovedURI": "https://landsend.service-now.com/time_card_list.do?sysparm_first_row=1&sysparm_query=user=_LEGACYUSERID_^state=Approved^GOTOweek_starts_on>=_STARTDAY_^total>0&sysparm_query_encoded=user=javascript:gs.getUserID()^state=Approved^GOTOweek_starts_on>=_STARTDAY_^total>0&sysparm_view=",
+		"legacyTimePendingURI": "https://landsend.service-now.com/time_card_list.do?sysparm_first_row=1&sysparm_query=user=_LEGACYUSERID_^state=Pending^ORstate=Submitted^GOTOweek_starts_on>=_STARTDAY_^total>0&sysparm_query_encoded=user=javascript:gs.getUserID()^state=Pending^GOTOweek_starts_on>=_STARTDAY_&sysparm_view=",
+		"legacyTimePendingURIAll": "https://landsend.service-now.com/time_card_list.do?sysparm_first_row=1&sysparm_query=user.u_timecard_team_lead=javascript:gs.getUserID()^ORuser.u_timecard_manager=javascript:gs.getUserID()^state=Pending^ORstate=Submitted^GOTOweek_starts_on%3E=_STARTDAY_^total%3E0&sysparm_query_encoded=user=javascript:gs.getUserID()^state=Pending^GOTOweek_starts_on%3E=_STARTDAY_&sysparm_view=",
+		"legacyTimeSubmittedURI": "https://landsend.service-now.com/time_card_list.do?sysparm_first_row=1&sysparm_query=user=_LEGACYUSERID_^state=Submitted^GOTOweek_starts_on>=_STARTDAY_^total>0&sysparm_query_encoded=user=javascript:gs.getUserID()^state=Submitted^GOTOweek_starts_on>=_STARTDAY_^total>0&sysparm_view="
+	},
+	"orgReminderNotice": {
+		"from": "timereporting@landsend.com",
+		"message": "Time Entry for _WEEK_ _DUEMESSAGE_.  Please ensure you get your time entered before it is due.  Reminder - time entry is due by 5PM on the last day of the week.",
+		"subject": "Time Entry for _WEEK_ _DUEMESSAGE_"
+	},
+	"orgSettings": {
+		"goLogo": "images/go_button.png",
+		"jiraAPIExtension": "/rest/api/2",
+		"jiraBaseURI": "http://issues.landsend.com/jira",
+		"logo": "images/logo.png"
+	},
+	"workgroups": [
+		{
+			"issueGroups": [
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": true,
+					"isProject": true,
+					"key": "proj-task",
+					"minPercentage": 0,
+					"name": "Proj - Tasks",
+					"query": "project != LE-Internal AND type not in ('test') AND (((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_') or (worklogAuthor = 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business') OR issuetype = 'Sub-task')) ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 2,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": false,
+					"isProject": true,
+					"key": "proj-gen",
+					"minPercentage": 0,
+					"name": "Proj - General",
+					"query": "project = LE-Internal AND type not in ('test') AND labels in (LECOM) AND (Labels NOT in (TIMETRACK) OR Labels is EMPTY)  AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, Summary, 'Project - Subproject', issueKey",
+					"timePriority": 3,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"isProject": true,
+					"key": "als-time",
+					"minPercentage": 0,
+					"name": "Al's Time Buckets for Tracking",
+					"query": "project = LE-Internal AND type not in ('test') AND labels in (LECOM) AND Labels in (TIMETRACK) ORDER BY Project, Summary, 'Project - Subproject', issueKey",
+					"timePriority": 3,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": false,
+					"isProject": false,
+					"key": "sup",
+					"minPercentage": 0,
+					"name": "Support",
+					"query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND (Type = 'Problem' OR 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 4,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"isProject": false,
+					"key": "rtb",
+					"minPercentage": 0,
+					"name": "Run The Business",
+					"query": "(Labels NOT in (TIMETRACK) OR Labels is EMPTY) AND (((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR ((Labels NOT in (TIMETRACK) OR Labels is EMPTY) AND project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 5,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"isProject": false,
+					"key": "admin",
+					"minPercentage": 0,
+					"name": "Administration",
+					"query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration' ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 1,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": true,
+					"isProject": true,
+					"key": "task-specific",
+					"minPercentage": 0,
+					"name": "Tasks - Specific",
+					"query": "project != LE-Internal AND type not in ('test') AND (((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_') or (worklogAuthor = 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10345 - Administration', '10558 - Run the Business') OR issuetype = 'Sub-task')) ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 2,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": false,
+					"isProject": true,
+					"key": "proj-gen-qa",
+					"minPercentage": 0,
+					"name": "Projects - General",
+					"query": "project = LE-Internal AND type not in ('test') AND labels in (LECOM) AND (Labels NOT in (TIMETRACK) OR Labels is EMPTY)  AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10345 - Administration', '10558 - Run the Business')) ORDER BY Project, Summary, 'Project - Subproject', issueKey",
+					"timePriority": 3,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"isProject": true,
+					"key": "work-breakouts",
+					"minPercentage": 0,
+					"name": "Work Breakouts - General",
+					"query": "project = LE-Internal AND type not in ('test') AND labels in (LECOM) AND labels in (QA) AND Labels in (TIMETRACK) ORDER BY Project, Summary, 'Project - Subproject', issueKey",
+					"timePriority": 3,
+					"viewOnly": false
+				},
+				{
+					"JiraProjectKey": "LECOM",
+					"classSelect": false,
+					"isProject": false,
+					"key": "lookup",
+					"minPercentage": 0,
+					"name": "<div style='vertical-align:middle;color:red;display:inline-block;'>Don't see an issue you need? Enter it here:  _JIRAPROJECTKEY_-<input id='issue-id' type='text' style='width: 40px;'>_GOIMAGE_&nbsp;&nbsp;&nbsp;</div>",
+					"query": "issueKey in (_ISSUEKEYS_) ORDER BY issueKey",
+					"viewOnly": false
+				}
+			],
+			"messages": {
+				"hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
+				"hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
+				"hoursNumeric": "Sorry, must be numeric hours",
+				"hoursPositive": "Must be positive number",
+				"hoursTooMany": "You work too much!  Keep it under 16",
+				"intro": "Enter time in 1/4 hour increments. If you do not see an issue you, enter it in the prompt at the end.",
+				"mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_",
+				"statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+				"waiting": "Posting....",
+				"workLogConverted": "Manual worklog entry converted to Alvis time format. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_"
+			},
+			"name": "LE.com",
+			"reports": [
+				{
+					"blnAllUsers": true,
+					"key": "teamTotal",
+					"name": "Team Totals",
+					"query": "(_USERQUERY_) AND worklogDate >= '_TIMECARDSTART_' AND worklogDate < '_TIMECARDEND_'",
+					"userQuery": "worklogComment ~ 'user.userid'"
+				},
+				{
+					"blnAllUsers": false,
+					"key": "userTotal",
+					"name": "User Totals",
+					"query": "(_USERQUERY_) AND worklogDate >= '_TIMECARDSTART_' AND worklogDate < '_TIMECARDEND_'",
+					"userQuery": "worklogComment ~ 'user.userid'"
+				}
+			],
+			"settings": {
+				"approvalNotification": {
+					"active": true,
+					"dayRangeHigh": 5,
+					"dayRangeLow": 12,
+					"frequency": 1,
+					"hourRangeHigh": 5,
+					"hourRangeLow": 12
+				},
+				"classificationToCalculate": "(calculated)",
+				"customFieldForClassification": "customfield_10901",
+				"dayHoursMax": 8,
+				"daysToHangOntoPriorWeek": 1,
+				"emailOnLogin": {
+					"doSend": false,
+					"from": "alvistime@landsend.com",
+					"message": "_USERNAME_ logged in to Alvis Time",
+					"subject": "_USERNAME_ logged in to Alvis Time",
+					"to": "alan.hummer@landsend.com"
+				},
+				"emailOnSubmitForApproval": {
+					"doSend": true,
+					"from": "alvistime@landsend.com",
+					"message": "_USERNAME_ submitted time for approval in Alvis Time",
+					"subject": "_USERNAME_ submitted time for approval in Alvis Time",
+					"to": "alan.hummer@landsend.com"
+				},
+				"emailOnUpgrade": {
+					"doSend": true,
+					"from": "alvistime@landsend.com",
+					"message": "_USERNAME_ upgraded Alvis Time from _OLDVERSION_ to _NEWVERSION_",
+					"subject": "_USERNAME_ upgraded Alvis Time from _OLDVERSION_ to _NEWVERSION_",
+					"to": "alan.hummer@landsend.com"
+				},
+				"empType": "FTE",
+				"jiralink": "https://issues.landsend.com/jira/secure/RapidBoard.jspa?rapidView=54",
+				"maxHoursToSubmit": 999,
+				"minHoursToSubmit": 40,
+				"projectOverrides": [
+					{
+						"fromProject": "11082 - ADOBE LAUNCH USD",
+						"name": "Launch",
+						"toProject": "10705 - LandsEnd.com Support",
+						"toSubProject": "19461 - Problems/Incidents"
+					},
+					{
+						"fromProject": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+						"name": "Alt Payments to Alt Payments 2",
+						"toProject": "11184 - Alternative Payments 2 - PayPal"
+					},
+					{
+						"fromProject": "11153 - ALTERNATIVE PAYMENTS 2",
+						"name": "Alt Payments 2 to Alt Payments 2 PayPal",
+						"toProject": "11184 - Alternative Payments 2 - PayPal"
+					},
+					{
+						"fromProject": "11086 MOBILE REDESIGN 2020",
+						"name": "Mobile Redesign Checkout 2020",
+						"toProject": "10705 - LandsEnd.com Support",
+						"toSubProject": "19461 - Problems/Incidents"
+					},
+					{
+						"fromProject": "11088 LECOM ENHANCEMENTS 2020",
+						"name": "Roll LE.com Ench 2020 to Support",
+						"toProject": "10705 - LandsEnd.com Support",
+						"toSubProject": "19461 - Problems/Incidents"
+					},
+					{
+						"fromProject": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+						"name": "Roll Productivity and Quality to new quality",
+						"toProject": "11167 - LE.COM QUALITY 2021",
+						"toSubProject": "Development"
+					}
+				],
+				"remainingEstimateField": "aggregatetimeestimate",
+				"timecardNotification": {
+					"active": true,
+					"dayRangeHigh": 5,
+					"dayRangeLow": 12,
+					"frequency": 1,
+					"hourRangeHigh": 5,
+					"hourRangeLow": 12
+				}
+			},
+			"titles": {
+				"close": "(close)",
+				"week": "Week Of",
+				"welcome": "Greetings"
+			},
+			"users": [
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 20
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 10
+								}
+							],
+							"date": "default"
+						}
+					],
+					"daysToHangOntoPriorWeek": 2,
+					"defaultChildClassification": "Development",
+					"defaultClassification": "10705 - LANDSEND.COM SUPPORT",
+					"defaultDeployClassification": "11166 - LECOM ENHANCEMENTS 2021",
+					"email": "alan.hummer@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyPostTime": true,
+					"legacyScreenShot": true,
+					"legacyTimeID": "56d286914f414b0043b6fd511310c7a6",
+					"legacyViewCard": true,
+					"maxHoursToSubmit": 40,
+					"name": "Alvis Hummer",
+					"role": "admin",
+					"userid": "ajhumme"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								},
+								{
+									"classification": "11157 - MOBILE MY ACCOUNT 2021",
+									"hours": 30
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "charles.peebles@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "476bf49cdb76941495c944261b961915",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Trezy",
+					"role": "developer",
+					"userid": "cpeeble"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								},
+								{
+									"classification": "11157 - MOBILE MY ACCOUNT 2021",
+									"hours": 30
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "jordan.ward@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "6aff0e47db05ff40ef15a6e51b9619f7",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Jordan",
+					"role": "developer",
+					"userid": "jward"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 30
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								},
+								{
+									"classification": "11157 - MOBILE MY ACCOUNT 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Development",
+					"defaultClassification": "10705 - LANDSEND.COM SUPPORT",
+					"email": "brian.adams@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "de8f924fdb5e24505108d2cb4b9619b6",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Brian",
+					"role": "developer",
+					"userid": "badams"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 20
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11106 - EMAIL PLATFORM MIGRATION PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11082 - ADOBE LAUNCH PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 10
+								}
+							],
+							"date": "default"
+						}
+					],
+					"daysToHangOntoPriorWeek": 2,
+					"defaultChildClassification": "Development",
+					"defaultClassification": "10705 - LANDSEND.COM SUPPORT",
+					"email": "Andre.Kuzmicheff@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "0d383669dbdaa3005108d2cb4b96190e",
+					"name": "Andre Kuzmicheff",
+					"role": "developer",
+					"userid": "akuzmic"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 10
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								},
+								{
+									"classification": "11184 - ALTERNATIVE PAYMENTS 2 - PAYPAL",
+									"hours": 20
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11184 - ALTERNATIVE PAYMENTS 2 - PAYPAL",
+					"email": "blaine.bestul@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "a798fabb58c511002ad9054c0315536a",
+					"name": "Blaine Bestul",
+					"role": "developer",
+					"userid": "bmbestu"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 10
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11082 - ADOBE LAUNCH PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								},
+								{
+									"classification": "11189 - LE.COM PLATFORM IMPROVEMENTS",
+									"hours": 20
+								}
+							],
+							"date": "default"
+						}
+					],
+					"daysToHangOntoPriorWeek": 3,
+					"defaultClassification": "11189 - LE.COM PLATFORM IMPROVEMENTS",
+					"email": "santanu.mojumder@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "39cb31e5dbe2d850a2a9e39d0b961961",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 40,
+					"name": "Santanu Mojumder",
+					"role": "developer",
+					"userid": "smojumd"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11156 - RETURNS POLICY CHANGES",
+									"hours": 15
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11184 - ALTERNATIVE PAYMENTS 2 - PAYPAL",
+									"hours": 15
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+					"email": "krishna.boregowda@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "9994541c4ff9ba00d837af7d0210c78a",
+					"name": "Krishna Boregowda",
+					"role": "developer",
+					"userid": "kborego"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 15
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 15
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11166 - LECOM ENHANCEMENTS 2021",
+					"email": "sunitha.baker@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "dcdc7deb130662004cecbd322244b0e0",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Sunitha Baker",
+					"role": "developer",
+					"userid": "sbaker"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 30
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "10705 - LANDSEND.COM SUPPORT",
+					"email": "taylor.christy@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "650e9c63dbf6c41495c944261b96193e",
+					"name": "Taylor Christy",
+					"role": "developer",
+					"userid": "tcchris"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 20
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 10
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11186 – Data Science Dynamic Promo Capabilities",
+					"email": "ron.schmitt@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "2d4315ec44ccd00048a5ddf4d6105366",
+					"name": "Ron Schmitt",
+					"role": "developer",
+					"userid": "raschmi"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 20
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 10
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11186 – Data Science Dynamic Promo Capabilities",
+					"email": "jeremy.fredrich@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "3c43d1204400140048a5ddf4d61053be",
+					"name": "Jeremy Fredrich",
+					"role": "developer",
+					"userid": "jdfredr"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 30
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11166 - LECOM ENHANCEMENTS 2021",
+					"email": "john.betz@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "9e43d5204400140048a5ddf4d610537e",
+					"name": "John Betz",
+					"role": "developer",
+					"userid": "jbetz"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11164 Intl eComm Enh Q1",
+					"email": "sergey.bobchenok@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "520059f72bef51002d18053ee8da15e1",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Sergey Bobchenok",
+					"role": "developer",
+					"userid": "sbobche"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11157 - MOBILE MY ACCOUNT 2021",
+									"hours": 40
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "yury.zmachinsky@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "fd431ff2dbf07f08ef15a6e51b9619d3",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Yury Zmachinsky",
+					"role": "developer",
+					"userid": "yzmachi"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 20
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 20
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "11166 - LECOM ENHANCEMENTS 2021",
+					"email": "vitaly.yarets@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "becc5820db6f04d011111cb51b96193d",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Vitaly Yarets",
+					"role": "developer",
+					"userid": "vyarets"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "11088 LECOM ENHANCEMENTS 2020",
+									"hours": 25
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 50
+								},
+								{
+									"classification": "10942 - AWS GLOBAL ECOMM PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 25
+								},
+								{
+									"classification": "11152 - LE.COM PRODUCTIVITY & QUALITY IMPROVEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11157 - MOBILE MY ACCOUNT 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultClassification": "10705 - LANDSEND.COM SUPPORT",
+					"email": "dmitry.rykunov@landsend.com",
+					"empType": "Contractor",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "0cf90ef71b77e090bb1964a3604bcb6c",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Dmitry Rykunov",
+					"role": "developer",
+					"userid": "drykuno"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 10
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 10
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 5
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 5
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 10
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11166 - LECOM ENHANCEMENTS 2021",
+					"email": "roni.biefer@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"admin",
+						"lookup"
+					],
+					"legacyTimeID": "294315ec44ccd00048a5ddf4d610536a",
+					"name": "Roni Biefer",
+					"role": "qa",
+					"userid": "rebiefe"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 40
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11167 - LE.com Quality 2021",
+					"email": "stephen.rosseter@landsend.com",
+					"issueGroups": [
+						"proj-task",
+						"proj-gen",
+						"als-time",
+						"sup",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "e39bfe0edbbe68d05108d2cb4b9619b0",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Stephen Rosseter",
+					"role": "qa",
+					"userid": "srosset"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11184 - Alternative Payments 2 - PayPal",
+					"email": "maria.lipen@landsend.com",
+					"issueGroups": [
+						"task-specific",
+						"proj-gen-qa",
+						"work-breakouts",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "077afe7adb89a09495c944261b96190e",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Maria Lipen",
+					"role": "qa",
+					"userid": "mlipen"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "katya.grigorovich@landsend.com",
+					"issueGroups": [
+						"task-specific",
+						"proj-gen-qa",
+						"work-breakouts",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "319b6fd5db0d6fc05108d2cb4b9619e1",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Katya Grigorovich",
+					"role": "qa",
+					"userid": "kgrigor"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "diana.urbanovich@landsend.com",
+					"issueGroups": [
+						"task-specific",
+						"proj-gen-qa",
+						"work-breakouts",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "038b86c5db1100507fe162405b96197f",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Diana Urbanovich",
+					"role": "qa",
+					"userid": "durbano"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "maksim.erashov@landsend.com",
+					"issueGroups": [
+						"task-specific",
+						"proj-gen-qa",
+						"work-breakouts",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "b8cde558db130c1095c944261b9619f6",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Maksim Erashov",
+					"role": "qa",
+					"userid": "merasho"
+				},
+				{
+					"capacities": [
+						{
+							"classificationCapacities": [
+								{
+									"classification": "11086 MOBILE REDESIGN 2020",
+									"hours": 0
+								},
+								{
+									"classification": "10705 - LANDSEND.COM SUPPORT",
+									"hours": 0
+								},
+								{
+									"classification": "10558 - RUN THE BUSINESS",
+									"hours": 0
+								},
+								{
+									"classification": "11076 - LECOM ALT PAYMENTS PROJECT WORK",
+									"hours": 0
+								},
+								{
+									"classification": "11125 - CREDIT CARD COMPLIANCE ENHANCEMENTS",
+									"hours": 0
+								},
+								{
+									"classification": "11166 - LECOM ENHANCEMENTS 2021",
+									"hours": 0
+								}
+							],
+							"date": "default"
+						}
+					],
+					"defaultChildClassification": "Testing",
+					"defaultClassification": "11157 - MOBILE MY ACCOUNT 2021",
+					"email": "vitaly.popkov@landsend.com",
+					"issueGroups": [
+						"task-specific",
+						"proj-gen-qa",
+						"work-breakouts",
+						"rtb",
+						"lookup"
+					],
+					"legacyTimeID": "e5787658db605bc05108d2cb4b9619bb",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Vitaly Popkov",
+					"role": "qa",
+					"userid": "vpopkov"
+				}
+			],
+			"workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate < '_ENDDATE_' and (_WORKLOGUSERQUERY_)"
+		},
+		{
+			"issueGroups": [
+				{
+					"JiraProjectKey": "DEVOPS",
+					"classSelect": true,
+					"key": "proj-task",
+					"minPercentage": 0,
+					"name": "Proj - Tasks",
+					"query": "project != LE-Internal AND ((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -1w AND 'Last Updater' = 'user.userid') or (worklogComment ~ 'user.userid' and worklogDate >= '_TIMECARDSTART_' and worklogDate < '_TIMECARDEND_')) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 2
+				},
+				{
+					"JiraProjectKey": "DEVOPS",
+					"classSelect": false,
+					"key": "proj-gen",
+					"minPercentage": 0,
+					"name": "Proj - General",
+					"query": "project = LE-Internal AND labels in (DEVOPS) AND ('Project - Subproject' is empty OR 'Project - Subproject' not in ('10705 - LandsEnd.com Support', '10345 - Administration', '10558 - Run the Business')) ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 3
+				},
+				{
+					"JiraProjectKey": "DEVOPS",
+					"classSelect": false,
+					"key": "sup",
+					"minPercentage": 0,
+					"name": "Support",
+					"query": "((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > startOfYear() and worklogComment ~ 'user.userid')) AND (Type = 'Problem' OR 'Project - Subproject' = '10705 - LandsEnd.com Support') OR (project = LE-Internal AND 'Project - Subproject' = '10705 - LandsEnd.com Support') ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 4
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"key": "rtb",
+					"minPercentage": 0,
+					"name": "Run The Business",
+					"query": "(((assignee was 'user.userid' and issueKey in IssueHistory()) or (updated >= -2w AND 'Last Updater' = 'user.userid') or (worklogDate > -4w and worklogComment ~ 'user.userid')) AND 'Project - Subproject' = '10558 - Run the Business') OR (project = LE-Internal AND 'Project - Subproject' = '10558 - Run the Business') ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 5
+				},
+				{
+					"JiraProjectKey": "LEIN",
+					"classSelect": false,
+					"key": "admin",
+					"minPercentage": 0,
+					"name": "Administration",
+					"query": "project = LE-Internal AND 'Project - Subproject' = '10345 - Administration' ORDER BY Project, 'Project - Subproject', issueKey",
+					"timePriority": 1
+				},
+				{
+					"JiraProjectKey": "DEVOPS",
+					"classSelect": false,
+					"key": "lookup",
+					"minPercentage": 0,
+					"name": "<div style='vertical-align:middle;color:red;display:inline-block;'>Don't see an issue you need? Enter it here:  _JIRAPROJECTKEY_-<input id='issue-id' type='text' style='width: 40px;'>_GOIMAGE_&nbsp;&nbsp;&nbsp;</div>",
+					"query": "issueKey in (_ISSUEKEYS_) ORDER BY issueKey"
+				}
+			],
+			"messages": {
+				"hoursChangeSuccess": "Success - _TIMEBEGIN_ for _TIMEENTRY_",
+				"hoursIncrements": "Must be a in quarter hour increments (.25, .5, .75)",
+				"hoursNumeric": "Sorry, must be numeric hours",
+				"hoursPositive": "Must be positive number",
+				"hoursTooMany": "You work too much!  Keep it under 16!",
+				"intro": "Enter time in 1/4 hour increments. If you do not see an issue you, enter it in the prompt at the end.",
+				"mixedStatuses": "This time card has mixed statuses. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_ = _STATUS_",
+				"statusChangeSuccess": "Success status changed from _FROM_ to _TO_",
+				"waiting": "Posting....",
+				"workLogConverted": "Manual worklog entry converted to Alvis time format. Issue: _ISSUE_ - WorkLog ID - _WORKLOG_"
+			},
+			"name": "DevOps",
+			"settings": {
+				"approvalNotification": {
+					"active": true,
+					"dayRangeHigh": 5,
+					"dayRangeLow": 12,
+					"frequency": 1,
+					"hourRangeHigh": 5,
+					"hourRangeLow": 12
+				},
+				"customFieldForClassification": "customfield_10901",
+				"dayHoursMax": 8,
+				"daysToHangOntoPriorWeek": 1,
+				"jiralink": "https://issues.landsend.com/jira/secure/RapidBoard.jspa?projectKey=DEVOPS&rapidView=159",
+				"maxHoursToSubmit": 999,
+				"minHoursToSubmit": 40,
+				"remainingEstimateField": "aggregatetimeestimate",
+				"timecardNotification": {
+					"active": true,
+					"dayRangeHigh": 5,
+					"dayRangeLow": 12,
+					"frequency": 1,
+					"hourRangeHigh": 5,
+					"hourRangeLow": 12
+				}
+			},
+			"titles": {
+				"close": "(close)",
+				"week": "Week Of",
+				"welcome": "Greetings"
+			},
+			"users": [
+				{
+					"daysToHangOntoPriorWeek": 2,
+					"email": "anton.cagle@landsend.com",
+					"maxHoursToSubmit": 40,
+					"name": "Anton Cagle",
+					"role": "admin",
+					"userid": "acagle"
+				},
+				{
+					"email": "sathya.nagaraj@landsend.com",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Sathya Nagaraj",
+					"role": "developer",
+					"userid": "snagara"
+				},
+				{
+					"email": "ishan.reddy@landsend.com",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Ishan Reddy",
+					"role": "developer",
+					"userid": "ireddy"
+				},
+				{
+					"email": "manisha.namburi@landsend.com",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Manisha Namburi",
+					"role": "developer",
+					"userid": "mnambur"
+				},
+				{
+					"email": "raul.sahotay@landsend.com",
+					"maxHoursToSubmit": 999,
+					"minHoursToSubmit": 0,
+					"name": "Rahul Sahotay",
+					"role": "developer",
+					"userid": "rsahota"
+				}
+			],
+			"workgroupTimeCardQuery": "worklogDate >= '_BEGINDATE_'  and worklogDate <= '_ENDDATE_' and (_WORKLOGUSERQUERY_)"
+		}
+	]
+}

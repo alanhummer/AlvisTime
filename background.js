@@ -40,14 +40,14 @@ function loadKeyAndOrg() {
     if (blnRemoteConfig) {
         //if we have the configuration laoded, use it.  Else abort, til next time
         console.log("Alvis Time: Loading key from storage");
-        chrome.storage.local.get("keyStorage", function(response) {
+        chrome.storage.local.get("orgKeyConfig", function(response) {
 
             //See if we got it or not
             if (response) {
-                if (response.keyStorage) {
+                if (response.orgKeyConfig) {
                     //We got it, let's d this
                     console.log("Alvis Time: Loading Org Key from cache");
-                    config = response.keyStorage;
+                    config = response.orgKeyConfig;
                     blnOrgKeyLoaded = true;
                     mainControlThread();  
                 }  
@@ -111,6 +111,8 @@ Main control thread - When we are set, do this routine
 function mainControlThread() { 
 
     console.log("Alvis Time: Config loaded and we are running. Config;", JSON.parse(JSON.stringify(config)));
+
+    console.log(" TEST 1 is: " + config.orgSettings);
     
     JIRA = JiraAPI(config.orgSettings.jiraBaseURI, config.orgSettings.jiraAPIExtension, "");
 

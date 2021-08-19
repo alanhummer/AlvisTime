@@ -2,6 +2,7 @@
 This JS is the main processing set - when DOM loaded, code is fired to get, display, process JIRA time entries
 ****************/ 
 var config;  //object that will hold all configuration options
+var configForShow; //for showing/managing config befure stuff gets added to it
 var workgroup; //easy reference for designated work group
 var user;  //easy reference for designated user
 var userToRun; //easy refence for who we are running this for
@@ -12,7 +13,6 @@ var version = "2021.05.01.1";
 //var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocation = "http://leusnudev01.leinternal.com:8080/utility";
 var orgKeyLocationFile = "";
-var orgKeyConfigFileName = "";
 
 //Setup for the date selection
 var range;
@@ -93,7 +93,6 @@ var defaultNoClassificationMessage = "No Classification Defined!";
 
 //For testing infiniate loop
 var totalDumps = 0;
-var unpackCount = 0;
 
 //Setup for our JIRA Object
 var JIRA;
@@ -168,13 +167,14 @@ function loadKeyAndOrg() {
                     else {
                         //We have an org key, get our configuration and all of the config parameters - data.orgKeya
                         //Get the JSON file and make sure it exists - need to figure out how to laod/host this
-                        orgKeyConfigFileName = data.orgKeya + "-" + encodeURIComponent(version) + ".json";
                         if (blnRemoteConfig) {
                             
-                            //Let get our config and start this thing                            
-                            orgKeyLocationFile = orgKeyLocation + "?action=fileget&filename=" + orgKeyConfigFileName;
-                            getConfigRemote(orgKeyLocationFile,  function(errRemote, responseRemote) { //Remote get
-                                getConfigLocal(function(errLocal, responseLocal) { //Local get
+                            //Let get our config and start this thing
+                            var configFileName = data.orgKeya + "-" + encodeURIComponent(version) + ".json";;
+                            var configURL = orgKeyLocation + "?action=fileget&filename=" + configFileName;
+
+                            getConfigRemote(configURL,  function(errRemote, responseRemote) { //Remote get
+                                getConfigLocal(configFileName,  function(errLocal, responseLocal) { //Local get
                                     if (errRemote != null) {
                                         console.log("Alvis Time: Get config error - ", JSON.parse(JSON.stringify(errRemote)));
     
@@ -207,20 +207,32 @@ function loadKeyAndOrg() {
                                             config = responseRemote;
                                         }
                                         else {
-                                            //Success - got from remote and local storage. Which one to use?
-                                            if (gConfigChanged) {
-                                                //We have local update pending - use it
-                                                config = responseLocal;
+                                            //Success - got from remote and local storage. If diff from remote, use it.
+                                            if (responseRemote.configTimestamp > responseLocal.configTimestamp) {
+                                                //Server has been updated, use it and update local storage 
+                                                config = responseRemote;
                                             }
                                             else {
-                                                //No update pending - use remote
-                                                config = responseRemote;
+                                                if (responseRemote.configTimestamp < responseLocal.configTimestamp) {
+                                                    //Local storage is update and is new - use it
+                                                    config = responseLocal;
+                                                    if (gConfigChanged) {
+                                                        //All good
+                                                    }             
+                                                    else {
+                                                        console.log("Alvis Time: Local is newer, but config changd flag false")
+                                                    }                                      
+                                                }
+                                                else {
+                                                    //Both are the same
+                                                    config = responseRemote;
+                                                }
                                             }
                                         }
 
-                                        //Save our config to local storage - overlaying...wrong answer
-                                        chrome.storage.local.set({orgKeyConfig: config});                    
-      
+                                        //Save our config to local storage
+                                        chrome.storage.local.set({"orgKeyConfig": config}, function () {});
+    
                                         //Compare versions - app vs configuration
                                         if (version && config.AlvisTime && config.AlvisTime.version) {
 
@@ -258,7 +270,7 @@ function loadKeyAndOrg() {
                         }
                         else {
                             //recent addition, put the orgkeys under the OrgKeys directory
-                            loadConfig("OrgKeys/" + orgKeyConfigFileName, function(response) { 
+                            loadConfig("OrgKeys/" + data.orgKeya + ".json", function(response) { 
                                 //See if it was bogus
                                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
                                     //Bogus
@@ -269,12 +281,13 @@ function loadKeyAndOrg() {
                                     //Get all of our config parameters
                                     orgKey = data.orgKeya;
                                     config = JSON.parse(response); 
- 
+                                    
                                     //Get it, so put listner on DOM loaded event
                                     mainControlThread();
                                 }
                             });
-                        }                        
+                        }
+                        configForShow = JSON.parse(JSON.stringify(config));
                     }
                 }
                 else {
@@ -319,20 +332,20 @@ function getNewOrgKey(inputValue, inputErr) {
 function updateOrgKey() {
     //Let's make sure it is valid
     if (document.getElementById("orgkey").value.length > 0) {
-        orgKeyConfigFileName =  document.getElementById("orgkey").value + "-" + encodeURIComponent(version) + ".json";
         if (blnRemoteConfig)  {
-            orgKeyLocationFile = orgKeyLocation + "?action=fileget&filename=" + orgKeyConfigFileName;
-            getConfigRemote(orgKeyLocationFile,  function(errRemote, responseRemote) { //Remote get
+            var configFileName = document.getElementById("orgkey").value + "-" + encodeURIComponent(version) + ".json";;
+            var configURL = orgKeyLocation + "?action=fileget&filename=" + configFileName;
+
+            getConfigRemote(configURL,  function(errRemote, responseRemote) { //Remote get
                 if (!errRemote) {
                     //All good, let proceed - clear all storage
                     chrome.storage.local.clear(function(result){console.log("Alvis Time: New Org Key - Flushed Storage:" + result)});
                     //Set our org key
                     chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
                     //Set our config
-                    config = responseRemote;    
-                    chrome.storage.local.set({orgKeyConfig: config}); 
-
-                    //And reload
+                    chrome.storage.local.set({"orgKeyConfig": responseRemote});
+                    configToShow = responseRemote;
+                    //And restart
                     window.location.reload(false); 
                 }
                 else {
@@ -342,7 +355,7 @@ function updateOrgKey() {
             });
         }
         else {
-            loadConfig("OrgKeys/" + orgKeyConfigFileName, function(response) { 
+            loadConfig("OrgKeys/" + document.getElementById("orgkey").value + ".json", function(response) { 
                 //See if it was bogus
                 if (response == null || typeof response === 'undefined' || response.length <= 0) {
                     //BogusM
@@ -354,9 +367,9 @@ function updateOrgKey() {
                     //Set our org key
                     chrome.storage.local.set({"orgKeya": document.getElementById("orgkey").value});
                     //Set our config
-                    config = response;
-                    chrome.storage.local.set({orgKeyConfig: config});
-
+                    chrome.storage.local.set({"orgKeyConfig": response});
+                    configToShow = response;
+ 
                     window.location.reload(false); 
                     //loadKeyAndOrg();
                 }
@@ -757,7 +770,7 @@ function showTimeCardSummary() {
     })
 
     //We have our calculted entries loaded - start fresh
-    //debugShowClassifications();
+    debugShowClassifications();
 
     //We have done all the muckety muck, result may have duplicates...let fix em
     classificationArray = consolidateDuplicateEntries(classificationArray);
@@ -925,13 +938,10 @@ function showTimeCardSummary() {
     })
 
     if (blnDidAllClassifications) 
-        document.getElementById("post-all-summary").src = "images/click-to-post-red.png";
+        document.getElementById("post-all-summary").src = "images/red_go_button.png";
 
     //Post times to legacy system
     document.getElementById("post-all-summary").addEventListener ("click", function(){ doAddToClassificationPostTimes(this, classificationArray)}); 
-
-    //MOve on to next user
-    document.getElementById("next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
 
     //Final fill buffer
     row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-class", "fill", "#99b3ff;", "3");
@@ -1471,7 +1481,6 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses('submit')}); 
     document.getElementById("reject-button").addEventListener ("click", function(){ updateWorklogStatuses('reject')}); 
-    document.getElementById("submit-next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
 
     //Change org button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey, false)}); 
@@ -1596,16 +1605,16 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     }); 
     //Configuration changed button
     document.getElementById("config-update").addEventListener ("click", function(){ 
-            saveConfigChange()
+            saveConfigChange(configForShow)
     }); 
     document.getElementById("config-update-config").addEventListener ("click", function(){ 
-        saveConfigChange()
+        saveConfigChange(configForShow)
     }); 
     document.getElementById("config-update-summary").addEventListener ("click", function(){ 
-        saveConfigChange()
+        saveConfigChange(configForShow)
     }); 
     document.getElementById("config-update-user").addEventListener ("click", function(){ 
-        saveConfigChange()
+        saveConfigChange(configForShow)
     }); 
 
     if (gConfigChanged) {
@@ -1618,7 +1627,7 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
 
     //Get User info
     JIRA.getUser()
-        .then(onUserSuccess, onNetworkError);
+        .then(onUserSuccess, onUserError);
 
 }
 
@@ -1714,11 +1723,9 @@ function onUserSuccess(response) {
         else 
             blnViewer = true;
 
-        if (blnAdmin) {
+        if (blnAdmin)
             document.getElementById('orgkeylocationfile').innerHTML =  orgKeyLocationFile;
-            console.log("Alvis Time: Config loaded: ", JSON.parse(JSON.stringify(config)));
-        }
-            
+
         //Admins get recent week
         if (blnAdmin)
             getWeek(recentOffset);
@@ -1934,9 +1941,9 @@ function getVersion() {
 
 
 /****************
-Fetch for file failed -
+Fetch for user failed -
 ****************/    
-function onNetworkError(error) {
+function onUserError(error) {
     console.log("Alvis Time: Failed to get user:");
     console.log(error);
     
@@ -1946,14 +1953,14 @@ function onNetworkError(error) {
     //Put it to you window instead
     if (error.status == 401) {
         alert("You are not logged into Jira.  Please login to resolve");
-        notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + error.request + "'>" + error.request + "</a>", "error");
+        notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + config.orgSettings.jiraBaseURI + "'>" + config.orgSettings.jiraBaseURI + "</a>", "error");
         openLink(config.orgSettings.jiraBaseURI);
         closeit();
         //Load JIR URL!
     }
     else if (error.statusText == 'Unknown Error') {
         alert("You are not on the network.  Please connect to the network and try again.");
-        notificationMessage("A network error occurred.  You must be on the network and have access to <br><br><br><a target='_new' href='" + error.request + "'>" + error.request + "</a>", "error");
+        notificationMessage("A network error occurred.  You must be on the network and have access to Jira at: <br><br><br><a target='_new' href='" + config.orgSettings.jiraBaseURI + "'>" + config.orgSettings.jiraBaseURI + "</a>", "error");
         closeit();
     }
     else {
@@ -1974,7 +1981,6 @@ function changeuser(inputUsername) {
             userToRun = workgroup.users[i];
             userDefaults(userToRun);
 
-            document.getElementById("user-selection").value = inputUsername;
             document.getElementById("user-selection").style.background = userToRun.timecardStatusColor;
         }
     }
@@ -3306,7 +3312,7 @@ function updateWorklogStatuses(inputAction) {
 
                     //Lets send an email
                     sendEmail(workgroup.settings.emailOnSubmitForApproval.subject + "Approved!", workgroup.settings.emailOnSubmitForApproval.message, workgroup.settings.emailOnSubmitForApproval.from, workgroup.settings.emailOnSubmitForApproval.to);
-
+ 
                 }
 
                 //Changed status, so reset everything
@@ -4436,8 +4442,8 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         if (findClassificationInPostedArray(issueClassification) || issueClassification.description == defaultNoClassificationMessage) {
             var classificationPostTime = buildHTML('img', "", {
                 class: imageClass,
-                src: "images/click-to-post-red-small.png",
-                height: "20px",
+                src: "images/red_go_button.png",
+                height: "25px",
                 id:  issueClassification.id + "+posttime",
                 style: "float: right;"
             });
@@ -4445,8 +4451,8 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
         else {
             var classificationPostTime = buildHTML('img', "", {
                 class:imageClass,
-                src: "images/click-to-post-small.png",
-                height: "20px",
+                src: "images/go_button.png",
+                height: "25px",
                 id:  issueClassification.id + "+posttime",
                 style: "float: right;"
             });
@@ -4468,7 +4474,7 @@ function generateTimecardSummaryRow(issueClassification, inputClass, inputType, 
 function doClassificationPostTime(inputImage, inputClassificationObject) {
 
 
-    inputImage.src = "images/click-to-post-red-small.png";
+    inputImage.src = "images/red_go_button.png";
 
     inputClassificationObject.legacyPostTime = true;
     postTime(inputClassificationObject);
@@ -4481,35 +4487,13 @@ function doAddToClassificationPostTimes(inputImage, inputClassificationObjects) 
     //We are busy
     togglePageBusy(true);
 
-    inputImage.src = "images/click-to-post-red.png";
+    inputImage.src = "images/red_go_button.png";
     addToPostTimes(inputClassificationObjects);
     
     togglePageBusy(false);
 
-
 }
 
-//Move on to the next user for posting
-function nextUser(inputImage) {
-        //Move on to the next person
-        togglePageBusy(true);
-        var blnDoNext = false;
-        for(var u=0;u<workgroup.users.length;u++) {        
-            if (blnDoNext) {
-                //Grab this user and reload
-                blnDoNext = false;
-                changeuser(workgroup.users[u].name);
-                togglePageBusy(false);
-                return;    
-            }
-            else {
-                if (workgroup.users[u].name == userToRun.name) {
-                    blnDoNext = true;
-                }
-            }
-        }
-        togglePageBusy(false);
-}
 
 //Find classification in our posted array
 function findClassificationInPostedArray(inputClassification) {
@@ -4735,7 +4719,7 @@ function showConfiguration() {
     //Grab out HTML element to feed and uncork our config object
     var configDetails = document.getElementById('config-details');
     configDetails.innerHTML = "Unloading the configuration object....";
-    configDetails.innerHTML = jsonUnpack(config, configKey);
+    configDetails.innerHTML = jsonUnpack(configForShow, configKey);
 
     //Now should put in all of our change handlers for the fields we added
     gChangeHandlers.forEach(function (changeToHandle) {
@@ -4745,23 +4729,15 @@ function showConfiguration() {
        
 }
 //Uncork the object
-function jsonUnpack(config, configKey) {
+function jsonUnpack(inputObject, configKey) {
 
     //Build our HTML to return
     var myResponse = "";
     var arrayKey = "";
     var arrayIndex = -1;
 
-    unpackCount = unpackCount + 1;
-    if (unpackCount > 1000) {
-        return;
-    }
-
-    console.log("SHOWING CONFIG: ", config);
-    console.log("KEY: " + configKey + " COUNT: " + unpackCount);
-
     //Given the object, parse out all of the fields - name/value pairs
-    for (let [key, value] of Object.entries(config)) {
+    for (let [key, value] of Object.entries(inputObject)) {
         if (Array.isArray(value)) {
             //For arrays, handle each element
             arrayIndex = -1;
@@ -4886,6 +4862,7 @@ function updateCapacity(inputItem) {
         //It is a delete
         var classifictionCapacitiesArray = arrayConfigLevels[4].replace("]", "[").split("[");;
         var iclassifictionCapacities = classifictionCapacitiesArray[1];
+        configForShow.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.splice(iclassifictionCapacities, 1);
         config.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.splice(iclassifictionCapacities, 1);
 
     }
@@ -4895,6 +4872,7 @@ function updateCapacity(inputItem) {
         var newClassificationHours = document.getElementById(inputItem.id + ".hours").value;
 
         var newClassificationCapacity = {"classification": newClassificationValue, "hours": newClassificationHours}
+        configForShow.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.push(newClassificationCapacity);
         config.workgroups[iWorkgroups].users[iUsers].capacities[iCapacities].classificationCapacities.push(newClassificationCapacity);
     }   
 
@@ -4915,10 +4893,9 @@ function handleConfigChange(inputItem) {
     configKey.path = "config";
    
     var arrayConfigLevels = inputItem.id.split("."); //refernece is object drill will dots as delimeter. ex: user.name
-
-    //Here we have config which is what we are using, and configForShow which is copy of config/held froze (not - we lost configForShow)
-    //Using the unchanged config for doing updates here, with the idea to burn to disk when done
+    var myConfigForShowObject = configForShow; //Using the unchanged config for doing updates here, with the idea to burn to disk when done
     var myRunningObject = config;
+
     for (var i = 0; i < arrayConfigLevels.length; i++) {
         if (i == 0) {
             //Skip it - is config
@@ -4938,7 +4915,7 @@ function handleConfigChange(inputItem) {
                 }
                 else {
                     blnDidaConfig = true;
-                    myObject = config[splitField];                 
+                    myObject = myConfigForShowObject[splitField];                 
                 }
 
                 myObject = myObject[splitIndex];
@@ -4975,7 +4952,7 @@ function handleConfigChange(inputItem) {
                         blnDidUpdate = true;
 
                         //Also lets update the core config, not just the copy for saving
-                        myRunningObject[arrayConfigLevels[i]] = setValue;    
+                        myRunningObject[arrayConfigLevels[i]] = setValue;
                     }
                 }
                 else {
@@ -4985,7 +4962,7 @@ function handleConfigChange(inputItem) {
                     }
                     else {
                         blnDidaConfig = true;
-                        myObject = config[arrayConfigLevels[i]];
+                        myObject = myConfigForShowObject[arrayConfigLevels[i]];
                     }                    
                     myRunningObject = myRunningObject[arrayConfigLevels[i]];
                 }
@@ -5005,10 +4982,10 @@ function handleConfigChange(inputItem) {
 }
 
 // Save off our config change
-function saveConfigChange() {
+function saveConfigChange(inputConfig) {
 
     //When click save button, invoke write contents to page and hidden download link gets clicked - like eamil download
-    downloadConfigFile(config);
+    downloadConfigFile(inputConfig);
 
     //Post updated config to config host
     //AJH HERE!
@@ -5040,15 +5017,11 @@ function configUpdateDisplay() {
     //We did a configuration change
     gConfigChanged = true;
     gConfigChangedThisSession = true;
-    config.AlvisTime.configTimestamp = TimeStamp(Date());
+    configForShow.AlvisTime.configTimestamp = TimeStamp(Date());
 
     //Set local storge flag as changed AND save config to local storage
     chrome.storage.local.set({"config-updated": true}, function () {});
-
-    //Load the config object
-    console.log("CHANGING CONFIG - HERE IS OUR PROBLEM - Unchecked runtime.lastError: QUOTA_BYTES quota exceeded: ", config);
-    chrome.storage.local.set({orgKeyConfig: config});   
-    console.log("CHANGED");
+    chrome.storage.local.set({"orgKeyConfig": configForShow}, function () {});
 
     //Enable a post button
     document.getElementById("configUpdate-user").style.display = 'inline-block';
@@ -5306,6 +5279,8 @@ function loadConfig(inputFileName, callback) {
 //For loading JSON file remotely - download a file
 function getConfigRemote(url, callback) {
 
+    console.log("AJH HERE WE GO: " + url);
+
     try {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
@@ -5313,6 +5288,7 @@ function getConfigRemote(url, callback) {
         xhr.addEventListener("error", transferFailed);
         xhr.onload = function() {
             var status = xhr.status;
+            console.log("RETURN STATUS: " + xhr.status);
             if (status == 200) {
                 //Got it, make sure is valid
                 if (xhr.response.AlvisTime) {
@@ -5342,33 +5318,32 @@ function getConfigRemote(url, callback) {
     function transferFailed(evt) {
          //Here we try local storage
         console.log("Alvis Time: An error occurred while transferring the file." + url);
-        var errorObject = {status: 200, statusText: "Unknown Error", request: url};
-        onNetworkError(errorObject);
-     }
+        callback(evt, null);
+    }
     
 };
 
 //For loading JSON locally - grab from local storage
-function getConfigLocal(callback) {
+function getConfigLocal(storageName, callback) {
     try {
-        chrome.storage.local.get("orgKeyConfig", function(data) {
+        chrome.storage.local.get(storageName, function(data) {
             if (data) {
                 if (data.AlvisTime) {
                     callback(null, data);  
                 }
                 else {
-                    console.log("Alvis Time: Failed to load config from local storage: " + "orgKeyConfig");
+                    console.log("Alvis Time: Failed to load config from local storage: " + storageName);
                     callback(data, null);
                 }
             }
             else {
-                console.log("Alvis Time: Failed to load config from local storage: " + "orgKeyConfig");
+                console.log("Alvis Time: Failed to load config from local storage: " + storageName);
                 callback(err, null);
             }
         });
     }
     catch(err) {
-        console.log("Alvis Time: Failed to load config from local storage: " + "orgKeyConfig");
+        console.log("Alvis Time: Failed to load config from local storage: " + storageName);
         callback(err, null);   
     }
 }
