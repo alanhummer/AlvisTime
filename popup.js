@@ -868,7 +868,12 @@ function showTimeCardSummary() {
         else {
             document.getElementById("postheader").style.display = 'none';
         }    
-    
+
+        if (!blnAdmin) {
+            document.getElementById("postapprove").style.display = 'none';
+            document.getElementById("nextuser").style.display = 'none';
+        }
+
         //Here is where the adjustment row goes
         //So, see if total hours sumbitted - adjusted hours is great than our max - if so, keep ofsetting
         if (classificationObject.postedTotal < classificationObject.totalTotal) {
@@ -931,7 +936,9 @@ function showTimeCardSummary() {
     document.getElementById("post-all-summary").addEventListener ("click", function(){ doAddToClassificationPostTimes(this, classificationArray)}); 
 
     //MOve on to next user
-    document.getElementById("next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
+    if (blnAdmin) {
+        document.getElementById("next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
+    }
 
     //Final fill buffer
     row = generateTimecardSummaryRow(classificationTotalsObject, "timecard-summary-class", "fill", "#99b3ff;", "3");
@@ -1471,7 +1478,9 @@ function mainControlThread() { // BUG: If > 1 time thru (change dorgs) then thes
     //Workflow button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("submit-image").addEventListener ("click", function(){ updateWorklogStatuses('submit')}); 
     document.getElementById("reject-button").addEventListener ("click", function(){ updateWorklogStatuses('reject')}); 
-    document.getElementById("submit-next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
+    if (blnAdmin) {
+        document.getElementById("submit-next-user-image").addEventListener ("click", function(){ nextUser(this)}); 
+    }
 
     //Change org button - anchor, image, div - different ways to do this..here I'll drive div w/eventlistener
     document.getElementById("change-org-image").addEventListener ("click", function(){ getNewOrgKey(orgKey, false)}); 
