@@ -11,6 +11,7 @@ var userIssueGroups = []; //used to store the selected set of issue groups the u
 var version = "2021.05.01.1";
 //var orgKeyLocation = "https://raw.githubusercontent.com/alanhummer/AlvisTimeOrgKeys/master/";
 var orgKeyLocation = "http://leusnudev01.leinternal.com:8080/utility";
+var orgKeyLocation2 = "https://issues.landsend.com/jira/secure/attachment/87619/";
 var orgKeyLocationFile = "";
 var orgKeyConfigFileName = "";
 
@@ -170,9 +171,15 @@ function loadKeyAndOrg() {
                         //Get the JSON file and make sure it exists - need to figure out how to laod/host this
                         orgKeyConfigFileName = data.orgKeya + "-" + encodeURIComponent(version) + ".json";
                         if (blnRemoteConfig) {
-                            
-                            //Let get our config and start this thing                            
-                            orgKeyLocationFile = orgKeyLocation + "?action=fileget&filename=" + orgKeyConfigFileName;
+
+                            //Let get our config and start this thing
+                            if (orgKeyLocation != orgKeyLocation2) {
+                                orgKeyLocationFile = orgKeyLocation + "?action=fileget&filename=" + orgKeyConfigFileName;
+                            }
+                            else {
+                                orgKeyLocationFile = orgKeyLocation + orgKeyConfigFileName;
+                            }
+
                             getConfigRemote(orgKeyLocationFile,  function(errRemote, responseRemote) { //Remote get
                                 getConfigLocal(function(errLocal, responseLocal) { //Local get
                                     if (errRemote != null) {
@@ -180,13 +187,16 @@ function loadKeyAndOrg() {
     
                                         //We do not have an org key, get one
                                         switch(errRemote) {
-                                            case 503: //Saturday
+                                            case 500: 
+                                                orgKeyMessage("A network error occured. You are not on the network or do not have acccess.", "error")
+                                                break;
+                                            case 503: 
                                                 orgKeyMessage("Could not retrieve organization key at this time. Please check your key and try again or try back later.", "error")
                                                 break;
-                                            case 404: //Sunday
+                                            case 404: 
                                                 orgKeyMessage("Could not find this organization key. Please try again.", "error")
                                                 break;
-                                            case 401: //Monday
+                                            case 401: 
                                                 orgKeyMessage("You are not authorized to access this key.  Please try again.", "error")
                                                 break;
                                             default:
@@ -220,7 +230,7 @@ function loadKeyAndOrg() {
 
                                         //Save our config to local storage - overlaying...wrong answer
                                         chrome.storage.local.set({orgKeyConfig: config});                    
-      
+        
                                         //Compare versions - app vs configuration
                                         if (version && config.AlvisTime && config.AlvisTime.version) {
 
@@ -253,7 +263,7 @@ function loadKeyAndOrg() {
                                             mainControlThread();                                                      
                                         }
                                     }
-                                });    
+                                });                                        
                             });
                         }
                         else {
@@ -1956,7 +1966,9 @@ function onNetworkError(error) {
     if (error.status == 401) {
         alert("You are not logged into Jira.  Please login to resolve");
         notificationMessage("You are not logged into Jira.  Please login to resolve: <br><br><br><a target='_new' href='" + error.request + "'>" + error.request + "</a>", "error");
-        openLink(config.orgSettings.jiraBaseURI);
+        if (config) {
+            openLink(config.orgSettings.jiraBaseURI);
+        }
         closeit();
         //Load JIR URL!
     }
@@ -5324,13 +5336,20 @@ function getConfigRemote(url, callback) {
             var status = xhr.status;
             if (status == 200) {
                 //Got it, make sure is valid
-                if (xhr.response.AlvisTime) {
-                    //Need to store key and the value, not just URL = 
-                    callback(null, xhr.response);
+                if (xhr.response) {
+                    if (xhr.response.AlvisTime) {
+                        //Need to store key and the value, not just URL = 
+                        callback(null, xhr.response);
+                    }
+                    else {
+                        console.log("Alvis Time: Failed to load config: " + url);
+                        callback(xhr, null);                       
+                    }
                 }
                 else {
                     console.log("Alvis Time: Failed to load config: " + url);
-                    callback(xhr, null);                       
+                    var errorObject = {status: 401, statusText: "Unknown Error", request: url};          
+                    onNetworkError(errorObject);
                 }
 
             } else {
@@ -5349,12 +5368,12 @@ function getConfigRemote(url, callback) {
     }
 
     function transferFailed(evt) {
-         //Here we try local storage
-        console.log("Alvis Time: An error occurred while transferring the file." + url);
-        var errorObject = {status: 200, statusText: "Unknown Error", request: url};
-        onNetworkError(errorObject);
-     }
-    
+        //Here we try local storage
+       console.log("Alvis Time: An error occurred while transferring the file." + url);
+       var errorObject = {status: 200, statusText: "Unknown Error", request: url};
+       onNetworkError(errorObject);
+    }
+
 };
 
 //For loading JSON locally - grab from local storage
@@ -5415,8 +5434,12 @@ function initializeApp() {
                         recentPage = data3["recentPage"];
                     }
                 }
-                //All done, do key and org next    
-                loadKeyAndOrg();
+
+                //Determine Org Key location and update it if needed then load the org config
+                setOrgKeyLocation(function() {
+                    loadKeyAndOrg();
+                });
+
             });
         });
     });
@@ -6288,6 +6311,45 @@ function userDefaults(inputUser) {
         userIssueGroups = workgroup.issueGroups;
     }
 
+
+
+}
+
+//If in Belarus, may need org key from jira
+function setOrgKeyLocation(callback) {
+
+    var url = orgKeyLocation + "?action=fileget&filename=alvistime-version.json";
+
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'json';
+        xhr.addEventListener("error", transferFailed);
+        xhr.onload = function() {
+            var status = xhr.status;
+            if (status == 200) {
+                console.log("Alvis Time: Got key location at " + url + " with version = " + xhr.response.AlvisTime.version)
+            } else {
+                console.log("Alvis Time: Failed to load config: " + url);
+                orgKeyLocation = orgKeyLocation2;
+            }
+            callback();
+        };        
+        xhr.send();       
+    }
+    catch(err) {
+        //Took error, so revert to jira location
+        console.log("Alvis Time: Exception in load of config: " + url);
+        orgKeyLocation = orgKeyLocation2;
+        callback();
+    }
+
+    function transferFailed(evt) {
+        //Took error, so revert to jira location
+        console.log("Alvis Time: Transfer failed in load of config: " + url);
+        orgKeyLocation = orgKeyLocation2;
+        callback();
+    }
 
 
 }
