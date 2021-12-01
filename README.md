@@ -1,4 +1,4 @@
-# Alvis Time - Jira Time Log! August 2021 Edition!
+# Alvis Time - Jira Time Log! December 2021 Edition!
 
 This Chrome Extenison will interface to a Jira instance via REST API's and based on on your recent work activity, build a time-card interface so you can enter all of your time for the week directly into Jira.
 
