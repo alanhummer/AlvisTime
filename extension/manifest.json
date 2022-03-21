@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Jira Time",
-  "description": "Build an Extension!",
+  "description": "Wrapper for jiratime.dev",
   "version": "0.0.1",
   "action": {
-    "default_popup": "/popup.html"
+    "default_popup": "/index.html"
   }
 }
