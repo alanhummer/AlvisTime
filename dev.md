@@ -30,6 +30,7 @@ So, with that out of the way...
 
 There are a few moving parts
 - The Chrome extension wrapper itself that is literally just a popup with an `<iframe src=jiratime.dev>`
+    - Also provides a `postMessage()` to the framed window which has the extension-specific config file URL so that jiratime.dev can update/init its local storage. Why? This should (in theory) allow for persisting the user choice across cookie purges and other "Clear my history" actions. As a side-effect, this _might_ also allow orgs to configure managed Chrome/ChromeOS installations to already have a URl that the extension points to? Unsure about how this aspect works.
 - jiratime.dev which hosts a frontend interface to JIRA issues based on a locally stored URL that points to a remote config file
     - This config file is mutable! That means you can change the config of a bunch of your users (and they should be _your users_ if they are using your config URL!) at once!
 - The config WebDAV server (or static file server) that is hosted per-organization
