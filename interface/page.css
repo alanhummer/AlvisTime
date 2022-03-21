@@ -1,0 +1,28 @@
+/* Thanks to ffoodd's Gist: https://t.ly/oyN0 */
+/* @import url("https://cdn.statically.io/gist/ffoodd/000b59f431e3e64e4ce1a24d5bb36034/raw/72907aec62cedf76be2ec91370b59c91315c9262/style.css"); */
+
+/* Basic temp styles */
+@import url("https://cdn.jsdelivr.net/npm/water.css@2/out/water.css");
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+/* water.css interacts terribly with the <input>s being almost invisible! */
+table input {
+	width: 100%;
+	background-color: white;
+	color: black;
+}
+
+label {
+	display: block;
+	margin: 0;
+	padding: 0;
+}
+
+input.wide {
+	width: 100%;
+}
