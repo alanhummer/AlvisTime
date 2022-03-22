@@ -27,8 +27,17 @@ export function App() {
 		console.debug(`JQL query issues returned ${response.status} {json}`, json)
 	})
 
+	if (isError) {
+		return html`
+			<p>Error! ${error.message}</p>
+			<p>Check DevTools for more info</p>
+		`
+	}
+
 	if (isLoading) {
 		return html`
+			<p>Loading...</p>
+		`
 	}
 	
 	return html`
