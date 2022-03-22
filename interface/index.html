@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+	There are two states that this page can be in when it loads:
+	1. The user is a brand new user who has not signed in to the Jira OAuth flow yet
+	2. The user already has a token stored in localStorage and wants to view a timecard
+-->
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -6,88 +11,13 @@
 		<title>Static Template</title>
 
 		<link rel="stylesheet" href="./page.css" />
+		<script type="module" src="./switch.js"></script>
 	</head>
 	<body>
-		<h1>UI Mockup</h1>
-		<table>
-			<tbody>
-				<tr>
-					<td></td>
-					<th>Monday</th>
-					<th>Tuesday</th>
-					<th>Wednesday</th>
-					<th>Thursday</th>
-					<th>Friday</th>
-					<th>Saturday</th>
-					<th>Sunday</th>
-				</tr>
-				<tr>
-					<form action="about:blank">
-						<th>Jira #1</th>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Monday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Tuesday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Wednesday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Thursday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Friday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Saturday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-						<td class="field">
-							<label>
-								<span class="label sr-only">Sunday</span>
-								<input name="monday" type="number" />
-							</label>
-						</td>
-					</form>
-				</tr>
-			</tbody>
-		</table>
-
-		<!-- Ugly hack -->
-		<br />
-		<br />
-		<br />
-		<br />
-		<br />
-		<br />
-		<br />
-
-		<h2>JIRA Host Instance</h2>
-		<form action="about:blank">
-			<div class="field">
-				<label>
-					<span class="label">URL</span>
-					<input class="wide" name="url" type="url" placeholder="https://example.org/JIRA_endpoint" />
-				</label>
-			</div>
-		</form>
+		<noscript>
+			<p class="warning">
+				For full functionality of this site you need to <a href="https://enable-javascript.com/">enable JavaScript</a>
+			</p>
+		</noscript>
 	</body>
 </html>

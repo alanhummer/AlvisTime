@@ -1,0 +1,67 @@
+<!doctype html>
+<!-- Nothing needs to be done here except set some localStorage vars and the redirect back to home -->
+<script type="module">
+	addEventListener("error", (event) => {
+		document.querySelector(`#error`).style = "display: block;"
+	})
+
+	// Get these from Atlassian dashboard
+	const app_id = `oJVcDRDhmFOnfsj2FLTJ9kE10vVUd7iK`
+	const app_secret = `gaDKTDCvLXCi3WIyc_FppBTaEYnLMcEVpgDnPxq4GzcCTbB0zsx0inqdnpeZPzMO`
+	
+	const url = new URL(location)
+	const code = url.searchParams.get("code")
+	if (localStorage.getItem("uuid") !== url.searchParams.get("state")) {
+		throw new Error(`UUID from localStorage (${localStorage.getItem("uuid")}) does NOT EQUAL UUID from response (${url.searchParams.get("state")})! That means something is wrong!`)
+	}
+
+	// Transform code into an access token
+	const { token, expires } = await (async () => {
+		const url = `https://auth.atlassian.com/oauth/token`
+		const method = "POST"
+		const headers = [[`content-type`, `application/json`]]
+		const body = JSON.stringify({
+			grant_type: "authorization_code",
+			client_id: app_id,
+			client_secret: app_secret,
+			code: new URL(location).searchParams.get("code"),
+			redirect_uri: location.toString(),
+		})
+
+		const response = await fetch(url, { method, headers, body })
+		const json = await response.json()
+		console.debug(`Got {json}`, json)
+
+		const token = json.access_token
+		const expires = new Date(Date.now() + json.expires_in * 1000)
+		localStorage.setItem(`atlassian_token`, JSON.stringify({ token, expires }))
+		return { token, expires }
+	})()
+
+	const cloudid = await (async () => {
+		const url = `https://api.atlassian.com/oauth/token/accessible-resources`
+		const headers = [
+			[`authorization`, `Bearer ${token}`],
+			[`accept`, `application/json`]
+		]
+		const response = await fetch(url, { headers })
+		const json = await response.json()
+
+		// Apparently there can be MULTIPLE hosted Atlassian sites associated with a single user? Or else why
+		// is this an array?
+		console.debug(`CloudID query returned {json}`, json)
+		localStorage.setItem(`atlassian_cloudid`, JSON.stringify(json[0]))
+
+		return json[0].id
+	})()
+	console.debug(`Token: ${token} ${expires} cloudid: ${cloudid}`)
+
+	console.debug(`Going BACK to HOMEPAGE`)
+	location.replace(`./`)
+</script>
+
+<div id="error" style="display: none;">
+	<p>
+		If this appears, that means an error occured! Check the <kbd>DevTools ➡ Console</kbd> for more details.
+	</p>
+</div>
