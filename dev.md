@@ -12,10 +12,10 @@ If you are a user, you might be better seved by [`readme.md`](./readme.md)!
 
 ### Mockup UI
 
-Tables
+Tables<br>
 ![](https://i.imgur.com/OAIjZ5J.png)
 
-Choose your JIRA host
+Choose your JIRA host<br>
 ![](https://i.imgur.com/vCdKO6H.png)
 
 ## How it Works
