@@ -25,18 +25,20 @@ export function App() {
 		const response = await fetch(url, { method, headers, body })
 		const json = await response.json()
 		console.debug(`JQL query issues returned ${response.status} {json}`, json)
+
+		return json
 	})
 
 	if (isError) {
 		return html`
-			<p>Error! ${error.message}</p>
-			<p>Check DevTools for more info</p>
+			<p>Error! ${error.message}</>
+			<p>Check DevTools for more info</>
 		`
 	}
 
 	if (isLoading) {
 		return html`
-			<p>Loading...</p>
+			<p>Loading...</>
 		`
 	}
 	
@@ -46,11 +48,12 @@ export function App() {
 		<p>Your CloudID is <code>${cloudid}</></>
 		<p>List of issues:</>
 		<ul>
-			${data.map((issue) => html`<li>
-				${issue}
-			</>`)}
+			<li>Check DevTools</>
 		</>
 	`
+	// ${data.map((issue) => html`<li>
+	// ${issue}
+	// </>`)}
 }
 
 function oauth() {
