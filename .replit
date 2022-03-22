@@ -1,0 +1,5 @@
+language = "nix"
+run = "./dev.sh"
+
+[nix]
+channel = "unstable"
