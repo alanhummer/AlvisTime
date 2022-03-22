@@ -1,3 +1,5 @@
+const app_id = `oJVcDRDhmFOnfsj2FLTJ9kE10vVUd7iK`
+
 // Sets a UUID at all times
 import { v4 as uuid_v4 } from "https://esm.sh/uuid"
 
@@ -19,16 +21,21 @@ if (!localStorage.getItem(`atlassian_token`)) {
 		https://auth.atlassian.com/authorize
 			?audience=api.atlassian.com
 			&client_id=${app_id}
-			&scope=read%3Aissue%3Ajira
+			&scope=read%3Aissue%3Ajira%20read%3Aissue-details%3Ajira%20read%3Afield%3Ajira%20read%3Afield.option%3Ajira%20read%3Agroup%3Ajira%20read%3Afield.default-value%3Ajira%20read%3Afield.options%3Ajira
 			&redirect_uri=${encodeURIComponent(callback_url)}
 			&state=${uuid}
 			&response_type=code
 			&prompt=consent
 	`.replace(/\r?\n/mguid, "").replace(/\s/mguid, "")
+	//https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=oJVcDRDhmFOnfsj2FLTJ9kE10vVUd7iK&scope=read%3Aissue%3Ajira%20read%3Aissue-details%3Ajira%20read%3Afield%3Ajira%20read%3Afield.option%3Ajira%20read%3Agroup%3Ajira%20read%3Afield.default-value%3Ajira%20read%3Afield.options%3Ajira&redirect_uri=https%3A%2F%2Fjiratime.jcbhmr.repl.co%2Fcallback.html&state=${YOUR_USER_BOUND_VALUE}&response_type=code&prompt=consent
 
 	console.debug(`Navigating to URL ${url}`)
 	location.assign(url)
+	throw new Error(`Stop here`)
 }
+
+const { token, expires } = JSON.parse(localStorage.getItem(`atlassian_token`)) 
+const { id: cloudid } = JSON.parse(localStorage.getItem(`atlassian_cloudid`))
 
 async function do_jql() {
     const url = `https://api.atlassian.com/ex/jira/${cloudid}/rest/api/3/search`
